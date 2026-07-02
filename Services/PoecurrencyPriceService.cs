@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
 using System.Net.Http;
 using System.Text.Json;
@@ -13,7 +14,16 @@ public class PoecurrencyPriceService : IPriceService
 {
     private const string DefaultSummaryUrl = "https://poecurrency.top/api/summary?version=2";
     private const string ValidateSummaryUrlFormat = "https://poecurrency.top/api/summary_validate?token={0}&version=2";
+    // db/price 接口：hours=24 取 24 小时数据，version=2 指定 POE2，currency_unit 按物品单位传入。
+    private const string DbPriceUrlFormat = "https://poecurrency.top/api/db/price?item_name={0}&category_label={1}&hours=24&currency_unit={2}&version=2";
     private readonly HttpClient _httpClient;
+
+    /// <summary>db/price 接口并发限制（5 个并发，避免触发限流）。</summary>
+    private static readonly SemaphoreSlim DbPriceRateLimiter = new(5, 5);
+
+    /// <summary>db/price 价格缓存，30 分钟过期，避免同次刷新重复请求。</summary>
+    private static readonly ConcurrentDictionary<string, (decimal price, DateTime cachedAt, string currencyUnit)> DbPriceCache = new();
+    private static readonly TimeSpan DbPriceCacheExpiry = TimeSpan.FromMinutes(30);
 
     public string DataSourceLabel => "poecurrency.top (国服)";
     public bool IsChina => true;
@@ -56,7 +66,10 @@ public class PoecurrencyPriceService : IPriceService
         var root = document.RootElement;
 
         var summary = NormalizeSummary(root);
-        return BuildItems(summary);
+        // 仅当使用无 token 的公共 summary 接口时，才需要对 HasError 物品走 db/price 修复。
+        // summary_validate 接口（有 token）已过滤异常数据，无需二次修复。
+        var useValidate = !string.IsNullOrWhiteSpace(token);
+        return await BuildItemsAsync(summary, useValidate, cancellationToken);
     }
 
     /// <summary>
@@ -140,13 +153,239 @@ public class PoecurrencyPriceService : IPriceService
         return categories;
     }
 
-    private static ObservableCollection<PoecurrencyItem> BuildItems(List<PoecurrencyCategory> categories)
+    /// <summary>
+    /// 对异常物品调用 api/db/price 获取 24 小时明细，过滤离群点后取 sell1 中位数作为修复价。
+    /// 仅对 HasError 的物品触发。返回 (价格, 来源, 货币单位)。参考 agent/价格修复方案.md。
+    /// currencyUnit 按物品原始单位传入（d/c/e），用于接口查询指定计价货币。
+    /// </summary>
+    private async Task<(decimal price, string source, string currencyUnit)?> RepairPriceFromDbPriceAsync(
+        string itemName, string categoryLabel, string currencyUnit, CancellationToken ct)
+    {
+        var cacheKey = $"{categoryLabel}/{itemName}/{currencyUnit}";
+        if (DbPriceCache.TryGetValue(cacheKey, out var cached)
+            && DateTime.Now - cached.cachedAt < DbPriceCacheExpiry)
+        {
+            return (cached.price, "db_price_median_24h_cached", cached.currencyUnit);
+        }
+
+        await DbPriceRateLimiter.WaitAsync(ct);
+        try
+        {
+            // 接口 currency_unit 只接受 d/c，e 单位的物品按 e 查询（接口可能默认返回 d）。
+            var queryUnit = string.IsNullOrEmpty(currencyUnit) ? "d" : currencyUnit;
+            var url = string.Format(DbPriceUrlFormat,
+                Uri.EscapeDataString(itemName),
+                Uri.EscapeDataString(categoryLabel),
+                Uri.EscapeDataString(queryUnit));
+
+            using var resp = await _httpClient.GetAsync(url, ct);
+            if (!resp.IsSuccessStatusCode)
+            {
+                AppLogger.Instance.Warn($"db/price 请求失败：{(int)resp.StatusCode} item={itemName}");
+                return null;
+            }
+
+            await using var stream = await resp.Content.ReadAsStreamAsync(ct);
+            using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
+
+            var (price, filteredCount, validatedCount, median, dbCurrencyUnit) =
+                SelectSellPriceFromDbRecords(doc.RootElement);
+
+            if (price > 0)
+            {
+                // 优先用 db/price 返回的货币单位（更准确），回退到入参的单位。
+                var finalUnit = !string.IsNullOrEmpty(dbCurrencyUnit) ? dbCurrencyUnit : currencyUnit;
+                DbPriceCache[cacheKey] = (price, DateTime.Now, finalUnit);
+                AppLogger.Instance.Info(
+                    $"价格修复：item={itemName}, category={categoryLabel}, " +
+                    $"修复价={price}, source=db_price_median_24h, unit={finalUnit}, " +
+                    $"过滤后={filteredCount}条, validated={validatedCount}条, 中位数={median}");
+                return (price, "db_price_median_24h", finalUnit);
+            }
+
+            AppLogger.Instance.Warn($"db/price 过滤后无有效数据：item={itemName}");
+            return null;
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Instance.Warn($"db/price 修复异常：item={itemName}, {ex.Message}");
+            return null;
+        }
+        finally
+        {
+            DbPriceRateLimiter.Release();
+        }
+    }
+
+    /// <summary>
+    /// 解析 db/price 返回的 24 小时明细，3 层过滤后按优先级选取 sell1 中位数。
+    /// 返回 (最终价格, 过滤后记录数, validated 记录数, 中位数, 货币单位)。
+    /// 货币单位取第一条有效记录的 currency_unit（同一物品 24 小时内单位应一致）。
+    /// </summary>
+    private static (decimal price, int filteredCount, int validatedCount, decimal median, string currencyUnit)
+        SelectSellPriceFromDbRecords(JsonElement root)
+    {
+        if (root.ValueKind != JsonValueKind.Array)
+        {
+            return (0, 0, 0, 0, "");
+        }
+
+        // 解析所有记录
+        var records = new List<(decimal sell1, decimal vol, bool validated, DateTime time)>();
+        string currencyUnit = "";
+        foreach (var el in root.EnumerateArray())
+        {
+            var sell1 = GetDecimal(el, "sell1");
+            var vol = GetDecimal(el, "sell1_vol");
+            var validated = GetBool(el, "validated");
+            var dtStr = GetString(el, "datetime");
+            var dt = DateTime.TryParse(dtStr, out var t) ? t : DateTime.MinValue;
+
+            // 第 1 层：基础有效性过滤
+            if (sell1 > 0 && vol > 0)
+            {
+                records.Add((sell1, vol, validated, dt));
+                // 取第一条有效记录的 currency_unit（同物品单位应一致）
+                if (string.IsNullOrEmpty(currencyUnit))
+                {
+                    currencyUnit = GetString(el, "currency_unit")?.Trim().ToLowerInvariant() ?? "";
+                }
+            }
+        }
+
+        if (records.Count == 0)
+        {
+            return (0, 0, 0, 0, "");
+        }
+
+        // 第 2 层：基于中位数过滤离群点（偏离中位数 >3x 的丢弃）
+        var median1 = Median(records.Select(r => r.sell1).OrderBy(x => x).ToList());
+        records = records
+            .Where(r => r.sell1 >= median1 / 3m && r.sell1 <= median1 * 3m)
+            .ToList();
+
+        if (records.Count == 0)
+        {
+            return (0, 0, 0, 0, currencyUnit);
+        }
+
+        // 重新计算过滤后的中位数 M'（更稳健的基准）
+        var median2 = Median(records.Select(r => r.sell1).OrderBy(x => x).ToList());
+
+        // 第 3 层：可信度过滤
+        var validatedRecords = records.Where(r => r.validated).ToList();
+        var filteredRecords = new List<(decimal sell1, decimal vol, bool validated, DateTime time)>();
+
+        foreach (var r in records)
+        {
+            if (r.validated)
+            {
+                // 高可信：保留
+                filteredRecords.Add(r);
+            }
+            else if (r.sell1 >= median2 * 0.7m && r.sell1 <= median2 * 1.3m)
+            {
+                // 中可信：validated=0 但在中位数 ±30% 内，保留
+                filteredRecords.Add(r);
+            }
+            else if (r.vol < 3 && (r.sell1 < median2 * 0.5m || r.sell1 > median2 * 1.5m))
+            {
+                // 离群少量挂单：丢弃（典型污染源）
+                continue;
+            }
+            else
+            {
+                // validated=0 且偏离中位数 > 30%：丢弃
+                continue;
+            }
+        }
+
+        if (filteredRecords.Count == 0)
+        {
+            return (0, 0, 0, 0, currencyUnit);
+        }
+
+        // 按优先级选取 sell1 作为最终价格
+        List<decimal> candidates;
+        string source;
+
+        // 优先级 1：最近 6 小时 validated=1 记录
+        var recentValidated = filteredRecords
+            .Where(r => r.validated && r.time > DateTime.Now.AddHours(-6))
+            .ToList();
+        if (recentValidated.Count >= 3)
+        {
+            candidates = recentValidated.Select(r => r.sell1).ToList();
+            source = "db_price_recent6h_validated_median";
+        }
+        // 优先级 2：全部 validated=1 记录
+        else if (validatedRecords.Count >= 3)
+        {
+            candidates = validatedRecords.Select(r => r.sell1).ToList();
+            source = "db_price_validated_median";
+        }
+        // 优先级 3：过滤后全部记录
+        else if (filteredRecords.Count >= 3)
+        {
+            candidates = filteredRecords.Select(r => r.sell1).ToList();
+            source = "db_price_filtered_median";
+        }
+        // 优先级 4：过滤后记录几何均值（< 3 条）
+        else
+        {
+            candidates = filteredRecords.Select(r => r.sell1).ToList();
+            source = "db_price_filtered_geomean";
+        }
+
+        var finalPrice = candidates.Count >= 3
+            ? Median(candidates.OrderBy(x => x).ToList())
+            : GeoMean(candidates);
+
+        return (finalPrice, filteredRecords.Count, validatedRecords.Count, median2, currencyUnit);
+    }
+
+    /// <summary>计算排序后列表的中位数。</summary>
+    private static decimal Median(List<decimal> sorted)
+    {
+        if (sorted.Count == 0) return 0;
+        var mid = sorted.Count / 2;
+        return sorted.Count % 2 == 0
+            ? (sorted[mid - 1] + sorted[mid]) / 2m
+            : sorted[mid];
+    }
+
+    /// <summary>计算多个价格值的几何均值（用于过滤后记录数 < 3 时的回退）。</summary>
+    private static decimal GeoMean(List<decimal> values)
+    {
+        if (values.Count == 0) return 0;
+        if (values.Count == 1) return values[0];
+        if (values.Count == 2) return GeoMean(values[0], values[1]);
+
+        double logSum = 0;
+        int count = 0;
+        foreach (var v in values)
+        {
+            if (v > 0)
+            {
+                logSum += Math.Log((double)v);
+                count++;
+            }
+        }
+        return count > 0 ? (decimal)Math.Exp(logSum / count) : 0;
+    }
+
+    private async Task<ObservableCollection<PoecurrencyItem>> BuildItemsAsync(
+        List<PoecurrencyCategory> categories,
+        bool useValidate,
+        CancellationToken cancellationToken)
     {
         var result = new ObservableCollection<PoecurrencyItem>();
 
         // 先推导神圣石/崇高石换算比例。
         // 国服 poecurrency.top 中 Divine Orb 以 E 标价时，其价格即为 D/E 比例。
         decimal divineExaltedRatio = 0;
+        // 同时推导混沌石/崇高石换算比例（C→E），用于以 c 计价的物品换算。
+        decimal chaosExaltedRatio = 0;
         foreach (var category in categories)
         {
             foreach (var raw in category.Items)
@@ -159,8 +398,36 @@ public class PoecurrencyPriceService : IPriceService
                         divineExaltedRatio = price;
                     }
                 }
+                else if (IsChaos(raw.Name))
+                {
+                    var chaosUnit = GetUnit(raw);
+                    var chaosPrice = ChooseSimplePrice(raw);
+                    if (chaosPrice > 0)
+                    {
+                        if (chaosUnit == "e")
+                        {
+                            // 混沌石以崇高石计价：1 c = chaosPrice e
+                            if (chaosPrice > chaosExaltedRatio)
+                            {
+                                chaosExaltedRatio = chaosPrice;
+                            }
+                        }
+                        else if (chaosUnit == "d" && divineExaltedRatio > 0)
+                        {
+                            // 混沌石以神圣石计价：1 c = chaosPrice d = chaosPrice * divineExaltedRatio e
+                            var chaosExalted = chaosPrice * divineExaltedRatio;
+                            if (chaosExalted > chaosExaltedRatio)
+                            {
+                                chaosExaltedRatio = chaosExalted;
+                            }
+                        }
+                    }
+                }
             }
         }
+
+        AppLogger.Instance.Info(
+            $"货币换算比例：D→E={divineExaltedRatio}, C→E={chaosExaltedRatio}");
 
         foreach (var category in categories)
         {
@@ -168,6 +435,30 @@ public class PoecurrencyPriceService : IPriceService
             {
                 var unit = GetUnit(raw);
                 var (price, source) = ComputePrice(raw, unit, divineExaltedRatio);
+
+                // 触发修复：仅当使用无 token 的公共 summary 接口（useValidate=false）
+                // 且物品 HasError 时，才调用 api/db/price 获取 24 小时明细重新计算。
+                // summary_validate 接口（有 token）已过滤异常数据，无需二次修复。
+                if (!useValidate && raw.HasError)
+                {
+                    var originalPrice = price;
+                    var repaired = await RepairPriceFromDbPriceAsync(
+                        raw.Name, category.Label, unit, cancellationToken);
+                    if (repaired.HasValue && repaired.Value.price > 0)
+                    {
+                        price = repaired.Value.price;
+                        source = repaired.Value.source;
+                        // 用 db/price 返回的货币单位覆盖，确保 price 和 unit 一致。
+                        if (!string.IsNullOrEmpty(repaired.Value.currencyUnit))
+                        {
+                            unit = repaired.Value.currencyUnit;
+                        }
+                        AppLogger.Instance.Info(
+                            $"价格修复对比：item={raw.Name}, 修复前={originalPrice}, 修复后={price}, " +
+                            $"unit={unit}, source={source}");
+                    }
+                }
+
                 if (price <= 0)
                 {
                     continue;
@@ -179,6 +470,12 @@ public class PoecurrencyPriceService : IPriceService
                 {
                     priceExalted = divineExaltedRatio > 0 ? price * divineExaltedRatio : 0;
                     unitNote = $"d_to_e@{divineExaltedRatio}";
+                }
+                else if (unit == "c")
+                {
+                    // 混沌石计价：需通过 chaosExaltedRatio 换算为崇高石。
+                    priceExalted = chaosExaltedRatio > 0 ? price * chaosExaltedRatio : 0;
+                    unitNote = $"c_to_e@{chaosExaltedRatio}";
                 }
                 else
                 {
@@ -498,6 +795,11 @@ public class PoecurrencyPriceService : IPriceService
             return "e";
         }
 
+        if (rawUnit is "c" or "chaos" or "chaos orb" or "chaos_orb" or "混沌石" or "混沌宝珠")
+        {
+            return "c";
+        }
+
         return "e";
     }
 
@@ -509,6 +811,17 @@ public class PoecurrencyPriceService : IPriceService
             .Replace(" ", "")
             .Replace("\u3000", "");
         return normalized is "神圣石" or "神圣宝珠" or "divineorb" or "divine";
+    }
+
+    /// <summary>判断是否为混沌石（用于推导 c→e 换算比例）。</summary>
+    private static bool IsChaos(string name)
+    {
+        var normalized = name.ToLowerInvariant()
+            .Replace("（", "(")
+            .Replace("）", ")")
+            .Replace(" ", "")
+            .Replace("\u3000", "");
+        return normalized is "混沌石" or "混沌宝珠" or "chaosorb" or "chaos";
     }
 
     private static decimal GeometricMean(decimal a, decimal b)

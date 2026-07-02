@@ -23,21 +23,13 @@ public class UpdateService
 
     /// <summary>
     /// 检查是否有可用更新。
-    /// 返回 null 表示无更新或检查失败。
+    /// 返回 null 表示无更新；检查失败时抛出异常，由调用方处理错误提示。
     /// </summary>
     public async Task<UpdateInfo?> CheckForUpdatesAsync()
     {
-        try
-        {
-            var info = await _updateManager.CheckForUpdatesAsync();
-            AppLogger.Instance.Info($"更新检查完成：{(info == null ? "无新版本" : $"发现 {info.TargetFullRelease.Version}")}");
-            return info;
-        }
-        catch (Exception ex)
-        {
-            AppLogger.Instance.Error(ex, "检查更新失败");
-            return null;
-        }
+        var info = await _updateManager.CheckForUpdatesAsync();
+        AppLogger.Instance.Info($"更新检查完成：{(info == null ? "无新版本" : $"发现 {info.TargetFullRelease.Version}")}");
+        return info;
     }
 
     /// <summary>
