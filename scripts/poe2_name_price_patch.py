@@ -196,8 +196,16 @@ def load_price_rows(path: Path) -> list[dict[str, str]]:
         return rows
 
 
-_PRICE_RE = re.compile(r"^\s*([0-9]+(?:\.[0-9]+)?)([A-Za-z]+)\s*$")
-_PATCHED_PRICE_TEXT_RE = r"(?:<1|[0-9]+(?:\.[0-9]+)?)[DE]"
+# 匹配价格字段的正则：支持带方括号（如 [10d]/[10D]）和不带方括号（如 10D/10d）两种格式。
+# Poe2PriceGui 项目 C# FormatPrice 生成 "[<数字><小写字母>]" 格式（如 [10d]、[5e]），
+# 此正则让 compact_price_variants 能正确解析这类带方括号的 price 字段。
+_PRICE_RE = re.compile(r"^\s*\[?([0-9]+(?:\.[0-9]+)?)([A-Za-z]+)\]?\s*$")
+
+# 剥离已打补丁名字中的旧价格后缀。支持两种格式：
+#   - 带方括号：[10d]/[10D]/[<1E]/[0.5e] 等（Poe2PriceGui 项目生成的格式）
+#   - 不带方括号：10D/<1E 等（兼容其他实现）
+# 注意：[DEde] 是正则字符类，表示 D/E/d/e 任一字符，不是字面方括号。
+_PATCHED_PRICE_TEXT_RE = r"(?:\[(?:<1|[0-9]+(?:\.[0-9]+)?)[DEde]\]|(?:<1|[0-9]+(?:\.[0-9]+)?)[DE])"
 
 
 def unique_texts(values: list[str]) -> list[str]:
@@ -219,10 +227,18 @@ def compact_price_variants(price: str) -> list[str]:
         return unique_texts(variants)
 
     number_text, unit = match.groups()
+    # 检测原始 price 是否带方括号（如 "[10d]"），所有变体保持一致格式。
+    # Poe2PriceGui 项目 C# FormatPrice 输出 [数字+字母] 格式，
+    # 此处保持方括号一致，避免 fit_name_with_price 生成混合格式名字。
+    has_brackets = clean.startswith("[") and clean.endswith("]")
+
+    def wrap(text: str) -> str:
+        return f"[{text}]" if has_brackets else text
+
     stripped = number_text.rstrip("0").rstrip(".") if "." in number_text else number_text
-    variants.append(f"{stripped}{unit}")
+    variants.append(wrap(f"{stripped}{unit}"))
     if stripped.startswith("0."):
-        variants.append(f"{stripped[1:]}{unit}")
+        variants.append(wrap(f"{stripped[1:]}{unit}"))
 
     try:
         number = Decimal(number_text)
@@ -231,9 +247,9 @@ def compact_price_variants(price: str) -> list[str]:
 
     if number >= Decimal("10"):
         rounded = number.quantize(Decimal("1"), rounding=ROUND_HALF_UP)
-        variants.append(f"{rounded}{unit}")
+        variants.append(wrap(f"{rounded}{unit}"))
     elif Decimal("0") < number < Decimal("1"):
-        variants.append(f"<1{unit}")
+        variants.append(wrap(f"<1{unit}"))
 
     return unique_texts(variants)
 

@@ -238,6 +238,7 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
 
@@ -264,6 +265,53 @@
                                                TextDecorations="Underline"
                                                RequestNavigate="Hyperlink_RequestNavigate">
                                         <Run Text="poe2_price"/>
+                                    </Hyperlink>
+                                </TextBlock>
+                            </StackPanel>
+                        </StackPanel>
+                    </GroupBox>
+
+                    <GroupBox Grid.Row="2" Header="泥人补丁" Margin="0,15,0,0">
+                        <StackPanel Orientation="Vertical" Margin="10">
+                            <TextBlock Text="⚠️ 重要提示： 会修改游戏文件，存在封号风险。请先关闭游戏再运行。" TextWrapping="Wrap" Foreground="#DC143C" Margin="0,0,0,10"/>
+                            <TextBlock Text="与价格补丁可共存（使用不同 bundle 前缀）,Tip:Up买了各类技能特效,不会去清空技能特效，保留商人头顶标志。" TextWrapping="Wrap" Foreground="Gray" Margin="0,0,0,10"/>
+                            <TextBlock Text="performance: 主要降低地图画质和少量特效" TextWrapping="Wrap" Foreground="Gray" Margin="0,0,0,10"/>
+                            <TextBlock Text="blanket: 地毯式清理各种特效" TextWrapping="Wrap" Foreground="Gray" Margin="0,0,0,10"/>
+                            <TextBlock Text="all: 地毯式清理各种特效+地图优化" TextWrapping="Wrap" Foreground="Gray" Margin="0,0,0,10"/>
+
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                <TextBlock Text="当前预设：" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBlock Text="{Binding SmootherPresetLabel}" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,20,0"/>
+                                <TextBlock Text="状态：" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBlock Text="{Binding SmootherStatusText}" FontWeight="Bold" VerticalAlignment="Center"/>
+                            </StackPanel>
+
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                <TextBlock Text="预设：" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                <ComboBox ItemsSource="{Binding SmootherPresetOptions}" SelectedItem="{Binding SmootherSelectedPreset}" Width="120" Margin="0,0,10,0"/>
+                                <Button Content="应用预设" Command="{Binding SmootherApplyCommand}" Padding="15,5" Margin="0,0,10,0"/>
+                                <Button Content="预览" Command="{Binding SmootherPreviewCommand}" Padding="15,5" Margin="0,0,10,0" ToolTip="仅查看受影响文件数，不写入"/>
+                                <Button Content="还原" Command="{Binding SmootherRestoreCommand}" Padding="15,5" Margin="0,0,10,0"/>
+                                <Button Content="检测状态" Command="{Binding SmootherCheckCommand}" Padding="15,5" ToolTip="检测我们的补丁是否已应用"/>
+                            </StackPanel>
+
+                            <!-- 任务2：泥人补丁进度条 + 描述文本，仅执行时显示 -->
+                            <StackPanel Orientation="Vertical" Margin="0,0,0,10"
+                                        Visibility="{Binding IsSmootherBusy, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <TextBlock Text="{Binding SmootherProgressText}" FontSize="12" Foreground="#FF4A90D9" Margin="0,0,0,4" TextWrapping="Wrap"/>
+                                <ProgressBar Value="{Binding SmootherProgressValue}" Minimum="0" Maximum="100" Height="18"/>
+                            </StackPanel>
+
+                            <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
+                                <Path Fill="#FF181717" Width="12" Height="12" Stretch="Uniform" Margin="0,0,4,0" VerticalAlignment="Center"
+                                      Data="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+                                <TextBlock FontSize="11" VerticalAlignment="Center">
+                                    <Run Text="参考来源：" Foreground="Gray"/>
+                                    <Hyperlink NavigateUri="https://github.com/kengzzzz/tiny-poe2smoother"
+                                               Foreground="#FF4A90D9"
+                                               TextDecorations="Underline"
+                                               RequestNavigate="Hyperlink_RequestNavigate">
+                                        <Run Text="tiny-poe2smoother"/>
                                     </Hyperlink>
                                 </TextBlock>
                             </StackPanel>

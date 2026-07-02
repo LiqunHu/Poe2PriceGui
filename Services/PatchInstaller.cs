@@ -160,6 +160,26 @@ public class PatchInstaller
         return result;
     }
 
+    /// <summary>
+    /// 检测 Bundles2 模式下是否已应用过价格补丁。
+    /// 判定依据：Bundles2/LibGGPK3/ 目录存在且包含文件。
+    /// LibGGPK3/ 由 PatchBundle3.exe 在首次应用价格补丁时创建，存放增量 bundle。
+    /// 存在该目录说明 _.index.bin 中已有 LibGGPK3/ 前缀记录，可走增量更新流程。
+    /// </summary>
+    private static bool IsPricePatchAlreadyAppliedBundles2(string gameDirectory)
+    {
+        var libDir = Path.Combine(gameDirectory, "Bundles2", "LibGGPK3");
+        if (!Directory.Exists(libDir)) return false;
+        try
+        {
+            return Directory.GetFiles(libDir, "*", SearchOption.AllDirectories).Length > 0;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     private async Task<InstallResult> BuildAndMaybeInstallAsync(
         IEnumerable<Models.PoecurrencyItem> prices,
         string gameDirectory,
@@ -193,12 +213,24 @@ public class PatchInstaller
             return result;
         }
 
-        // 4. 还原原始备份（如果存在），再提取/定位源数据文件。
-        //    避免在已打补丁的文件上叠加补丁，导致 PatchBundle3 无法正确覆盖已有条目。
+        // 4. 检测增量更新模式（仅 Bundles2 模式）。
+        //    若 LibGGPK3/ 目录存在且非空，说明已应用过价格补丁。此时可跳过还原步骤，
+        //    直接在当前已打补丁的 datc64 上增量更新（Python 脚本通过 --keep-existing-price
+        //    剥离旧价格后缀再应用新价格）。这样保留 _.index.bin 中的其他前缀记录
+        //    （如 TinyPoe2Smoother/），避免与泥人补丁冲突。
+        //    GGPK 模式不涉及泥人补丁冲突，仍走原还原流程。
         var backupDir = Path.Combine(_exportService.OutputDirectory, "backup");
         string targetGameFile = modeInfo.Mode == GameMode.GGPK
             ? Path.Combine(gameDirectory, "Content.ggpk")
             : Path.Combine(gameDirectory, "Bundles2", "_.index.bin");
+
+        bool incrementalUpdate = false;
+        if (modeInfo.Mode == GameMode.Bundles2 && IsPricePatchAlreadyAppliedBundles2(gameDirectory))
+        {
+            incrementalUpdate = true;
+            progress?.Report("4/6 检测到已应用价格补丁，使用增量更新模式（跳过还原）...");
+            AppLogger.Instance.Info("增量更新模式：检测到 LibGGPK3/ 目录存在，跳过还原步骤，保留 _.index.bin 现有记录");
+        }
 
         if (modeInfo.Mode == GameMode.GGPK)
         {
@@ -234,9 +266,10 @@ public class PatchInstaller
                 }
             }
         }
-        else
+        else if (!incrementalUpdate)
         {
-            // Bundles2 模式：优先从 ZIP 还原，兼容旧版 .original 文件
+            // Bundles2 模式（非增量更新）：优先从 ZIP 还原，兼容旧版 .original 文件。
+            // 增量更新模式下跳过此步骤，保留 _.index.bin 中的所有前缀记录。
             var zipBackup = Path.Combine(backupDir, "bundles2_backup.zip");
             var oldBackup = Path.Combine(backupDir, "_.index.bin.original");
             if (File.Exists(zipBackup))
@@ -280,9 +313,13 @@ public class PatchInstaller
         string sourceDat;
         if (modeInfo.Mode == GameMode.Bundles2)
         {
-            var zipBackup = Path.Combine(backupDir, "bundles2_backup.zip");
-            var oldBackup = Path.Combine(backupDir, "_.index.bin.original");
-            if (!File.Exists(zipBackup) && !File.Exists(oldBackup))
+            if (incrementalUpdate)
+            {
+                // 增量更新：从当前 _.index.bin 提取已打补丁的 datc64（包含旧价格后缀），
+                // 后续 Python 脚本通过 --keep-existing-price 剥离旧价格后再应用新价格。
+                progress?.Report("4/6 正在提取当前数据文件（增量更新）...");
+            }
+            else
             {
                 progress?.Report("4/6 正在从 Bundles2 提取原始数据文件...");
             }
@@ -327,6 +364,7 @@ public class PatchInstaller
         }
 
         // 5. 生成补丁 datc64 与 zip。
+        //    增量更新模式下传 keepExistingPrice=true，Python 脚本会先剥离旧价格后缀再应用新价格。
         progress?.Report("5/6 正在生成补丁文件...");
         var patchedDat = Path.Combine(_exportService.OutputDirectory, "patched_baseitemtypes.datc64");
         var zipPath = Path.Combine(_exportService.OutputDirectory, "物价补丁.zip");
@@ -338,6 +376,7 @@ public class PatchInstaller
             patchedDat,
             modeInfo.BaseItemsPath,
             zipPath,
+            keepExistingPrice: incrementalUpdate,
             cancellationToken);
 
         if (!buildResult.Success)
@@ -364,7 +403,7 @@ public class PatchInstaller
         progress?.Report("6/6 正在备份并安装补丁...");
         var installResult = modeInfo.Mode == GameMode.GGPK
             ? await InstallToGgpkAsync(gameDirectory, zipPath, tools, cancellationToken)
-            : await InstallToBundles2Async(gameDirectory, zipPath, tools, cancellationToken);
+            : await InstallToBundles2Async(gameDirectory, zipPath, tools, incrementalUpdate, cancellationToken);
         // 回填导出数量和游戏模式（安装方法创建新 InstallResult，需保留前序信息）。
         installResult.ExportedCount = exportedCount;
         installResult.GameMode = modeInfo.DisplayName;
@@ -425,6 +464,7 @@ public class PatchInstaller
         string gameDirectory,
         string zipPath,
         ToolPaths tools,
+        bool incrementalUpdate,
         CancellationToken cancellationToken)
     {
         var indexBin = Path.Combine(gameDirectory, "Bundles2", "_.index.bin");
@@ -440,66 +480,79 @@ public class PatchInstaller
             BackupPath = zipBackupPath
         };
 
-        try
+        // 增量更新模式下跳过备份创建：此时 _.index.bin 已含 LibGGPK3/ 与 TinyPoe2Smoother/ 等记录，
+        // 备份已打补丁的状态会污染原始备份导致后续无法正确还原。原始备份应在首次安装时已创建。
+        if (incrementalUpdate && !File.Exists(zipBackupPath))
         {
-            // 如果旧版 .original 存在但 ZIP 不存在，迁移旧备份并补充其他文件
-            if (!File.Exists(zipBackupPath))
+            AppLogger.Instance.Warn("增量更新模式：bundles2_backup.zip 不存在，跳过备份创建（首次安装时未创建备份，无法还原到原始状态）");
+        }
+        else if (!incrementalUpdate)
+        {
+            try
             {
-                using (var archive = ZipFile.Open(zipBackupPath, ZipArchiveMode.Create))
+                // 如果旧版 .original 存在但 ZIP 不存在，迁移旧备份并补充其他文件
+                if (!File.Exists(zipBackupPath))
                 {
-                    // 如果旧版 .original 存在，先将其加入 ZIP
+                    using (var archive = ZipFile.Open(zipBackupPath, ZipArchiveMode.Create))
+                    {
+                        // 如果旧版 .original 存在，先将其加入 ZIP
+                        if (File.Exists(oldBackupPath))
+                        {
+                            archive.CreateEntryFromFile(oldBackupPath, "_.index.bin");
+                            AppLogger.Instance.Info($"迁移旧版备份到 ZIP：{oldBackupPath}");
+                        }
+                        else
+                        {
+                            // 首次备份 _.index.bin
+                            archive.CreateEntryFromFile(indexBin, "_.index.bin");
+                        }
+
+                        // 备份其他索引文件
+                        foreach (var name in new[] { "_.index.high.bin", "_.index.low.bin", ".index.dbg" })
+                        {
+                            var srcPath = Path.Combine(bundles2Dir, name);
+                            if (File.Exists(srcPath))
+                            {
+                                archive.CreateEntryFromFile(srcPath, name);
+                                AppLogger.Instance.Info($"备份文件：{name}");
+                            }
+                        }
+
+                        // 备份 LibGGPK3 目录
+                        var libDir = Path.Combine(bundles2Dir, "LibGGPK3");
+                        if (Directory.Exists(libDir))
+                        {
+                            var files = Directory.GetFiles(libDir, "*", SearchOption.AllDirectories);
+                            foreach (var file in files)
+                            {
+                                var relative = file.Substring(bundles2Dir.Length + 1).Replace('\\', '/');
+                                archive.CreateEntryFromFile(file, relative);
+                                AppLogger.Instance.Info($"备份文件：{relative}");
+                            }
+                        }
+                    }
+                    AppLogger.Instance.Info($"创建 Bundles2 完整备份 ZIP：{zipBackupPath}");
+
+                    // 删除旧版 .original 文件（已迁移到 ZIP）
                     if (File.Exists(oldBackupPath))
                     {
-                        archive.CreateEntryFromFile(oldBackupPath, "_.index.bin");
-                        AppLogger.Instance.Info($"迁移旧版备份到 ZIP：{oldBackupPath}");
-                    }
-                    else
-                    {
-                        // 首次备份 _.index.bin
-                        archive.CreateEntryFromFile(indexBin, "_.index.bin");
-                    }
-
-                    // 备份其他索引文件
-                    foreach (var name in new[] { "_.index.high.bin", "_.index.low.bin", ".index.dbg" })
-                    {
-                        var srcPath = Path.Combine(bundles2Dir, name);
-                        if (File.Exists(srcPath))
-                        {
-                            archive.CreateEntryFromFile(srcPath, name);
-                            AppLogger.Instance.Info($"备份文件：{name}");
-                        }
-                    }
-
-                    // 备份 LibGGPK3 目录
-                    var libDir = Path.Combine(bundles2Dir, "LibGGPK3");
-                    if (Directory.Exists(libDir))
-                    {
-                        var files = Directory.GetFiles(libDir, "*", SearchOption.AllDirectories);
-                        foreach (var file in files)
-                        {
-                            var relative = file.Substring(bundles2Dir.Length + 1).Replace('\\', '/');
-                            archive.CreateEntryFromFile(file, relative);
-                            AppLogger.Instance.Info($"备份文件：{relative}");
-                        }
+                        File.Delete(oldBackupPath);
                     }
                 }
-                AppLogger.Instance.Info($"创建 Bundles2 完整备份 ZIP：{zipBackupPath}");
-
-                // 删除旧版 .original 文件（已迁移到 ZIP）
-                if (File.Exists(oldBackupPath))
+                else
                 {
-                    File.Delete(oldBackupPath);
+                    AppLogger.Instance.Info($"原始备份 ZIP 已存在，跳过备份：{zipBackupPath}");
                 }
             }
-            else
+            catch (Exception ex)
             {
-                AppLogger.Instance.Info($"原始备份 ZIP 已存在，跳过备份：{zipBackupPath}");
+                result.ErrorMessage = $"备份 Bundles2 文件失败：{ex.Message}";
+                return result;
             }
         }
-        catch (Exception ex)
+        else
         {
-            result.ErrorMessage = $"备份 Bundles2 文件失败：{ex.Message}";
-            return result;
+            AppLogger.Instance.Info($"增量更新模式：跳过备份创建，使用现有备份：{zipBackupPath}");
         }
 
         var psi = new ProcessStartInfo
@@ -749,6 +802,7 @@ public class PatchInstaller
         string patchedDat,
         string gamePath,
         string outputZipPath,
+        bool keepExistingPrice,
         CancellationToken cancellationToken)
     {
         var result = new ScriptResult();
@@ -774,6 +828,13 @@ public class PatchInstaller
         psi.ArgumentList.Add(outputZipPath);
         psi.ArgumentList.Add("--separator");
         psi.ArgumentList.Add("");
+        // 增量更新模式下传 --keep-existing-price，让 Python 脚本剥离旧价格后缀后再应用新价格，
+        // 避免在已打补丁的 datc64 上叠加导致价格文字重复（如 "BaseName10D5D"）。
+        if (keepExistingPrice)
+        {
+            psi.ArgumentList.Add("--keep-existing-price");
+            AppLogger.Instance.Info("已启用 --keep-existing-price：将剥离 datc64 中已有的旧价格后缀");
+        }
 
         AppLogger.Instance.Info($"生成补丁 datc64：{psi.FileName} {string.Join(" ", psi.ArgumentList)}");
         using var process = Process.Start(psi);

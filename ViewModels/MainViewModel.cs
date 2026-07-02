@@ -10,6 +10,7 @@ using System.Windows.Data;
 using System.Windows.Input;
 using Poe2PriceGui.Models;
 using Poe2PriceGui.Services;
+using Poe2PriceGui.Services.Smoother;
 using Poe2PriceGui.Windows;
 
 namespace Poe2PriceGui.ViewModels;
@@ -104,6 +105,12 @@ public class MainViewModel : INotifyPropertyChanged
         TestPriceCheckerArmourCommand = new RelayCommand(async () => await TestPriceCheckerAsync("armour"), () => !IsBusy && !string.IsNullOrWhiteSpace(PriceCheckerPoeSessionId));
         CheckForUpdateCommand = new RelayCommand(async () => await CheckForUpdateAsync(), () => !IsBusy);
         ForceSwitchServerCommand = new RelayCommand(ForceSwitchServer, () => !IsBusy);
+
+        // 泥人补丁命令
+        SmootherApplyCommand = new RelayCommand(async () => await SmootherApplyAsync(), () => !IsBusy);
+        SmootherPreviewCommand = new RelayCommand(async () => await SmootherPreviewAsync(), () => !IsBusy);
+        SmootherRestoreCommand = new RelayCommand(async () => await SmootherRestoreAsync(), () => !IsBusy);
+        SmootherCheckCommand = new RelayCommand(async () => await SmootherCheckAsync(), () => !IsBusy);
 
         _filteredPrices.Filter = FilterBySelectedCategory;
 
@@ -219,6 +226,12 @@ public class MainViewModel : INotifyPropertyChanged
     public ICommand TestPriceCheckerArmourCommand { get; }
     public ICommand CheckForUpdateCommand { get; }
     public ICommand ForceSwitchServerCommand { get; }
+
+    // 泥人补丁命令
+    public ICommand SmootherApplyCommand { get; }
+    public ICommand SmootherPreviewCommand { get; }
+    public ICommand SmootherRestoreCommand { get; }
+    public ICommand SmootherCheckCommand { get; }
 
     /// <summary>
     /// 状态栏消息。设置页缓存清理状态文本。
@@ -1345,6 +1358,336 @@ public class MainViewModel : INotifyPropertyChanged
     /// 当前应用版本号。
     /// </summary>
     public string AppVersion => _updateService.CurrentVersion;
+
+    #region 泥人补丁
+
+    /// <summary>
+    /// 泥人补丁预设标签（当前固定为 performance）。
+    /// </summary>
+    public string SmootherPresetLabel => "选择预设";
+
+    /// <summary>
+    /// 可选的泥人补丁预设列表。
+    /// performance: 性能优化（fog/rain/clouds/env-particles/delirium/particles/effects）
+    /// blanket:     毯式补丁（清空 metadata/ 下全部 .epk + 简化全部 .ao）
+    /// all:         全部应用（performance + blanket 合并）
+    /// </summary>
+    public IReadOnlyList<string> SmootherPresetOptions { get; } = new[] { "performance", "blanket", "all" };
+
+    private string _smootherSelectedPreset = "performance";
+    /// <summary>
+    /// 当前选中的泥人补丁预设。
+    /// </summary>
+    public string SmootherSelectedPreset
+    {
+        get => _smootherSelectedPreset;
+        set => SetProperty(ref _smootherSelectedPreset, value);
+    }
+
+    private string _smootherStatusText = "未检测";
+    /// <summary>
+    /// 泥人补丁状态文本。
+    /// </summary>
+    public string SmootherStatusText
+    {
+        get => _smootherStatusText;
+        set => SetProperty(ref _smootherStatusText, value);
+    }
+
+    private string _smootherProgressText = "";
+    /// <summary>
+    /// 泥人补丁进度描述文本，显示在进度条上方。
+    /// </summary>
+    public string SmootherProgressText
+    {
+        get => _smootherProgressText;
+        set => SetProperty(ref _smootherProgressText, value);
+    }
+
+    private int _smootherProgressValue;
+    /// <summary>
+    /// 泥人补丁进度百分比（0-100）。
+    /// </summary>
+    public int SmootherProgressValue
+    {
+        get => _smootherProgressValue;
+        set => SetProperty(ref _smootherProgressValue, value);
+    }
+
+    private bool _isSmootherBusy;
+    /// <summary>
+    /// 泥人补丁是否正在执行（控制进度条可见性）。
+    /// </summary>
+    public bool IsSmootherBusy
+    {
+        get => _isSmootherBusy;
+        set => SetProperty(ref _isSmootherBusy, value);
+    }
+
+    /// <summary>
+    /// performance 预设包含的补丁列表。
+    /// 与 tiny-poe2smoother 的 performance 预设一致。
+    /// </summary>
+    private static readonly PatchId[] SmootherPerformancePatches =
+    {
+        PatchId.Fog,
+        PatchId.Rain,
+        PatchId.Clouds,
+        PatchId.EnvParticles,
+        PatchId.Delirium,
+        PatchId.Particles,
+        PatchId.Effects,
+    };
+
+    /// <summary>
+    /// 根据选中的预设返回对应的补丁列表。
+    /// all 模式 = performance 全部 + blanket 合并，一次性做成一个补丁。
+    /// </summary>
+    private PatchId[] GetSelectedPatches()
+    {
+        return SmootherSelectedPreset switch
+        {
+            "blanket" => new[] { PatchId.Blanket },
+            "all" => SmootherPerformancePatches.Concat(new[] { PatchId.Blanket }).ToArray(),
+            _ => SmootherPerformancePatches,
+        };
+    }
+
+    private async Task SmootherApplyAsync()
+    {
+        if (string.IsNullOrWhiteSpace(GameDirectory) || !Directory.Exists(GameDirectory))
+        {
+            _toastService.ShowError("请先在设置页配置有效的游戏目录");
+            return;
+        }
+
+        var presetName = SmootherSelectedPreset;
+        var patches = GetSelectedPatches();
+        var isBlanket = presetName == "blanket";
+        var isAll = presetName == "all";
+
+        // 任务3：改为右上角 Toast 提示，无需点击确认，直接开始应用。
+        var msg = isAll
+            ? "正在应用 all 预设（performance + blanket 合并），请确保游戏已关闭"
+            : isBlanket
+                ? "正在应用毯式补丁 (blanket)，请确保游戏已关闭"
+                : "正在应用泥人补丁 performance 预设，请确保游戏已关闭";
+        _toastService.ShowInfo(msg);
+
+        IsBusy = true;
+        IsSmootherBusy = true;
+        SmootherProgressValue = 0;
+        SmootherProgressText = "准备中...";
+        SettingsStatusMessage = isBlanket
+            ? "正在应用毯式补丁（请耐心等待）..."
+            : isAll
+                ? "正在应用 all 预设（性能 + 毯式合并，请耐心等待）..."
+                : "正在应用泥人补丁...";
+        SmootherStatusText = $"应用 {presetName} 中...";
+
+        try
+        {
+            var service = new SmootherPatchService(GameDirectory);
+            var progress = new Progress<SmootherProgress>(p =>
+            {
+                SmootherProgressValue = p.Percent;
+                SmootherProgressText = p.Description;
+            });
+            var report = await Task.Run(() => service.Apply(patches, progress: progress));
+            if (report.Success)
+            {
+                var msg2 = $"{presetName} 预设已应用：修改 {report.ChangedFileCount} 个文件";
+                foreach (var (patch, count) in report.PatchHitCounts)
+                {
+                    msg2 += $"\n  {patch}: {count}";
+                }
+                SettingsStatusMessage = msg2.Replace("\n", " | ");
+                SmootherStatusText = $"已应用 {presetName}（{report.ChangedFileCount} 文件）";
+                SmootherProgressValue = 100;
+                SmootherProgressText = "完成";
+                _toastService.ShowSuccess($"{presetName} 预设应用成功：修改 {report.ChangedFileCount} 个文件");
+                AppLogger.Instance.Info($"{presetName} 预设应用成功：{msg2}");
+            }
+            else
+            {
+                SettingsStatusMessage = $"{presetName} 预设应用失败：{report.ErrorMessage}";
+                SmootherStatusText = "失败";
+                SmootherProgressText = $"失败：{report.ErrorMessage}";
+                _toastService.ShowError($"{presetName} 预设应用失败：{report.ErrorMessage}");
+                AppLogger.Instance.Error($"{presetName} 预设应用失败：{report.ErrorMessage}");
+            }
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Instance.Error(ex, $"{presetName} 预设应用异常");
+            SettingsStatusMessage = $"{presetName} 预设应用异常：{ex.Message}";
+            SmootherStatusText = "异常";
+            SmootherProgressText = $"异常：{ex.Message}";
+            _toastService.ShowError($"{presetName} 预设应用异常：{ex.Message}");
+        }
+        finally
+        {
+            IsBusy = false;
+            IsSmootherBusy = false;
+        }
+    }
+
+    private async Task SmootherPreviewAsync()
+    {
+        if (string.IsNullOrWhiteSpace(GameDirectory) || !Directory.Exists(GameDirectory))
+        {
+            _toastService.ShowError("请先在设置页配置有效的游戏目录");
+            return;
+        }
+
+        IsBusy = true;
+        IsSmootherBusy = true;
+        SmootherProgressValue = 0;
+        SmootherProgressText = "准备中...";
+        var presetName = SmootherSelectedPreset;
+        SettingsStatusMessage = $"正在预览 {presetName} 预设...";
+        SmootherStatusText = $"预览 {presetName} 中...";
+
+        try
+        {
+            var service = new SmootherPatchService(GameDirectory);
+            var progress = new Progress<SmootherProgress>(p =>
+            {
+                SmootherProgressValue = p.Percent;
+                SmootherProgressText = p.Description;
+            });
+            var report = await Task.Run(() => service.Preview(GetSelectedPatches(), progress: progress));
+            if (report.Success)
+            {
+                var msg = $"预览：将修改 {report.ChangedFileCount} 个文件";
+                foreach (var (patch, count) in report.PatchHitCounts)
+                {
+                    msg += $"\n  {patch}: {count}";
+                }
+                SettingsStatusMessage = msg.Replace("\n", " | ");
+                SmootherStatusText = $"预览：{report.ChangedFileCount} 文件";
+                SmootherProgressValue = 100;
+                SmootherProgressText = "预览完成";
+                _toastService.ShowInfo($"泥人补丁预览：将修改 {report.ChangedFileCount} 个文件");
+                AppLogger.Instance.Info($"泥人补丁预览：{msg}");
+            }
+            else
+            {
+                SettingsStatusMessage = $"泥人补丁预览失败：{report.ErrorMessage}";
+                SmootherStatusText = "预览失败";
+                SmootherProgressText = $"失败：{report.ErrorMessage}";
+                _toastService.ShowError($"泥人补丁预览失败：{report.ErrorMessage}");
+            }
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Instance.Error(ex, "泥人补丁预览异常");
+            SettingsStatusMessage = $"泥人补丁预览异常：{ex.Message}";
+            SmootherStatusText = "异常";
+            SmootherProgressText = $"异常：{ex.Message}";
+            _toastService.ShowError($"泥人补丁预览异常：{ex.Message}");
+        }
+        finally
+        {
+            IsBusy = false;
+            IsSmootherBusy = false;
+        }
+    }
+
+    private async Task SmootherRestoreAsync()
+    {
+        // 任务3：去除 MessageBox 确认，直接执行还原并用 Toast 反馈。
+        IsBusy = true;
+        IsSmootherBusy = true;
+        SmootherProgressValue = 0;
+        SmootherProgressText = "正在还原...";
+        SettingsStatusMessage = "正在还原泥人补丁...";
+        SmootherStatusText = "还原中...";
+
+        try
+        {
+            var service = new SmootherPatchService(GameDirectory);
+            var count = await Task.Run(() => service.Restore());
+            SettingsStatusMessage = $"泥人补丁已还原（恢复 {count} 个文件）";
+            SmootherStatusText = "已还原";
+            SmootherProgressValue = 100;
+            SmootherProgressText = "还原完成";
+            _toastService.ShowSuccess($"泥人补丁已还原（恢复 {count} 个文件）");
+            AppLogger.Instance.Info($"泥人补丁还原成功：恢复 {count} 个文件");
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Instance.Error(ex, "泥人补丁还原异常");
+            SettingsStatusMessage = $"泥人补丁还原异常：{ex.Message}";
+            SmootherStatusText = "异常";
+            SmootherProgressText = $"异常：{ex.Message}";
+            _toastService.ShowError($"泥人补丁还原异常：{ex.Message}");
+        }
+        finally
+        {
+            IsBusy = false;
+            IsSmootherBusy = false;
+        }
+    }
+
+    private async Task SmootherCheckAsync()
+    {
+        if (string.IsNullOrWhiteSpace(GameDirectory) || !Directory.Exists(GameDirectory))
+        {
+            _toastService.ShowError("请先在设置页配置有效的游戏目录");
+            return;
+        }
+
+        IsBusy = true;
+        SettingsStatusMessage = "正在检测泥人补丁状态...";
+        SmootherStatusText = "检测中...";
+
+        try
+        {
+            var service = new SmootherPatchService(GameDirectory);
+            var status = await Task.Run(() => service.GetDetailedStatus());
+            var hasBackup = service.HasBackup;
+
+            var summary = status.ToSummary();
+            var backupInfo = $"备份：{(hasBackup ? "存在" : "不存在")}";
+
+            // 状态文本精简显示
+            SmootherStatusText = status.OurApplied
+                ? $"已应用（{status.OurFileCount} 文件）"
+                : "未应用";
+
+            // 完整状态消息（状态栏 + 日志）
+            var fullMsg = $"{summary}\n{backupInfo}";
+            SettingsStatusMessage = summary.Replace("\n", " | ") + " | " + backupInfo;
+
+            // 任务3：检测状态改为右上角 Toast 提示，无需点击确认。
+            // 检测状态信息较多，按行拆成多条 Toast 显示。
+            var toastTitle = status.OurApplied
+                ? $"泥人补丁已应用（{status.OurFileCount} 文件，{status.OurBundleCount} bundle）"
+                : "泥人补丁：未应用";
+            _toastService.ShowInfo(toastTitle);
+            foreach (var line in summary.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+            {
+                _toastService.ShowInfo(line);
+            }
+            _toastService.ShowInfo(backupInfo);
+
+            AppLogger.Instance.Info($"泥人补丁检测：\n{fullMsg}");
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Instance.Error(ex, "泥人补丁检测异常");
+            SettingsStatusMessage = $"泥人补丁检测异常：{ex.Message}";
+            SmootherStatusText = "异常";
+            _toastService.ShowError($"泥人补丁检测异常：{ex.Message}");
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    #endregion
 
     /// <summary>
     /// 检查 GitHub Releases 是否有新版本。

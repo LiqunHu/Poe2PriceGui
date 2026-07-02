@@ -11,6 +11,16 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>app.ico</ApplicationIcon>
     <StartupObject>Poe2PriceGui.App</StartupObject>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!--
+      解决 .NET 10/11 SDK 构建 net8.0-windows WPF 项目时的 _wpftmp 重复 AssemblyInfo 错误。
+      WPF markup 编译器生成的临时项目(*_wpftmp.csproj)会继承主项目的 AssemblyInfo 生成,
+      导致 AssemblyCompanyAttribute / TargetPlatformAttribute 等重复。
+      关闭 SDK 默认的 AssemblyInfo 生成,wpftmp 临时项目就不再产生冲突文件。
+      同时关闭 TargetFrameworkAttribute 生成,避免 .NETCoreApp 文件重复。
+    -->
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
   </PropertyGroup>
 
   <ItemGroup>
@@ -29,6 +39,9 @@
     <None Update="tools\**">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <!-- tools\ 下的子项目(oodle_probe, analyze_bundle 等)有自己的 .csproj,
+         不应被主项目编译,否则 Program 类会冲突。 -->
+    <Compile Remove="tools\**" />
   </ItemGroup>
 
   <!-- Velopack: 将 App.xaml 从 ApplicationDefinition 改为 Page，以便使用自定义 Main 方法 -->
