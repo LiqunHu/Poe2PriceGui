@@ -1,0 +1,56 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>Xiletrade.Library</RootNamespace>
+    <Nullable>disable</Nullable>
+    <UseWPF>false</UseWPF>
+    <UseWindowsForms>false</UseWindowsForms>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <Title>Xiletrade library (embedded net8.0)</Title>
+    <AssemblyTitle>Xiletrade Library (net8.0 embed)</AssemblyTitle>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <WarningLevel>2</WarningLevel>
+    <DebugType>portable</DebugType>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::Windows)))'=='true'">
+    <DefineConstants>$(DefineConstants);Windows</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))'=='true'">
+    <DefineConstants>$(DefineConstants);OSX</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::Linux)))'=='true'">
+    <DefineConstants>$(DefineConstants);Linux</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="8.0.1" />
+    <PackageReference Include="SharpCompress" Version="0.48.1" />
+    <PackageReference Include="Raffinert.FuzzySharp" Version="3.0.7" />
+    <PackageReference Include="Notification.CoreUI" Version="10.1.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Data\**">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Poe2PriceGui" />
+  </ItemGroup>
+
+</Project>

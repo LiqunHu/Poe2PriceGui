@@ -11,15 +11,126 @@
         ResizeMode="NoResize"
         WindowStartupLocation="CenterScreen"
         SizeToContent="WidthAndHeight"
-        MinWidth="340"
-        MaxWidth="420"
+        MinWidth="540"
+        MaxWidth="640"
         Focusable="True">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
-        <conv:RarityColorConverter x:Key="RarityColorConverter"/>
+        <conv:InverseBoolToVisibilityConverter x:Key="InverseBoolToVis"/>
+        <conv:CountToVisibilityConverter x:Key="CountToVis"/>
+        <conv:ColorNameToBrushConverter x:Key="ColorNameToBrush"/>
         <conv:NonEmptyToVisibilityConverter x:Key="NonEmptyToVisConverter"/>
         <conv:NonZeroToVisibilityConverter x:Key="NonZeroToVisConverter"/>
         <conv:StringJoinConverter x:Key="StringJoinConverter"/>
+
+        <!-- 文本框统一样式（参考 xiletrade tbStat） -->
+        <Style x:Key="TbStatStyle" TargetType="TextBox">
+            <Setter Property="Width" Value="44"/>
+            <Setter Property="Height" Value="20"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="Padding" Value="2,0"/>
+            <Setter Property="Background" Value="#22FFFFFF"/>
+            <Setter Property="Foreground" Value="#FFDDDDDD"/>
+            <Setter Property="BorderBrush" Value="#44FFFFFF"/>
+            <Setter Property="CaretBrush" Value="#FFDDDDDD"/>
+        </Style>
+
+        <!-- 小型 ToggleButton 样式（参考 xiletrade ToggleSwitchContentSmall） -->
+        <Style x:Key="MiniToggleStyle" TargetType="ToggleButton">
+            <Setter Property="Foreground" Value="#FFCCCCCC"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="#44FFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="6,1"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="3"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#33FFFFFF"/>
+                </Trigger>
+                <Trigger Property="IsChecked" Value="True">
+                    <Setter Property="Background" Value="#554A90D9"/>
+                    <Setter Property="BorderBrush" Value="#FF4A90D9"/>
+                    <Setter Property="Foreground" Value="White"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- 过滤下拉样式（参考 xiletrade SimpleComboStyle / CorruptedComboStyle） -->
+        <!-- 注意：Background 用深色（#FF2A2A3E）保证与浅色文字对比度；下拉项用 ItemContainerStyle 暗色化 -->
+        <Style x:Key="FilterComboStyle" TargetType="ComboBox">
+            <Setter Property="Width" Value="76"/>
+            <Setter Property="Height" Value="22"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Background" Value="#FF2A2A3E"/>
+            <Setter Property="Foreground" Value="#FFDDDDDD"/>
+            <Setter Property="BorderBrush" Value="#FF4A90D9"/>
+            <Setter Property="Padding" Value="4,0"/>
+            <Setter Property="ItemContainerStyle">
+                <Setter.Value>
+                    <Style TargetType="ComboBoxItem">
+                        <Setter Property="Background" Value="#FF1A1A2E"/>
+                        <Setter Property="Foreground" Value="#FFDDDDDD"/>
+                        <Setter Property="Padding" Value="6,2"/>
+                        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                        <Setter Property="BorderThickness" Value="0"/>
+                        <Style.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#FF4A90D9"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter Property="Background" Value="#FF3A3A5E"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="SelectedIndex" Value="0">
+                    <Setter Property="Foreground" Value="#FF888899"/>
+                </Trigger>
+                <Trigger Property="IsDropDownOpen" Value="True">
+                    <Setter Property="Foreground" Value="White"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="CorruptedComboStyle" TargetType="ComboBox" BasedOn="{StaticResource FilterComboStyle}">
+            <Style.Triggers>
+                <Trigger Property="SelectedIndex" Value="0">
+                    <Setter Property="Foreground" Value="#FF888899"/>
+                </Trigger>
+                <Trigger Property="SelectedIndex" Value="2">
+                    <Setter Property="Foreground" Value="OrangeRed"/>
+                </Trigger>
+                <Trigger Property="IsDropDownOpen" Value="True">
+                    <Setter Property="Foreground" Value="White"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
         <Style x:Key="LinkButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
@@ -94,7 +205,7 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <TextBlock Grid.Column="0"
-                           Text="{Binding ItemInfo.Name}"
+                           Text="{Binding Title}"
                            FontSize="13"
                            FontWeight="Bold"
                            Foreground="White"
@@ -115,111 +226,353 @@
             </Grid>
 
             <!-- 配置模式：选择搜索字段 -->
-            <StackPanel Grid.Row="1"
-                        Margin="16,12"
-                        Visibility="{Binding IsConfigMode, Converter={StaticResource BoolToVis}}">
-                <TextBlock Text="基本属性"
-                           FontSize="12"
-                           Foreground="#FF9999AA"
-                           Margin="0,0,0,6"/>
+            <ScrollViewer Grid.Row="1"
+                          MaxHeight="620"
+                          VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled"
+                          Visibility="{Binding IsConfigMode, Converter={StaticResource BoolToVis}}">
+                <StackPanel Margin="10,8,10,12">
 
-                <ItemsControl ItemsSource="{Binding SearchFields}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Grid Margin="0,3">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <CheckBox Grid.Column="0"
-                                          IsChecked="{Binding IsSelected}"
-                                          VerticalAlignment="Center"
-                                          Margin="0,0,8,0"/>
-                                <StackPanel Grid.Column="1" Orientation="Horizontal">
-                                    <TextBlock Text="{Binding Label}"
-                                               Foreground="#FFCCCCCC"
-                                               FontSize="12"
-                                               MinWidth="60"/>
-                                    <TextBlock Text="{Binding Value}"
-                                               Foreground="#FFFFD700"
-                                               FontSize="12"
-                                               FontWeight="SemiBold"
-                                               TextWrapping="Wrap"/>
-                                </StackPanel>
-                            </Grid>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                    <!-- 物品名称 + 稀有度下拉 -->
+                    <Grid Margin="0,0,0,6"
+                          Visibility="{Binding Form.Visible.PanelForm, Converter={StaticResource BoolToVis}}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0"
+                                   FontSize="13" FontWeight="Bold"
+                                   Foreground="{Binding Form.ItemNameColor, Converter={StaticResource ColorNameToBrush}}"
+                                   TextTrimming="CharacterEllipsis"
+                                   VerticalAlignment="Center">
+                            <Run Text="{Binding Form.ItemName, Mode=OneWay}"/>
+                            <Run Text=" " Foreground="#FF666666"/>
+                            <Run Text="{Binding Form.ItemBaseType, Mode=OneWay}" Foreground="#FF999999" FontSize="11"/>
+                        </TextBlock>
+                        <ComboBox Grid.Column="1" Width="90" Height="22" FontSize="11"
+                                  ItemsSource="{Binding Form.Rarity.ComboBox}"
+                                  SelectedIndex="{Binding Form.Rarity.Index}"
+                                  Visibility="{Binding Form.Visible.Rarity, Converter={StaticResource BoolToVis}}"/>
+                    </Grid>
 
-                <!-- 词缀区域 -->
-                <TextBlock Text="词缀 / 属性"
-                           FontSize="12"
-                           Foreground="#FF9999AA"
-                           Margin="0,12,0,6"
-                           Visibility="{Binding HasMods, Converter={StaticResource BoolToVis}}"/>
+                    <!-- ════ 过滤下拉行（参考 xiletrade FilterOptionList） ════ -->
+                    <!-- Corrupted / DoubleCorrupted / Identified / Mirrored / Fractured / Split -->
+                    <WrapPanel Margin="0,0,0,6">
+                        <!-- CORRUPTED -->
+                        <StackPanel Margin="0,0,8,4"
+                                    Visibility="{Binding Form.Visible.Corrupted, Converter={StaticResource BoolToVis}}">
+                            <TextBlock Text="腐化" FontSize="10" Foreground="#FF7788AA"
+                                       HorizontalAlignment="Center" Margin="0,0,0,1"/>
+                            <ComboBox SelectedIndex="{Binding Form.CorruptedIndex}"
+                                      ItemsSource="{Binding Form.Corruption}"
+                                      Style="{StaticResource CorruptedComboStyle}"/>
+                        </StackPanel>
+                        <!-- DOUBLE CORRUPTED (POE2) -->
+                        <StackPanel Margin="0,0,8,4"
+                                    Visibility="{Binding Form.IsPoeTwo, Converter={StaticResource BoolToVis}}">
+                            <TextBlock Text="双重腐化" FontSize="10" Foreground="#FF7788AA"
+                                       HorizontalAlignment="Center" Margin="0,0,0,1"/>
+                            <ComboBox SelectedIndex="{Binding Form.DoubleCorruptedIndex}"
+                                      ItemsSource="{Binding Form.DoubleCorruption}"
+                                      Style="{StaticResource CorruptedComboStyle}"/>
+                        </StackPanel>
+                        <!-- IDENTIFIED -->
+                        <StackPanel Margin="0,0,8,4">
+                            <TextBlock Text="已辨识" FontSize="10" Foreground="#FF7788AA"
+                                       HorizontalAlignment="Center" Margin="0,0,0,1"/>
+                            <ComboBox SelectedIndex="{Binding Form.IdentifiedIndex}"
+                                      ItemsSource="{Binding Form.Identified}"
+                                      Style="{StaticResource FilterComboStyle}"/>
+                        </StackPanel>
+                        <!-- MIRRORED -->
+                        <StackPanel Margin="0,0,8,4">
+                            <TextBlock Text="镜像" FontSize="10" Foreground="#FF7788AA"
+                                       HorizontalAlignment="Center" Margin="0,0,0,1"/>
+                            <ComboBox SelectedIndex="{Binding Form.MirroredIndex}"
+                                      ItemsSource="{Binding Form.Mirrored}"
+                                      Style="{StaticResource FilterComboStyle}"/>
+                        </StackPanel>
+                        <!-- FRACTURED -->
+                        <StackPanel Margin="0,0,8,4">
+                            <TextBlock Text="裂痕" FontSize="10" Foreground="#FF7788AA"
+                                       HorizontalAlignment="Center" Margin="0,0,0,1"/>
+                            <ComboBox SelectedIndex="{Binding Form.FracturedIndex}"
+                                      ItemsSource="{Binding Form.Fractured}"
+                                      Style="{StaticResource FilterComboStyle}"/>
+                        </StackPanel>
+                        <!-- SPLIT (POE1 only) -->
+                        <StackPanel Margin="0,0,8,4"
+                                    Visibility="{Binding Form.IsPoeTwo, Converter={StaticResource InverseBoolToVis}}">
+                            <TextBlock Text="分裂" FontSize="10" Foreground="#FF7788AA"
+                                       HorizontalAlignment="Center" Margin="0,0,0,1"/>
+                            <ComboBox SelectedIndex="{Binding Form.SplitIndex}"
+                                      ItemsSource="{Binding Form.Split}"
+                                      Style="{StaticResource FilterComboStyle}"/>
+                        </StackPanel>
+                    </WrapPanel>
 
-                <ItemsControl ItemsSource="{Binding ItemInfo.Mods}"
-                              Visibility="{Binding HasMods, Converter={StaticResource BoolToVis}}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Grid Margin="0,3">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <CheckBox Grid.Column="0"
-                                          IsChecked="{Binding IsSelected}"
-                                          VerticalAlignment="Top"
-                                          Margin="0,0,8,0"/>
-                                <StackPanel Grid.Column="1">
-                                    <TextBlock Text="{Binding Type}"
-                                               FontSize="10"
-                                               Foreground="#FF6A6AAA"
-                                               Margin="0,0,0,1"/>
-                                    <TextBlock Text="{Binding Text}"
-                                               Foreground="#FFCCCCCC"
-                                               FontSize="12"
-                                               TextWrapping="Wrap"/>
-                                </StackPanel>
-                            </Grid>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                    <!-- ════ 属性面板（参考 xiletrade Stat.xaml + BottomForm.xaml） ════ -->
+                    <!-- 3 列 UniformGrid，每项 ToggleButton + Min/Max 或 Slider -->
+                    <StackPanel Visibility="{Binding Form.Visible.PanelStat, Converter={StaticResource BoolToVis}}">
+                        <TextBlock Text="属性" FontSize="11" Foreground="#FF7788AA" Margin="0,4,0,4" FontWeight="SemiBold"/>
 
-                <!-- 搜索按钮 + 精确搜索开关 -->
-                <Grid Margin="0,14,0,0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
+                        <ItemsControl ItemsSource="{Binding Form.Panel.StatList}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <UniformGrid Columns="3"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Margin="0,1,2,1" Height="40">
+                                        <ToggleButton Width="98" Margin="2,2,0,0"
+                                                      FontSize="11"
+                                                      Style="{StaticResource MiniToggleStyle}"
+                                                      IsChecked="{Binding Selected}"
+                                                      Content="{Binding Text}"
+                                                      ToolTip="{Binding Text}"
+                                                      HorizontalAlignment="Left" VerticalAlignment="Top"/>
+                                        <Grid IsEnabled="{Binding Selected}"
+                                              Margin="2,22,0,0"
+                                              HorizontalAlignment="Left" VerticalAlignment="Top">
+                                            <!-- 统一使用 Min/Max 输入框（用户要求不使用进度条，能直接看到/输入具体数值） -->
+                                            <TextBox Text="{Binding Min, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                     Style="{StaticResource TbStatStyle}" Margin="0,0,2,0"
+                                                     ToolTip="最小值"/>
+                                            <TextBox Text="{Binding Max, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                     Style="{StaticResource TbStatStyle}" Margin="48,0,0,0"
+                                                     ToolTip="最大值"/>
+                                        </Grid>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
 
-                    <Button Content="🔍 搜索"
-                            Grid.Column="0"
-                            Command="{Binding SearchCommand}"
-                            IsEnabled="{Binding CanSearch}"
-                            Style="{StaticResource PrimaryButtonStyle}"
-                            HorizontalAlignment="Stretch"
-                            Height="34"
-                            FontSize="13"
-                            FontWeight="Bold"/>
+                    <!-- ════ 词缀区域（参考 xiletrade ModList.xaml） ════ -->
+                    <!-- ListBox + 虚拟化 + TierKind 着色 + ModKind 着色 + Slider + 双击切换 -->
+                    <StackPanel Margin="0,6,0,0"
+                                Visibility="{Binding HasModList, Converter={StaticResource BoolToVis}}">
+                        <Grid Margin="0,2,0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="词缀" FontSize="11" Foreground="#FF7788AA" FontWeight="SemiBold"/>
+                            <!-- 批量操作：CheckAll / MinMax toggle / ByBase -->
+                            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                <ToggleButton Content="全选"
+                                              IsChecked="{Binding Form.AllCheck}"
+                                              Command="{Binding CheckAllCommand}"
+                                              Style="{StaticResource MiniToggleStyle}"
+                                              ToolTip="切换全部词缀勾选"
+                                              Visibility="{Binding Form.Visible.CheckAll, Converter={StaticResource BoolToVis}}"
+                                              Margin="0,0,4,0"/>
+                                <ToggleButton Content="基底"
+                                              IsChecked="{Binding Form.ByBase}"
+                                              Style="{StaticResource MiniToggleStyle}"
+                                              ToolTip="按基底类型搜索（不指定名称）"
+                                              Visibility="{Binding Form.Visible.ByBase, Converter={StaticResource BoolToVis}}"/>
+                            </StackPanel>
+                        </Grid>
 
-                    <CheckBox Content="精确数值"
-                              Grid.Column="1"
-                              IsChecked="{Binding IsExactSearch}"
-                              VerticalAlignment="Center"
-                              Margin="8,0,0,0"
-                              Foreground="#FFCCCCCC"
-                              FontSize="11"
-                              ToolTip="勾选后按词缀的具体数值过滤搜索结果"/>
-                </Grid>
+                        <ListBox ItemsSource="{Binding Form.ModList}"
+                                 Background="Transparent"
+                                 BorderThickness="0"
+                                 Padding="0"
+                                 MaxHeight="320"
+                                 HorizontalContentAlignment="Stretch"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                 VirtualizingStackPanel.IsVirtualizing="True"
+                                 VirtualizingStackPanel.VirtualizationMode="Recycling">
+                            <ListBox.ItemContainerStyle>
+                                <Style TargetType="ListBoxItem">
+                                    <Setter Property="BorderThickness" Value="0"/>
+                                    <Setter Property="Padding" Value="0"/>
+                                    <Setter Property="Focusable" Value="False"/>
+                                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                </Style>
+                            </ListBox.ItemContainerStyle>
+                            <ListBox.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <VirtualizingStackPanel/>
+                                </ItemsPanelTemplate>
+                            </ListBox.ItemsPanel>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Margin="0,1" Padding="3,2" Background="#11FFFFFF" CornerRadius="2">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+                                            <!-- 第一行：勾选 + 词缀类型下拉 + 词缀文本 + Tier -->
+                                            <Grid Grid.Row="0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="64"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <ToggleButton Grid.Column="0"
+                                                              IsChecked="{Binding Selected}"
+                                                              Style="{StaticResource MiniToggleStyle}"
+                                                              Padding="4,1" Margin="0,0,4,0"
+                                                              ToolTip="勾选/取消此词缀"/>
+                                                <ComboBox Grid.Column="1"
+                                                          ItemsSource="{Binding Affix}"
+                                                          SelectedIndex="{Binding AffixIndex}"
+                                                          IsEnabled="{Binding AffixEnable}"
+                                                          FontSize="9" Height="18" Margin="0,0,4,0"
+                                                          Visibility="{Binding Affix.Count, Converter={StaticResource CountToVis}}"
+                                                          DisplayMemberPath="Name"/>
+                                                <!-- 词缀文本：根据 TierKind 和 ModKind 着色 -->
+                                                <TextBlock Grid.Column="2" Text="{Binding Mod}"
+                                                           FontSize="11" VerticalAlignment="Center"
+                                                           TextWrapping="Wrap" TextTrimming="CharacterEllipsis"
+                                                           ToolTip="{Binding ModTooltip}">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground" Value="#FFDDDDDD"/>
+                                                            <Style.Triggers>
+                                                                <!-- TierKind 着色（参考 xiletrade ModList.xaml） -->
+                                                                <DataTrigger Binding="{Binding TierKind}" Value="I">
+                                                                    <Setter Property="Foreground" Value="DarkKhaki"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding TierKind}" Value="P">
+                                                                    <Setter Property="Foreground" Value="#FF88BBFF"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding TierKind}" Value="S">
+                                                                    <Setter Property="Foreground" Value="#FFFFD080"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding TierKind}" Value="R">
+                                                                    <Setter Property="Foreground" Value="#FFB4B4FF"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding TierKind}" Value="U">
+                                                                    <Setter Property="Foreground" Value="Peru"/>
+                                                                </DataTrigger>
+                                                                <!-- ModKind 着色（优先级高于 TierKind） -->
+                                                                <DataTrigger Binding="{Binding ModKind}" Value="DangerousMod">
+                                                                    <Setter Property="Foreground" Value="Red"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding ModKind}" Value="RareMod">
+                                                                    <Setter Property="Foreground" Value="Gold"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding ModKind}" Value="AugmentedMod">
+                                                                    <Setter Property="Foreground" Value="#FF88CCFF"/>
+                                                                </DataTrigger>
+                                                                <!-- 未勾选时灰色 -->
+                                                                <Trigger Property="IsEnabled" Value="False">
+                                                                    <Setter Property="Foreground" Value="#FF666678"/>
+                                                                </Trigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                                <!-- Tier 标签 -->
+                                                <Border Grid.Column="3" Background="#334A90D9" CornerRadius="2"
+                                                        Padding="4,1" Margin="4,0,0,0" VerticalAlignment="Center"
+                                                        Visibility="{Binding Tier, Converter={StaticResource NonEmptyToVisConverter}}">
+                                                    <TextBlock Text="{Binding Tier}" FontSize="9" Foreground="#FF88BBFF"/>
+                                                </Border>
+                                            </Grid>
+                                            <!-- 第二行：Min/Max 输入 或 Slider，加当前值显示 -->
+                                            <Grid Grid.Row="1" Margin="22,2,0,0"
+                                                  Visibility="{Binding Selected, Converter={StaticResource BoolToVis}}">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <!-- Min/Max 文本输入模式（PreferMinMax=true） -->
+                                                <StackPanel Grid.Column="0" Orientation="Horizontal"
+                                                            Visibility="{Binding PreferMinMax, Converter={StaticResource BoolToVis}}">
+                                                    <TextBlock Text="Min:" FontSize="9" Foreground="#FF888899" VerticalAlignment="Center" Margin="0,0,2,0"/>
+                                                    <TextBox Text="{Binding Min, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                             Style="{StaticResource TbStatStyle}" Margin="0,0,6,0"/>
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="1" Orientation="Horizontal"
+                                                            Visibility="{Binding PreferMinMax, Converter={StaticResource BoolToVis}}">
+                                                    <TextBlock Text="Max:" FontSize="9" Foreground="#FF888899" VerticalAlignment="Center" Margin="0,0,2,0"/>
+                                                    <TextBox Text="{Binding Max, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                             Style="{StaticResource TbStatStyle}"/>
+                                                </StackPanel>
+                                                <!-- Slider 模式（PreferMinMax=false） -->
+                                                <Slider Grid.Column="2" Width="120" Margin="6,0,6,0"
+                                                        Value="{Binding SlideValue}"
+                                                        Minimum="0" Maximum="100"
+                                                        IsDirectionReversed="{Binding IsSlideReversed, Mode=TwoWay}"
+                                                        Visibility="{Binding PreferMinMax, Converter={StaticResource InverseBoolToVis}}"
+                                                        ToolTip="右键反向"/>
+                                                <!-- 当前值 -->
+                                                <TextBlock Grid.Column="3" FontSize="9" Foreground="#FFFFAA44"
+                                                           VerticalAlignment="Center" Margin="8,0,0,0"
+                                                           Visibility="{Binding Current, Converter={StaticResource NonEmptyToVisConverter}}">
+                                                    <Run Text="当前: "/><Run Text="{Binding Current, Mode=OneWay}"/>
+                                                </TextBlock>
+                                            </Grid>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </StackPanel>
 
-                <TextBlock Text="搜索中..."
-                           FontSize="11"
-                           Foreground="#FF4A90D9"
-                           HorizontalAlignment="Center"
-                           Margin="0,6,0,0"
-                           Visibility="{Binding IsSearching, Converter={StaticResource BoolToVis}}"/>
-            </StackPanel>
+                    <!-- ════ Influence 面板（参考 xiletrade InfluenceViewModel） ════ -->
+                    <StackPanel Margin="0,6,0,0"
+                                Visibility="{Binding Form.Visible.Influences, Converter={StaticResource BoolToVis}}">
+                        <TextBlock Text="影响" FontSize="11" Foreground="#FF7788AA" Margin="0,2,0,4" FontWeight="SemiBold"/>
+                        <WrapPanel>
+                            <CheckBox Content="{Binding Form.Influence.ShaperText}" IsChecked="{Binding Form.Influence.Shaper}"
+                                      Foreground="#FFCCCCCC" FontSize="10" Margin="0,0,8,2"/>
+                            <CheckBox Content="{Binding Form.Influence.ElderText}" IsChecked="{Binding Form.Influence.Elder}"
+                                      Foreground="#FFCCCCCC" FontSize="10" Margin="0,0,8,2"/>
+                            <CheckBox Content="{Binding Form.Influence.CrusaderText}" IsChecked="{Binding Form.Influence.Crusader}"
+                                      Foreground="#FFCCCCCC" FontSize="10" Margin="0,0,8,2"/>
+                            <CheckBox Content="{Binding Form.Influence.RedeemerText}" IsChecked="{Binding Form.Influence.Redeemer}"
+                                      Foreground="#FFCCCCCC" FontSize="10" Margin="0,0,8,2"/>
+                            <CheckBox Content="{Binding Form.Influence.HunterText}" IsChecked="{Binding Form.Influence.Hunter}"
+                                      Foreground="#FFCCCCCC" FontSize="10" Margin="0,0,8,2"/>
+                            <CheckBox Content="{Binding Form.Influence.WarlordText}" IsChecked="{Binding Form.Influence.Warlord}"
+                                      Foreground="#FFCCCCCC" FontSize="10" Margin="0,0,8,2"/>
+                        </WrapPanel>
+                    </StackPanel>
+
+                    <!-- ════ Condition 面板（参考 xiletrade ConditionViewModel） ════ -->
+                    <StackPanel Margin="0,4,0,0"
+                                Visibility="{Binding Form.Visible.Conditions, Converter={StaticResource BoolToVis}}">
+                        <WrapPanel>
+                            <CheckBox Content="{Binding Form.Condition.FreePrefixText}" IsChecked="{Binding Form.Condition.FreePrefix}"
+                                      ToolTip="{Binding Form.Condition.FreePrefixToolTip}"
+                                      Foreground="#FFCCCCCC" FontSize="10" Margin="0,0,10,2"/>
+                            <CheckBox Content="{Binding Form.Condition.FreeSuffixText}" IsChecked="{Binding Form.Condition.FreeSuffix}"
+                                      ToolTip="{Binding Form.Condition.FreeSuffixToolTip}"
+                                      Foreground="#FFCCCCCC" FontSize="10" Margin="0,0,10,2"/>
+                            <CheckBox Content="{Binding Form.Condition.SocketColorsText}" IsChecked="{Binding Form.Condition.SocketColors}"
+                                      ToolTip="{Binding Form.Condition.SocketColorsToolTip}"
+                                      Foreground="#FFCCCCCC" FontSize="10" Margin="0,0,10,2"/>
+                        </WrapPanel>
+                    </StackPanel>
+
+                    <!-- ════ 搜索按钮 ════ -->
+                    <Grid Margin="0,10,0,0">
+                        <Button Content="🔍 搜索"
+                                Grid.Column="0"
+                                Command="{Binding SearchCommand}"
+                                IsEnabled="{Binding CanSearch}"
+                                Style="{StaticResource PrimaryButtonStyle}"
+                                HorizontalAlignment="Stretch"
+                                Height="34" FontSize="13" FontWeight="Bold"/>
+                    </Grid>
+
+                    <TextBlock Text="搜索中..."
+                               FontSize="11" Foreground="#FF4A90D9"
+                               HorizontalAlignment="Center" Margin="0,4,0,0"
+                               Visibility="{Binding IsSearching, Converter={StaticResource BoolToVis}}"/>
+                </StackPanel>
+            </ScrollViewer>
 
             <!-- 结果模式：显示价格列表 -->
             <StackPanel Grid.Row="1"
@@ -274,20 +627,19 @@
                                                          BorderThickness="1"
                                                          Padding="10,8"
                                                          MaxWidth="380">
-                                                    <!-- 参考 xiletrade ResultItem 配色，保持我们居中风格 -->
                                                     <StackPanel>
                                                         <!-- 物品名称（稀有度配色） -->
                                                         <TextBlock Text="{Binding ItemDetail.Name}"
                                                                    FontSize="14"
                                                                    FontWeight="Bold"
-                                                                   Foreground="{Binding ItemDetail.Rarity, Converter={StaticResource RarityColorConverter}}"
+                                                                   Foreground="{Binding ItemDetail.Rarity, Converter={StaticResource ColorNameToBrush}}"
                                                                    TextWrapping="Wrap"
                                                                    TextAlignment="Center"
                                                                    Visibility="{Binding ItemDetail.Name, Converter={StaticResource NonEmptyToVisConverter}}"/>
                                                         <!-- 基底类型（稀有度配色） -->
                                                         <TextBlock Text="{Binding ItemDetail.TypeLine}"
                                                                    FontSize="13"
-                                                                   Foreground="{Binding ItemDetail.Rarity, Converter={StaticResource RarityColorConverter}}"
+                                                                   Foreground="{Binding ItemDetail.Rarity, Converter={StaticResource ColorNameToBrush}}"
                                                                    TextWrapping="Wrap"
                                                                    TextAlignment="Center"
                                                                    Margin="0,1,0,0"

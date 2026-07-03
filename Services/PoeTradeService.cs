@@ -5,6 +5,7 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Poe2PriceGui.Models;
+using Xiletrade.Library.Models.Poe.Domain.Parser;
 
 namespace Poe2PriceGui.Services;
 
@@ -22,8 +23,14 @@ public class PoeTradeService
     // 保留小幅延迟避免触发国服 API 限流（xiletrade 用响应头驱动，这里简化为固定低延迟）。
     private const int RequestDelayMs = 200;
     // 收到 429 时的默认退避秒数（若响应无 Retry-After 头）。
-    private const int RateLimitBackoffSec = 5;
+    private const int RateLimitBackoffSec = 30;
 
+    // 滑动窗口限流：POE2 trade search API 限制约 5 次/60 秒。
+    // 参考 xiletrade-master PoeApiService.ApplyCooldown：主动节流避免 429，而非被动等待。
+    // 留 1 次余量（maxRequests=4），避免边界触发 429。
+    private const int SearchRateLimit = 4;
+    private const int SearchRateWindowSec = 60;
+    private readonly Queue<DateTime> _searchTimestamps = new();
     private readonly HttpClient _httpClient;
     private readonly SemaphoreSlim _rateLimiter = new(1, 1);
 
@@ -113,7 +120,7 @@ public class PoeTradeService
     /// 按物品名称/基底搜索，返回搜索结果摘要。
     /// searchByType=true 时按基底(type)查询，否则按名称(name)查询（适用于传奇物品）。
     /// baseType 不为空且 searchByType=false 时，同时传入 type 字段（参考 xiletrade-master：传奇物品同时传 name 和 type）。
-    /// itemLevel 不为 null 时添加物品等级筛选。
+    /// itemLevelMin/itemLevelMax 不为 null 时添加物品等级筛选（misc_filters.ilvl）。
     /// rarity 不为空时添加稀有度筛选。
     /// selectedMods 不为空时按词缀过滤：每个元素 = (词缀文本, 词缀类型)，词缀类型用于映射到正确的 stat 分类（implicit/explicit/crafted）。
     /// isExactSearch=true 时按词缀的具体数值过滤。
@@ -125,9 +132,10 @@ public class PoeTradeService
         string? sessionId,
         bool searchByType = true,
         string? baseType = null,
-        int? itemLevel = null,
+        int? itemLevelMin = null,
+        int? itemLevelMax = null,
         string? rarity = null,
-        List<(string text, string type)>? selectedMods = null,
+        List<(string text, string type, string? min, string? max)>? selectedMods = null,
         bool isExactSearch = false,
         int? quality = null,
         bool? corrupted = null,
@@ -138,6 +146,7 @@ public class PoeTradeService
         int? dpsTotal = null,
         int? dpsPhys = null,
         int? dpsElem = null,
+        ItemFlag? itemFlag = null,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(league))
@@ -156,10 +165,10 @@ public class PoeTradeService
         }
 
         // 如果有选中词缀，先匹配 stat ID 和解析数值。
-        List<(string id, double? value)>? matchedStats = null;
+        List<(string id, double? min, double? max)>? matchedStats = null;
         if (selectedMods != null && selectedMods.Count > 0)
         {
-            matchedStats = await MatchModsToStatIdsAsync(selectedMods, sessionId, cancellationToken);
+            matchedStats = await MatchModsToStatIdsAsync(selectedMods, sessionId, cancellationToken, itemFlag, isExactSearch);
             AppLogger.Instance.Info($"词缀匹配结果：{selectedMods.Count} 个词缀，匹配到 {matchedStats.Count} 个 stat ID");
         }
 
@@ -188,10 +197,11 @@ public class PoeTradeService
                     typeFiltersDisabled = false;
                 }
             }
-            if (itemLevel.HasValue)
+            if (itemLevelMin.HasValue || itemLevelMax.HasValue)
             {
-                typeFiltersInner["ilvl"] = new { min = itemLevel.Value };
-                typeFiltersDisabled = false;
+                // 物品等级放在 misc_filters（参考 xiletrade-master JsonDataFactory misc.Filters.Ilvl）。
+                // POE2 API 的 type_filters 不索引 ilvl，放在 misc_filters 才能生效。
+                // 此处先收集，下方 misc_filters 区域统一写入。
             }
             // 品质（参考 xiletrade type_filters.filters.quality）。
             if (quality.HasValue)
@@ -208,7 +218,7 @@ public class PoeTradeService
                 filtersDict["type_filters"] = new { disabled = typeFiltersDisabled, filters = typeFiltersInner };
             }
 
-            // misc_filters：corrupted/identified（参考 xiletrade-master GetMiscFilters）。
+            // misc_filters：corrupted/identified/ilvl（参考 xiletrade-master GetMiscFilters）。
             var miscFiltersInner = new Dictionary<string, object>();
             if (corrupted.HasValue)
             {
@@ -217,6 +227,17 @@ public class PoeTradeService
             if (identified.HasValue)
             {
                 miscFiltersInner["identified"] = new { option = identified.Value ? "true" : "false" };
+            }
+            if (itemLevelMin.HasValue || itemLevelMax.HasValue)
+            {
+                // 物品等级筛选：min/max 任一有值即写入（参考 xiletrade misc.Filters.Ilvl.Min/Max）。
+                object ilvlVal = (itemLevelMin.HasValue, itemLevelMax.HasValue) switch
+                {
+                    (true, true) => new { min = itemLevelMin.Value, max = itemLevelMax.Value },
+                    (true, false) => new { min = itemLevelMin.Value },
+                    _ => new { max = itemLevelMax.Value }
+                };
+                miscFiltersInner["ilvl"] = ilvlVal;
             }
             if (miscFiltersInner.Count > 0)
             {
@@ -271,9 +292,16 @@ public class PoeTradeService
             {
                 var statFilters = matchedStats.Select(stat =>
                 {
-                    if (isExactSearch && stat.value.HasValue)
+                    // 用户输入的 min/max（或 isExactSearch 时的物品自身数值）用于 API 过滤。
+                    if (stat.min.HasValue || stat.max.HasValue)
                     {
-                        return (object)new { id = stat.id, value = new { min = stat.value.Value, max = stat.value.Value } };
+                        object? minVal = stat.min.HasValue ? (object)stat.min.Value : null;
+                        object? maxVal = stat.max.HasValue ? (object)stat.max.Value : null;
+                        object valueObj = minVal is not null && maxVal is not null
+                            ? new { min = minVal, max = maxVal }
+                            : minVal is not null ? new { min = minVal }
+                            : new { max = maxVal };
+                        return (object)new { id = stat.id, value = valueObj };
                     }
                     return (object)new { id = stat.id };
                 }).ToArray();
@@ -315,25 +343,44 @@ public class PoeTradeService
             }
             queryDict["query"] = queryInner;
 
-            using var request = new HttpRequestMessage(HttpMethod.Post, url);
-            request.Content = JsonContent.Create(queryDict);
-            AddCommonHeaders(request, sessionId);
-
-            // 记录请求体，便于诊断 400 错误。
-            var requestBody = await request.Content.ReadAsStringAsync(cancellationToken);
+            // 序列化请求体（一次序列化，429 重试时复用）。
+            var requestBody = JsonSerializer.Serialize(queryDict);
             AppLogger.Instance.Info($"搜索请求：POST {url} body={requestBody}");
 
-            using var response = await _httpClient.SendAsync(request, cancellationToken);
-            var json = await response.Content.ReadAsStringAsync(cancellationToken);
-
-            if (!response.IsSuccessStatusCode)
+            // 发送搜索请求，429 限流时按 Retry-After / body 解析等待秒数后重试一次。
+            // 参考 SendWithRateLimitAsync，但 SearchAsync 需保留 400/401 错误抛异常以触发回退搜索。
+            // 滑动窗口限流（EnforceSearchRateLimitAsync）在发送前主动等待，避免触发 429。
+            string json = "";
+            for (var attempt = 0; attempt < 2; attempt++)
             {
-                AppLogger.Instance.Warn($"交易搜索失败：{(int)response.StatusCode} {json}");
-                if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                // 每次发送前（含 429 重试）都检查滑动窗口，确保不超速。
+                await EnforceSearchRateLimitAsync(cancellationToken);
+
+                using var request = new HttpRequestMessage(HttpMethod.Post, url);
+                request.Content = new StringContent(requestBody, Encoding.UTF8, "application/json");
+                AddCommonHeaders(request, sessionId);
+
+                using var response = await _httpClient.SendAsync(request, cancellationToken);
+                json = await response.Content.ReadAsStringAsync(cancellationToken);
+
+                if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests && attempt == 0)
                 {
-                    throw new HttpRequestException("POESESSID 无效或已过期，请在设置页重新登录获取。");
+                    var retryAfter = GetRetryAfterSeconds(response, json);
+                    AppLogger.Instance.Warn($"搜索收到 429 限流，等待 {retryAfter} 秒后重试");
+                    await Task.Delay(TimeSpan.FromSeconds(retryAfter), cancellationToken);
+                    continue;
                 }
-                throw new HttpRequestException($"搜索失败：{(int)response.StatusCode}");
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    AppLogger.Instance.Warn($"交易搜索失败：{(int)response.StatusCode} {json}");
+                    if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                    {
+                        throw new HttpRequestException("POESESSID 无效或已过期，请在设置页重新登录获取。");
+                    }
+                    throw new HttpRequestException($"搜索失败：{(int)response.StatusCode}");
+                }
+                break;
             }
 
             using var doc = JsonDocument.Parse(json);
@@ -470,18 +517,20 @@ public class PoeTradeService
     }
 
     /// <summary>
-    /// 将词缀文本列表匹配到 stat ID 列表，同时解析出词缀的具体数值。
+    /// 将词缀文本列表匹配到 stat ID 列表，同时解析出用户输入的 min/max 过滤值。
     /// 参考 xiletrade-master 的 ModFilter + ModInfoParse 匹配策略：
     /// 1. 正则精确匹配：构建 ^pattern$ 正则，# 替换为数字匹配模式，同时匹配 stat 文本中的 # 占位符
     /// 2. Levenshtein 模糊匹配：作为兜底，距离阈值 = max(1, len/8)
+    /// 返回的 min/max 来自用户在 UI 输入的 Min/Max 值（解析为 double），用于 API stat 过滤。
     /// </summary>
-    private async Task<List<(string id, double? value)>> MatchModsToStatIdsAsync(
-        List<(string text, string type)> modTexts, string? sessionId, CancellationToken ct)
+    private async Task<List<(string id, double? min, double? max)>> MatchModsToStatIdsAsync(
+        List<(string text, string type, string? min, string? max)> modTexts, string? sessionId, CancellationToken ct,
+        ItemFlag? itemFlag = null, bool isExactSearch = false)
     {
         var stats = await GetStatsAsync(sessionId, ct);
-        var result = new List<(string id, double? value)>();
+        var result = new List<(string id, double? min, double? max)>();
 
-        foreach (var (modText, modType) in modTexts)
+        foreach (var (modText, modType, userMin, userMax) in modTexts)
         {
             // 1. 清理 [key|value] 格式标记。
             var cleaned = CleanModDescription(modText);
@@ -495,6 +544,24 @@ public class PoeTradeService
             // 统一 +# → #（API stat 文本通常不带 + 号）。
             normalized = normalized.Replace("+#", "#");
 
+            // 解析用户输入的 min/max（来自 UI 输入框），优先于物品自身数值。
+            double? filterMin = null;
+            double? filterMax = null;
+            if (double.TryParse(userMin, out var parsedMin))
+            {
+                filterMin = parsedMin;
+            }
+            if (double.TryParse(userMax, out var parsedMax))
+            {
+                filterMax = parsedMax;
+            }
+            // 无用户输入时，isExactSearch 模式用物品自身数值做精确匹配。
+            if (isExactSearch && modValue.HasValue && filterMin is null && filterMax is null)
+            {
+                filterMin = modValue;
+                filterMax = modValue;
+            }
+
             var expectedCategory = MapModTypeToCategory(modType);
 
             // 阶段1：正则精确匹配。
@@ -504,8 +571,9 @@ public class PoeTradeService
             {
                 var candidates = regexMatches.Select(e => (e.Id, e.Category)).ToList();
                 var statId = PickStatByCategory(candidates, expectedCategory, modText);
-                result.Add((statId, modValue));
-                AppLogger.Instance.Info($"词缀正则匹配：'{modText}' → {statId}（{regexMatches.Count} 个命中）");
+                statId = ApplyStatIdSwitch(statId, itemFlag);
+                result.Add((statId, filterMin, filterMax));
+                AppLogger.Instance.Info($"词缀正则匹配：'{modText}' → {statId}（{regexMatches.Count} 个命中, min={filterMin}, max={filterMax}）");
                 continue;
             }
 
@@ -513,8 +581,9 @@ public class PoeTradeService
             var bestMatch = FindLevenshteinMatch(normalized, stats, expectedCategory);
             if (bestMatch != null)
             {
-                result.Add((bestMatch.Id, modValue));
-                AppLogger.Instance.Info($"词缀模糊匹配：'{modText}' → '{bestMatch.Text}' (stat: {bestMatch.Id}, 距离={bestMatch.Distance})");
+                var statId = ApplyStatIdSwitch(bestMatch.Id, itemFlag);
+                result.Add((statId, filterMin, filterMax));
+                AppLogger.Instance.Info($"词缀模糊匹配：'{modText}' → '{bestMatch.Text}' (stat: {statId}, 距离={bestMatch.Distance}, min={filterMin}, max={filterMax})");
                 continue;
             }
 
@@ -537,6 +606,65 @@ public class PoeTradeService
         // 放宽 +# 模式：将 \+\# 替换为 [+]?\\#（使 + 号可选）。
         pattern = pattern.Replace(@"\+" + DecimalPatternDieze, "[+]?" + DecimalPatternDieze);
         return new Regex("^" + pattern + "$", RegexOptions.IgnoreCase);
+    }
+
+    /// <summary>
+    /// 切换 stat ID 以匹配 POE2 API 索引版本。参考 xiletrade ModFilter.SwitchPoe2EntrieId。
+    /// 武器使用 Local 版本（带"(区域)"后缀），非武器使用 Global 版本；护甲件/药瓶等类推。
+    /// 国服武器上的"攻击速度提高"是 Local mod，需用 stat_210067635（带区域）才能搜到，
+    /// 否则匹配到 stat_681332047（无区域）会导致国服搜不到装备。
+    /// </summary>
+    private static string ApplyStatIdSwitch(string statId, ItemFlag? flag)
+    {
+        if (string.IsNullOrEmpty(statId) || flag is null)
+        {
+            return statId;
+        }
+
+        var original = statId;
+
+        // 武器 ↔ 非武器：攻击速度 / 命中值 / 中毒几率（Local vs Global）
+        if (flag.Weapon)
+        {
+            statId = statId.Replace("explicit.stat_681332047", "explicit.stat_210067635"); // 攻击速度提高 Global → Local
+            statId = statId.Replace("explicit.stat_803737631", "explicit.stat_691932474"); // 命中值 Global → Local
+            statId = statId.Replace("explicit.stat_795138349", "explicit.stat_3885634897"); // 中毒几率 Global → Local
+        }
+        else
+        {
+            statId = statId.Replace("explicit.stat_210067635", "explicit.stat_681332047"); // 攻击速度提高 Local → Global
+            statId = statId.Replace("explicit.stat_691932474", "explicit.stat_803737631"); // 命中值 Local → Global
+            statId = statId.Replace("explicit.stat_3885634897", "explicit.stat_795138349"); // 中毒几率 Local → Global
+        }
+
+        // 护甲件 ↔ 非护甲件
+        if (flag.ArmourPiece)
+        {
+            statId = statId.Replace("explicit.stat_2866361420", "explicit.stat_1062208444"); // 护甲提高 Global → Local
+            statId = statId.Replace("explicit.stat_2106365538", "explicit.stat_124859000");  // 闪避提高 Global → Local
+        }
+        else
+        {
+            statId = statId.Replace("explicit.stat_1062208444", "explicit.stat_2866361420"); // 护甲提高 Local → Global
+            statId = statId.Replace("explicit.stat_124859000", "explicit.stat_2106365538");  // 闪避提高 Local → Global
+        }
+
+        // 药瓶：持续时间
+        if (flag.Flask)
+        {
+            statId = statId.Replace("explicit.stat_2541588185", "explicit.stat_1256719186"); // 持续时间 Global → Local
+        }
+        else
+        {
+            statId = statId.Replace("explicit.stat_1256719186", "explicit.stat_2541588185"); // 持续时间 Local → Global
+        }
+
+        if (statId != original)
+        {
+            AppLogger.Instance.Info($"stat ID 切换：{original} → {statId}（武器={flag.Weapon}, 护甲={flag.ArmourPiece}, 瓶={flag.Flask}）");
+        }
+
+        return statId;
     }
 
     /// <summary>
@@ -817,7 +945,7 @@ public class PoeTradeService
 
             if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests && attempt == 0)
             {
-                var retryAfter = GetRetryAfterSeconds(response);
+                var retryAfter = GetRetryAfterSeconds(response, json);
                 AppLogger.Instance.Warn($"收到 429 限流，等待 {retryAfter} 秒后重试");
                 await Task.Delay(TimeSpan.FromSeconds(retryAfter), ct);
                 continue;
@@ -838,9 +966,15 @@ public class PoeTradeService
         return "";
     }
 
-    /// <summary>解析 Retry-After 响应头（秒），无则返回默认退避秒数。</summary>
-    private static int GetRetryAfterSeconds(HttpResponseMessage response)
+    /// <summary>
+    /// 解析 429 限流重试等待秒数：
+    /// 1. 优先读 Retry-After 响应头（秒）；
+    /// 2. 从响应 body 解析"请等待 N 秒"（国服 API 把等待时间放 body 不放 header）；
+    /// 3. 兜底 RateLimitBackoffSec。
+    /// </summary>
+    private static int GetRetryAfterSeconds(HttpResponseMessage response, string? responseBody = null)
     {
+        // 1. Retry-After 响应头（秒）。
         if (response.Headers.TryGetValues("Retry-After", out var values))
         {
             var val = values.FirstOrDefault();
@@ -849,7 +983,48 @@ public class PoeTradeService
                 return sec;
             }
         }
+        // 2. 从响应 body 解析"请等待 N 秒"（国服格式："Rate limit exceeded; 请等待 45 秒之后再试"）。
+        if (!string.IsNullOrEmpty(responseBody))
+        {
+            var match = Regex.Match(responseBody, @"请等待\s*(\d+)\s*秒");
+            if (match.Success && int.TryParse(match.Groups[1].Value, out var bodySec) && bodySec > 0)
+            {
+                return bodySec;
+            }
+        }
         return RateLimitBackoffSec;
+    }
+
+    /// <summary>
+    /// 滑动窗口限流：在发送 search 请求前检查 60 秒窗口内已发请求数，
+    /// 若已达上限则等待最早的请求滑出窗口。参考 xiletrade PoeApiService.ApplyCooldown。
+    /// </summary>
+    private async Task EnforceSearchRateLimitAsync(CancellationToken ct)
+    {
+        DateTime now;
+        while (true)
+        {
+            now = DateTime.UtcNow;
+            // 清理窗口外的旧时间戳。
+            var cutoff = now.AddSeconds(-SearchRateWindowSec);
+            while (_searchTimestamps.Count > 0 && _searchTimestamps.Peek() < cutoff)
+            {
+                _searchTimestamps.Dequeue();
+            }
+
+            if (_searchTimestamps.Count < SearchRateLimit)
+            {
+                break; // 窗口内未达上限，可以发送。
+            }
+
+            // 已达上限，计算需等待的秒数（最早请求滑出窗口 + 1 秒余量）。
+            var oldest = _searchTimestamps.Peek();
+            var waitSec = (oldest.AddSeconds(SearchRateWindowSec) - now).TotalSeconds + 1;
+            if (waitSec <= 0) break;
+            AppLogger.Instance.Info($"滑动窗口限流：{SearchRateLimit}/{SearchRateLimit} 已用，等待 {waitSec:F0} 秒后重试");
+            await Task.Delay(TimeSpan.FromSeconds(Math.Min(waitSec, SearchRateWindowSec)), ct);
+        }
+        _searchTimestamps.Enqueue(now);
     }
 
     private static List<TradeListing> ParseFetchResponse(string json)

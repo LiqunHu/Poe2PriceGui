@@ -84,6 +84,9 @@ public class AppSettings
     /// <summary>查价器目标赛季，例如 "奥杜尔秘符"。</summary>
     public string PriceCheckerLeague { get; set; } = "奥杜尔秘符";
 
+    /// <summary>查价器解析语言索引（Strings.Culture 数组索引：0=en-US, 9=zh-CN, 10=ja-JP, ...），默认中文。</summary>
+    public int PriceCheckerLanguage { get; set; } = 9;
+
     /// <summary>通货价格查询 Token，为空时使用公共 summary 接口，非空时使用 summary_validate 接口。</summary>
     public string CurrencyPriceToken { get; set; } = "789486ce3baf2c4a7e18f4ba0b9aa4ab8edb9da64ca92bca10ca74c094cd8f8d";
 }

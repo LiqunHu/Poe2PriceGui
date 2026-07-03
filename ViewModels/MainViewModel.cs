@@ -12,6 +12,8 @@ using Poe2PriceGui.Models;
 using Poe2PriceGui.Services;
 using Poe2PriceGui.Services.Smoother;
 using Poe2PriceGui.Windows;
+using Xiletrade.Library.Shared.Enum;
+using Xiletrade.Library.ViewModels.Main.Form;
 
 namespace Poe2PriceGui.ViewModels;
 
@@ -44,7 +46,22 @@ public class MainViewModel : INotifyPropertyChanged
     private string _priceCheckerHotkey = "Ctrl+D";
     private string _priceCheckerPoeSessionId = "";
     private string _priceCheckerLeague = "";
+    private int _priceCheckerLanguage = 9;
     private ObservableCollection<string> _availableLeagues = new();
+    private ObservableCollection<string> _availableLanguages = new()
+    {
+        "英文 (en-US)",
+        "韩文 (ko-KR)",
+        "法文 (fr-FR)",
+        "西班牙文 (es-ES)",
+        "德文 (de-DE)",
+        "葡萄牙文 (pt-BR)",
+        "俄文 (ru-RU)",
+        "泰文 (th-TH)",
+        "繁体中文 (zh-TW)",
+        "简体中文 (zh-CN)",
+        "日文 (ja-JP)",
+    };
     private string _currencyPriceToken = "789486ce3baf2c4a7e18f4ba0b9aa4ab8edb9da64ca92bca10ca74c094cd8f8d";
     private ListCollectionView _filteredPrices = new(new ObservableCollection<PoecurrencyItem>());
     private PriceOverlayWindow? _currentOverlay;
@@ -68,6 +85,7 @@ public class MainViewModel : INotifyPropertyChanged
         _priceCheckerHotkey = _settings.PriceCheckerHotkey;
         _priceCheckerPoeSessionId = _settings.PriceCheckerPoeSessionId;
         _priceCheckerLeague = _settings.PriceCheckerLeague;
+        _priceCheckerLanguage = _settings.PriceCheckerLanguage;
         _currencyPriceToken = _settings.CurrencyPriceToken;
 
         // 先根据已保存的游戏目录检测区服，再创建对应的价格/交易服务。
@@ -399,6 +417,30 @@ public class MainViewModel : INotifyPropertyChanged
         private set => SetProperty(ref _availableLeagues, value);
     }
 
+    /// <summary>
+    /// 查价器解析语言索引（对应 xiletrade Strings.Culture 数组：0=en-US, 9=zh-CN, 10=ja-JP, ...）。
+    /// 切换时即时应用到 XiletradePriceService。
+    /// </summary>
+    public int PriceCheckerLanguage
+    {
+        get => _priceCheckerLanguage;
+        set
+        {
+            if (SetProperty(ref _priceCheckerLanguage, value))
+            {
+                _settings.PriceCheckerLanguage = value;
+                _settingsService.Save(_settings);
+                XiletradePriceService.Instance.SetLanguage(value);
+                AppLogger.Instance.Info($"查价器语言切换：index={value}, culture={Xiletrade.Library.Shared.Strings.Culture[value]}");
+            }
+        }
+    }
+
+    /// <summary>
+    /// 可用语言列表，绑定到设置页下拉框。
+    /// </summary>
+    public ObservableCollection<string> AvailableLanguages => _availableLanguages;
+
     /// <summary>通货价格查询 Token，为空时使用公共接口，非空时使用 summary_validate 接口。</summary>
     public string CurrencyPriceToken
     {
@@ -463,23 +505,32 @@ public class MainViewModel : INotifyPropertyChanged
                 return;
             }
 
-            var itemInfo = ItemTextParser.Parse(itemText);
-            AppLogger.Instance.Info($"解析结果：Name={itemInfo.Name}, BaseType={itemInfo.BaseType}, Rarity={itemInfo.Rarity}, ItemLevel={itemInfo.ItemLevel}, IsValid={itemInfo.IsValid}");
-            if (!itemInfo.IsValid || itemInfo.Rarity == "Unknown")
+            // 使用 xiletrade 的解析管线：InfoDescription → ItemData → FormViewModel
+            FormViewModel? form;
+            try
+            {
+                EnsurePriceCheckerLanguage();
+                form = XiletradePriceService.Instance.ParseItem(itemText);
+            }
+            catch (Exception ex)
+            {
+                AppLogger.Instance.Error(ex, "xiletrade 解析异常");
+                ShowOverlayError("无法解析装备信息", ex.Message);
+                return;
+            }
+
+            if (form == null)
             {
                 ShowOverlayError("无法解析装备信息", "剪贴板内容不是有效的装备文本，请确保游戏窗口处于前台且鼠标悬停在装备上");
                 AppLogger.Instance.Warn($"剪贴板内容前 100 字符：{itemText[..Math.Min(100, itemText.Length)]}");
                 return;
             }
 
-            // 构建可选搜索字段。
-            var fields = BuildSearchFields(itemInfo);
-            ApplyDefaultModSelection(itemInfo);
+            AppLogger.Instance.Info($"解析结果：Name={form.ItemName}, BaseType={form.ItemBaseType}, ByBase={form.ByBase}, IsPoeTwo={form.IsPoeTwo}");
 
             var viewModel = new PriceOverlayViewModel
             {
-                ItemInfo = itemInfo,
-                SearchFields = fields,
+                Form = form,
                 SearchCallback = ExecuteOverlaySearchAsync,
             };
 
@@ -664,21 +715,18 @@ public class MainViewModel : INotifyPropertyChanged
 " + "\"骨骼是灵魂的居所，\n血肉是精神和世界交流的窗口，推动一切的力量就在心窝。\n即使有了这些，失去了头脑就没有自我。\"\n——冈姆军师拉维安加\n--------\n引路石掉落";
             }
 
-            var itemInfo = ItemTextParser.Parse(itemText);
-            AppLogger.Instance.Info($"测试解析结果：Name={itemInfo.Name}, BaseType={itemInfo.BaseType}, Rarity={itemInfo.Rarity}, ItemLevel={itemInfo.ItemLevel}, IsValid={itemInfo.IsValid}");
-            if (!itemInfo.IsValid || itemInfo.Rarity == "Unknown")
+            EnsurePriceCheckerLanguage();
+            var form = XiletradePriceService.Instance.ParseItem(itemText);
+            AppLogger.Instance.Info($"测试解析结果：Name={form?.ItemName}, BaseType={form?.ItemBaseType}, ByBase={form?.ByBase}");
+            if (form == null)
             {
                 _toastService.ShowError("测试文本解析失败");
                 return;
             }
 
-            var fields = BuildSearchFields(itemInfo);
-            ApplyDefaultModSelection(itemInfo);
-
             var viewModel = new PriceOverlayViewModel
             {
-                ItemInfo = itemInfo,
-                SearchFields = fields,
+                Form = form,
                 SearchCallback = ExecuteOverlaySearchAsync,
             };
 
@@ -697,161 +745,26 @@ public class MainViewModel : INotifyPropertyChanged
     }
 
     /// <summary>
-    /// 构建可选搜索字段。参考 xiletrade-master GetTypeFilters：
-    /// name/type/itemLevel/rarity/quality/sockets/reqLevel/category/corrupted/identified。
-    /// </summary>
-    private static ObservableCollection<SearchField> BuildSearchFields(ItemInfo itemInfo)
-    {
-        var fields = new ObservableCollection<SearchField>();
-
-        // 传奇物品默认选「名称」，其它默认选「基底」。
-        if (itemInfo.IsUnique)
-        {
-            fields.Add(new SearchField { Label = "名称", Key = "name", Value = itemInfo.Name, IsSelected = true });
-            if (!string.IsNullOrWhiteSpace(itemInfo.BaseType))
-            {
-                fields.Add(new SearchField { Label = "基底", Key = "type", Value = itemInfo.BaseType, IsSelected = false });
-            }
-        }
-        else
-        {
-            fields.Add(new SearchField { Label = "基底", Key = "type", Value = itemInfo.BaseType, IsSelected = true });
-        }
-
-        if (itemInfo.ItemLevel > 0)
-        {
-            fields.Add(new SearchField { Label = "物品等级", Key = "itemLevel", Value = itemInfo.ItemLevel.ToString(), IsSelected = false, IsNumeric = true });
-        }
-
-        if (!string.IsNullOrWhiteSpace(itemInfo.Rarity) && itemInfo.Rarity != "Unknown")
-        {
-            fields.Add(new SearchField { Label = "稀有度", Key = "rarity", Value = itemInfo.Rarity, IsSelected = false });
-        }
-
-        // 品质（参考 xiletrade type_filters.filters.quality）。
-        if (itemInfo.Quality > 0)
-        {
-            fields.Add(new SearchField { Label = "品质", Key = "quality", Value = itemInfo.Quality.ToString(), IsSelected = false, IsNumeric = true });
-        }
-
-        // 装备数值（参考 xiletrade-master GetEquipmentFilters：ar/es/ev/dps/pdps/edps）。
-        if (itemInfo.Armour > 0)
-        {
-            fields.Add(new SearchField { Label = "护甲", Key = "armour", Value = itemInfo.Armour.ToString(), IsSelected = false, IsNumeric = true });
-        }
-        if (itemInfo.Evasion > 0)
-        {
-            fields.Add(new SearchField { Label = "闪避", Key = "evasion", Value = itemInfo.Evasion.ToString(), IsSelected = false, IsNumeric = true });
-        }
-        if (itemInfo.EnergyShield > 0)
-        {
-            fields.Add(new SearchField { Label = "能量护盾", Key = "energyShield", Value = itemInfo.EnergyShield.ToString(), IsSelected = false, IsNumeric = true });
-        }
-        if (itemInfo.DpsTotal > 0)
-        {
-            fields.Add(new SearchField { Label = "总DPS", Key = "dpsTotal", Value = itemInfo.DpsTotal.ToString(), IsSelected = false, IsNumeric = true });
-        }
-        if (itemInfo.DpsPhys > 0)
-        {
-            fields.Add(new SearchField { Label = "物理DPS", Key = "dpsPhys", Value = itemInfo.DpsPhys.ToString(), IsSelected = false, IsNumeric = true });
-        }
-        if (itemInfo.DpsElem > 0)
-        {
-            fields.Add(new SearchField { Label = "元素DPS", Key = "dpsElem", Value = itemInfo.DpsElem.ToString(), IsSelected = false, IsNumeric = true });
-        }
-
-        if (itemInfo.SocketCount > 0)
-        {
-            fields.Add(new SearchField { Label = "插槽", Key = "sockets", Value = itemInfo.SocketCount.ToString(), IsSelected = false, IsNumeric = true });
-        }
-
-        if (itemInfo.RequiredLevel > 0)
-        {
-            fields.Add(new SearchField { Label = "需求等级", Key = "reqLevel", Value = itemInfo.RequiredLevel.ToString(), IsSelected = false, IsNumeric = true });
-        }
-
-        if (!string.IsNullOrWhiteSpace(itemInfo.ItemClass))
-        {
-            fields.Add(new SearchField { Label = "类别", Key = "category", Value = itemInfo.ItemClass, IsSelected = false });
-        }
-
-        // 已腐化（参考 xiletrade misc_filters.corrupted）。
-        if (itemInfo.Corrupted)
-        {
-            fields.Add(new SearchField { Label = "已腐化", Key = "corrupted", Value = "true", IsSelected = false });
-        }
-
-        // 已鉴定（参考 xiletrade misc_filters.identified）。
-        // 只有未鉴定物品才显示此选项，让用户可选择搜索未鉴定物品。
-        if (!itemInfo.Identified)
-        {
-            fields.Add(new SearchField { Label = "未鉴定", Key = "unidentified", Value = "true", IsSelected = false });
-        }
-
-        return fields;
-    }
-
-    /// <summary>
-    /// 词缀默认勾选逻辑。参考 xiletrade-master ModLineViewModel.GetModSelection：
-    /// - 非传奇物品：显式属性（前缀/后缀/传奇/显式）→ 默认勾选
-    /// - 隐式属性（基底/隐式）→ 默认不勾选
-    /// - 打造属性 → 默认不勾选
-    /// - 传奇物品 → 默认不勾选任何词缀（只使用名称/基底搜索，避免 POE2 API 对固定词缀不索引导致无结果）
-    /// </summary>
-    private static void ApplyDefaultModSelection(ItemInfo itemInfo)
-    {
-        if (itemInfo.Mods == null || itemInfo.Mods.Count == 0) return;
-
-        // 传奇物品不默认勾选词缀，由用户自行决定。
-        if (itemInfo.IsUnique) return;
-
-        foreach (var mod in itemInfo.Mods)
-        {
-            mod.IsSelected = mod.Type switch
-            {
-                "前缀属性" or "后缀属性" or "传奇属性" or "显式属性" or "Explicit" or "Prefix" or "Suffix" => true,
-                "基底属性" or "隐式属性" or "Implicit" => false,
-                "打造属性" or "Crafted" => false,
-                _ => false
-            };
-        }
-    }
-
-    /// <summary>
-    /// 叠加层搜索回调：根据选中的字段执行搜索并显示结果。
+    /// 叠加层搜索回调：从 FormViewModel 提取搜索条件并执行搜索。
+    /// 参考 xiletrade-master GetXiletradeItem：ByBase 决定按 name 还是 type 搜索，
+    /// ModList 中 Selected 的词缀作为 stat filter，Rarity/Corrupted/Identified 通过下拉框索引转换。
+    /// 搜索执行复用现有 PoeTradeService（过渡方案，后续可切换为 xiletrade 的 JsonDataTwoFactory）。
     /// </summary>
     private async Task ExecuteOverlaySearchAsync(PriceOverlayViewModel vm)
     {
         try
         {
-            var selectedFields = vm.SearchFields.Where(f => f.IsSelected).ToList();
-            if (selectedFields.Count == 0)
+            var form = vm.Form;
+            if (form == null)
             {
-                vm.ShowError("请至少选择一个搜索条件");
+                vm.ShowError("未解析到物品信息");
                 return;
             }
 
-            var nameField = selectedFields.FirstOrDefault(f => f.Key == "name");
-            var typeField = selectedFields.FirstOrDefault(f => f.Key == "type");
-            var itemLevelField = selectedFields.FirstOrDefault(f => f.Key == "itemLevel");
-            var rarityField = selectedFields.FirstOrDefault(f => f.Key == "rarity");
-            var qualityField = selectedFields.FirstOrDefault(f => f.Key == "quality");
-            var corruptedField = selectedFields.FirstOrDefault(f => f.Key == "corrupted");
-            var unidentifiedField = selectedFields.FirstOrDefault(f => f.Key == "unidentified");
-            var armourField = selectedFields.FirstOrDefault(f => f.Key == "armour");
-            var evasionField = selectedFields.FirstOrDefault(f => f.Key == "evasion");
-            var energyShieldField = selectedFields.FirstOrDefault(f => f.Key == "energyShield");
-            var dpsTotalField = selectedFields.FirstOrDefault(f => f.Key == "dpsTotal");
-            var dpsPhysField = selectedFields.FirstOrDefault(f => f.Key == "dpsPhys");
-            var dpsElemField = selectedFields.FirstOrDefault(f => f.Key == "dpsElem");
-
-            // 确定搜索词：优先 name，其次 type。
-            var searchTerm = nameField?.Value ?? typeField?.Value ?? "";
-            var searchByType = nameField == null && typeField != null;
-
-            // 基底类型：用于传奇物品搜索时同时传 type 字段（参考 xiletrade-master）。
-            // 即使 type 未选中，也从所有字段中取，因为传奇搜索需要同时传 name+type。
-            var baseTypeValue = vm.SearchFields.FirstOrDefault(f => f.Key == "type")?.Value;
+            // ByBase=true → 按基底搜索；否则按名称搜索（参考 xiletrade ByType = ByBase != true）
+            var searchByType = form.ByBase;
+            var searchTerm = searchByType ? form.ItemBaseType : form.ItemName;
+            var baseTypeValue = form.ItemBaseType;
 
             if (string.IsNullOrWhiteSpace(searchTerm))
             {
@@ -859,44 +772,61 @@ public class MainViewModel : INotifyPropertyChanged
                 return;
             }
 
-            int? itemLevel = null;
-            if (itemLevelField != null && int.TryParse(itemLevelField.Value, out var il))
+            // 收集选中的词缀（参考 xiletrade GetXiletradeItem 遍历 ModList）。
+            // Mod.Text → 词缀文本，Mod.Affix[AffixIndex].Type → stat 分类，用于映射到正确的 stat ID。
+            // 过滤 TierKind 为空的条目（rune 符文属性 / 固有技能），它们不应作为搜索条件：
+            // 1) rune 词缀来自装备插槽符文，并非物品本身属性，POE2 API 不索引此类 stat
+            // 2) 国服"攻击速度提高"会被 rune 与物品本身同时解析为两条，rune 那条 TierKind=null
+            List<(string Text, string Type, string? Min, string? Max)>? selectedMods = null;
+            if (form.ModList?.Count > 0)
             {
-                itemLevel = il;
+                var mods = form.ModList
+                    .Where(m => m.Selected && m.Affix.Count > 0 && !string.IsNullOrEmpty(m.TierKind))
+                    .Select(m => (m.Mod, m.Affix[m.AffixIndex].Type,
+                        string.IsNullOrWhiteSpace(m.Min) ? null : m.Min,
+                        string.IsNullOrWhiteSpace(m.Max) ? null : m.Max))
+                    .ToList();
+                if (mods.Count > 0)
+                {
+                    selectedMods = mods;
+                }
             }
 
-            int? quality = null;
-            if (qualityField != null && int.TryParse(qualityField.Value, out var q))
+            // 稀有度：从 RarityViewModel.ComboBox[Index] 取（参考 xiletrade GetXiletradeItem）。
+            string? rarity = null;
+            if (form.Rarity != null && form.Rarity.Index >= 0 && form.Rarity.Index < form.Rarity.ComboBox.Count)
             {
-                quality = q;
+                rarity = form.Rarity.ComboBox[form.Rarity.Index];
             }
 
-            // 装备数值（参考 xiletrade-master GetEquipmentFilters：ar/es/ev/dps/pdps/edps）。
-            int? armour = armourField != null && int.TryParse(armourField.Value, out var ar) ? ar : null;
-            int? evasion = evasionField != null && int.TryParse(evasionField.Value, out var ev) ? ev : null;
-            int? energyShield = energyShieldField != null && int.TryParse(energyShieldField.Value, out var es) ? es : null;
-            int? dpsTotal = dpsTotalField != null && int.TryParse(dpsTotalField.Value, out var dps) ? dps : null;
-            int? dpsPhys = dpsPhysField != null && int.TryParse(dpsPhysField.Value, out var pdps) ? pdps : null;
-            int? dpsElem = dpsElemField != null && int.TryParse(dpsElemField.Value, out var edps) ? edps : null;
-
-            string? rarity = rarityField?.Value;
-            bool? corrupted = corruptedField != null ? true : null;
-            bool? identified = unidentifiedField != null ? false : null;
-
-            // 收集选中的词缀（文本 + 类型，类型用于映射到正确的 stat 分类）。
-            var selectedMods = vm.ItemInfo?.Mods?
-                .Where(m => m.IsSelected)
-                .Select(m => (m.Text, m.Type))
-                .ToList();
-            if (selectedMods != null && selectedMods.Count == 0)
+            // 物品等级：从 Panel.StatList 中找 Id == CommonItemLevel 的条目（参考 xiletrade ApplyStat）。
+            // MinMaxViewModel.Min/Max 是 string，Selected 控制是否启用筛选。
+            int? itemLevelMin = null;
+            int? itemLevelMax = null;
+            var ilvlEntry = form.Panel?.StatList?.FirstOrDefault(x => x.Id == StatPanel.CommonItemLevel);
+            if (ilvlEntry is { Selected: true })
             {
-                selectedMods = null;
+                if (int.TryParse(ilvlEntry.Min, out var minVal) && minVal > 0)
+                    itemLevelMin = minVal;
+                if (int.TryParse(ilvlEntry.Max, out var maxVal) && maxVal > 0)
+                    itemLevelMax = maxVal;
             }
-            
 
-            var isExactSearch = vm.IsExactSearch;
+            // 已腐化 / 未鉴定：下拉框索引 0=Any, 1=No, 2=Yes（参考 xiletrade GetOption）。
+            bool? corrupted = form.CorruptedIndex switch
+            {
+                2 => true,
+                1 => false,
+                _ => null
+            };
+            bool? identified = form.IdentifiedIndex switch
+            {
+                1 => false,
+                2 => true,
+                _ => null
+            };
 
-            AppLogger.Instance.Info($"叠加层搜索：league={PriceCheckerLeague}, term={searchTerm}, byType={searchByType}, ilvl={itemLevel}, qual={quality}, ar={armour}, ev={evasion}, es={energyShield}, dps={dpsTotal}/{dpsPhys}/{dpsElem}, rarity={rarity}, corrupt={corrupted}, ident={identified}, mods={selectedMods?.Count ?? 0}, exact={isExactSearch}");
+            AppLogger.Instance.Info($"叠加层搜索：league={PriceCheckerLeague}, term={searchTerm}, byType={searchByType}, rarity={rarity}, corrupt={corrupted}, ident={identified}, mods={selectedMods?.Count ?? 0}");
 
             TradeSearchResult searchResult;
             try
@@ -907,29 +837,23 @@ public class MainViewModel : INotifyPropertyChanged
                     PriceCheckerPoeSessionId,
                     searchByType: searchByType,
                     baseType: baseTypeValue,
-                    itemLevel: itemLevel,
+                    itemLevelMin: itemLevelMin,
+                    itemLevelMax: itemLevelMax,
                     rarity: rarity,
                     selectedMods: selectedMods,
-                    isExactSearch: isExactSearch,
-                    quality: quality,
+                    isExactSearch: false,
+                    quality: null,
                     corrupted: corrupted,
                     identified: identified,
-                    armour: armour,
-                    evasion: evasion,
-                    energyShield: energyShield,
-                    dpsTotal: dpsTotal,
-                    dpsPhys: dpsPhys,
-                    dpsElem: dpsElem);
+                    itemFlag: form.ItemFlag);
             }
             catch (HttpRequestException ex) when (!searchByType && ex.Message.Contains("400"))
             {
                 // 按名称搜索返回 400（Unknown item name），自动回退按基底类型搜索。
-                // 从所有字段中查找基底类型（不要求已选中），因为回退是自动的。
-                var fallbackTypeField = vm.SearchFields.FirstOrDefault(f => f.Key == "type");
-                if (fallbackTypeField == null) throw;
+                if (string.IsNullOrWhiteSpace(baseTypeValue)) throw;
 
-                AppLogger.Instance.Info($"按名称搜索返回 400，自动回退按基底类型搜索：{fallbackTypeField.Value}");
-                searchTerm = fallbackTypeField.Value;
+                AppLogger.Instance.Info($"按名称搜索返回 400，自动回退按基底类型搜索：{baseTypeValue}");
+                searchTerm = baseTypeValue;
                 searchByType = true;
                 searchResult = await _tradeService.SearchAsync(
                     PriceCheckerLeague,
@@ -937,43 +861,18 @@ public class MainViewModel : INotifyPropertyChanged
                     PriceCheckerPoeSessionId,
                     searchByType: searchByType,
                     baseType: baseTypeValue,
-                    itemLevel: itemLevel,
+                    itemLevelMin: itemLevelMin,
+                    itemLevelMax: itemLevelMax,
                     rarity: rarity,
                     selectedMods: selectedMods,
-                    isExactSearch: isExactSearch,
-                    quality: quality,
+                    isExactSearch: false,
+                    quality: null,
                     corrupted: corrupted,
                     identified: identified,
-                    armour: armour,
-                    evasion: evasion,
-                    energyShield: energyShield,
-                    dpsTotal: dpsTotal,
-                    dpsPhys: dpsPhys,
-                    dpsElem: dpsElem);
+                    itemFlag: form.ItemFlag);
             }
 
             AppLogger.Instance.Info($"搜索结果：total={searchResult.Total}, ids={searchResult.ResultIds.Count}");
-
-            // 带词缀搜索返回 0 结果时，自动回退到不带词缀搜索（仅 name+type 或 type）。
-            // 规避 stat ID 选错（多候选时 PickStatByCategory 取首个可能不正确）或挂单稀少导致搜不到。
-            // if (searchResult.ResultIds.Count == 0 && selectedMods != null && selectedMods.Count > 0)
-            // {
-            //     AppLogger.Instance.Info($"带词缀搜索 0 结果（{selectedMods.Count} 个词缀），回退到不带词缀搜索重试");
-            //     searchResult = await _tradeService.SearchAsync(
-            //         PriceCheckerLeague,
-            //         searchTerm,
-            //         PriceCheckerPoeSessionId,
-            //         searchByType: searchByType,
-            //         baseType: baseTypeValue,
-            //         itemLevel: itemLevel,
-            //         rarity: rarity,
-            //         selectedMods: null,
-            //         isExactSearch: isExactSearch,
-            //         quality: quality,
-            //         corrupted: corrupted,
-            //         identified: identified);
-            //     AppLogger.Instance.Info($"回退搜索结果：total={searchResult.Total}, ids={searchResult.ResultIds.Count}");
-            // }
 
             if (searchResult.ResultIds.Count == 0)
             {
@@ -1043,6 +942,18 @@ public class MainViewModel : INotifyPropertyChanged
     }
 
     /// <summary>
+    /// 确保 XiletradePriceService 使用设置中保存的语言（首次使用或语言变更后同步）。
+    /// </summary>
+    private void EnsurePriceCheckerLanguage()
+    {
+        var svc = XiletradePriceService.Instance;
+        if (svc.CurrentLanguage != PriceCheckerLanguage)
+        {
+            svc.SetLanguage(PriceCheckerLanguage);
+        }
+    }
+
+    /// <summary>
     /// 显示叠加层窗口（单实例：关闭旧的再显示新的）。
     /// </summary>
     private void ShowOverlay(PriceOverlayViewModel viewModel)
@@ -1073,7 +984,7 @@ public class MainViewModel : INotifyPropertyChanged
     {
         var viewModel = new PriceOverlayViewModel
         {
-            ItemInfo = new ItemInfo { Name = title },
+            Title = title,
             IsConfigMode = false,
             ErrorMessage = detail,
         };

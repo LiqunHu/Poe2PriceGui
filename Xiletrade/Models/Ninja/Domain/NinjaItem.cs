@@ -1,0 +1,8 @@
+﻿using Xiletrade.Library.Models.Ninja.Contract;
+
+namespace Xiletrade.Library.Models.Ninja.Domain;
+
+internal sealed class NinjaItem(string name) : CachedNinjaItem<NinjaItemContract>(name)
+{
+    public override NinjaItemContract GetJson() => Json;
+}

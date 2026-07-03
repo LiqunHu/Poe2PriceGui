@@ -2,22 +2,23 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
-using Poe2PriceGui.Models;
 using Poe2PriceGui.Services;
+using Xiletrade.Library.ViewModels.Main.Form;
 
 namespace Poe2PriceGui.ViewModels;
 
 /// <summary>
 /// 查价器叠加层 ViewModel，支持「配置搜索字段」和「显示结果」两种状态。
+/// 物品解析与属性选择完全委托给 xiletrade 的 FormViewModel。
 /// </summary>
 public class PriceOverlayViewModel : INotifyPropertyChanged
 {
     private bool _isConfigMode = true;
     private bool _isSearching;
-    private bool _isExactSearch;
+    private string _title = "";
     private string _resultSummary = "";
     private string _errorMessage = "";
-    private ItemInfo _itemInfo = new();
+    private FormViewModel? _form;
     private int _currentPage;
     private int _totalPages;
     private bool _canGoPrev;
@@ -26,6 +27,33 @@ public class PriceOverlayViewModel : INotifyPropertyChanged
 
     /// <summary>每页显示的条目数。</summary>
     public const int PageSize = 10;
+
+    /// <summary>标题栏文本（默认取 Form.ItemName，错误模式下由外部设置）。</summary>
+    public string Title
+    {
+        get => string.IsNullOrEmpty(_title) ? (Form?.ItemName ?? "") : _title;
+        set => SetProperty(ref _title, value);
+    }
+
+    /// <summary>xiletrade 的 FormViewModel（解析+属性选择）。</summary>
+    public FormViewModel? Form
+    {
+        get => _form;
+        set
+        {
+            if (SetProperty(ref _form, value))
+            {
+                OnPropertyChanged(nameof(HasModList));
+                OnPropertyChanged(nameof(Title));
+            }
+        }
+    }
+
+    /// <summary>是否有词缀列表可显示。</summary>
+    public bool HasModList => Form?.ModList != null && Form.ModList.Count > 0;
+
+    /// <summary>是否有属性面板可显示。</summary>
+    public bool HasPanel => Form?.Panel?.StatList != null && Form.Panel.StatList.Count > 0;
 
     /// <summary>搜索 ID，用于翻页时 fetch。</summary>
     public string SearchId { get; set; } = "";
@@ -91,25 +119,6 @@ public class PriceOverlayViewModel : INotifyPropertyChanged
         ? $"第 {CurrentPage + 1}/{TotalPages} 页"
         : "";
 
-    /// <summary>原始装备信息。</summary>
-    public ItemInfo ItemInfo
-    {
-        get => _itemInfo;
-        set
-        {
-            if (SetProperty(ref _itemInfo, value))
-            {
-                OnPropertyChanged(nameof(HasMods));
-            }
-        }
-    }
-
-    /// <summary>是否有词缀可显示。</summary>
-    public bool HasMods => ItemInfo?.Mods != null && ItemInfo.Mods.Count > 0;
-
-    /// <summary>可选搜索字段列表。</summary>
-    public ObservableCollection<SearchField> SearchFields { get; set; } = [];
-
     private ObservableCollection<TradeListing> _listings = [];
     /// <summary>搜索结果列表。</summary>
     public ObservableCollection<TradeListing> Listings
@@ -161,13 +170,6 @@ public class PriceOverlayViewModel : INotifyPropertyChanged
     /// <summary>是否可以搜索（!IsSearching）。</summary>
     public bool CanSearch => !IsSearching;
 
-    /// <summary>是否精确搜索词缀数值。false=只匹配词缀类型，true=同时匹配具体数值。</summary>
-    public bool IsExactSearch
-    {
-        get => _isExactSearch;
-        set => SetProperty(ref _isExactSearch, value);
-    }
-
     /// <summary>结果摘要。</summary>
     public string ResultSummary
     {
@@ -204,6 +206,12 @@ public class PriceOverlayViewModel : INotifyPropertyChanged
     /// <summary>上一页命令。</summary>
     public ICommand PrevPageCommand { get; }
 
+    /// <summary>
+    /// 全选/全不选词缀命令。参考 xiletrade-master MainCommand.CheckAllMods：
+    /// 遍历 Form.ModList，将每个 mod.Selected 设为 Form.AllCheck 当前值。
+    /// </summary>
+    public ICommand CheckAllCommand { get; }
+
     /// <summary>搜索回调，由 MainViewModel 注入。</summary>
     public Func<PriceOverlayViewModel, Task>? SearchCallback { get; set; }
 
@@ -223,6 +231,15 @@ public class PriceOverlayViewModel : INotifyPropertyChanged
                                            () => CanGoNext && CanChangePage);
         PrevPageCommand = new RelayCommand(async () => await ExecutePageChangeAsync(CurrentPage - 1),
                                            () => CanGoPrev && CanChangePage);
+        // 参考 xiletrade-master MainCommand.CheckAllMods：遍历 ModList 统一勾选/取消。
+        CheckAllCommand = new RelayCommand(() =>
+        {
+            if (Form?.ModList is null || Form.ModList.Count is 0) return;
+            foreach (var mod in Form.ModList)
+            {
+                mod.Selected = Form.AllCheck;
+            }
+        });
     }
 
     private async Task ExecuteSearchAsync()

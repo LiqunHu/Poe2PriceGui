@@ -29,6 +29,26 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="Xiletrade\Xiletrade.Library.csproj" />
+  </ItemGroup>
+
+  <!-- Xiletrade 源码由其自身 csproj 编译为类库，不应被主项目重复编译 -->
+  <ItemGroup>
+    <Compile Remove="Xiletrade\**" />
+    <None Remove="Xiletrade\**" />
+    <EmbeddedResource Remove="Xiletrade\**" />
+    <Page Remove="Xiletrade\**" />
+  </ItemGroup>
+
+  <!-- agent/ 目录仅存放方案文档和备份源码，不应参与编译 -->
+  <ItemGroup>
+    <Compile Remove="agent\**" />
+    <None Remove="agent\**" />
+    <EmbeddedResource Remove="agent\**" />
+    <Page Remove="agent\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Resource Include="app.ico" />
   </ItemGroup>
 
