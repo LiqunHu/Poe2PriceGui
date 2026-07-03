@@ -443,6 +443,18 @@ public class MainViewModel : INotifyPropertyChanged
         IsBusy = true;
         try
         {
+            // 如果叠加层正在显示，先关闭它，让用户能再次复制新装备。
+            // 此时焦点可能还在 overlay 上，后续 CopyItemTextFromGame 会尝试切回游戏窗口。
+            if (_currentOverlay != null)
+            {
+                try
+                {
+                    _currentOverlay.Close();
+                }
+                catch { /* 忽略关闭异常 */ }
+                _currentOverlay = null;
+            }
+
             var itemText = ClipboardService.CopyItemTextFromGame();
             AppLogger.Instance.Info($"剪贴板获取文本长度：{itemText?.Length ?? 0}");
             if (string.IsNullOrWhiteSpace(itemText))
@@ -781,13 +793,17 @@ public class MainViewModel : INotifyPropertyChanged
 
     /// <summary>
     /// 词缀默认勾选逻辑。参考 xiletrade-master ModLineViewModel.GetModSelection：
-    /// - 显式属性（前缀/后缀/传奇/显式）→ 默认勾选
+    /// - 非传奇物品：显式属性（前缀/后缀/传奇/显式）→ 默认勾选
     /// - 隐式属性（基底/隐式）→ 默认不勾选
     /// - 打造属性 → 默认不勾选
+    /// - 传奇物品 → 默认不勾选任何词缀（只使用名称/基底搜索，避免 POE2 API 对固定词缀不索引导致无结果）
     /// </summary>
     private static void ApplyDefaultModSelection(ItemInfo itemInfo)
     {
         if (itemInfo.Mods == null || itemInfo.Mods.Count == 0) return;
+
+        // 传奇物品不默认勾选词缀，由用户自行决定。
+        if (itemInfo.IsUnique) return;
 
         foreach (var mod in itemInfo.Mods)
         {
@@ -1044,6 +1060,9 @@ public class MainViewModel : INotifyPropertyChanged
 
         _currentOverlay = new PriceOverlayWindow(viewModel);
         _currentOverlay.Closed += (_, _) => _currentOverlay = null;
+        // 参考 xiletrade-master NavigationService.ShowMainView: ShowActivated = false
+        // overlay 显示时不抢焦点，游戏保持前台，后续按热键的 Ctrl+C 仍发到游戏。
+        _currentOverlay.ShowActivated = false;
         _currentOverlay.Show();
     }
 

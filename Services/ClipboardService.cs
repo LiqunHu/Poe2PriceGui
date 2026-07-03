@@ -19,9 +19,81 @@ public static class ClipboardService
     private const uint WmKeyup = 0x0101;
     private const uint MapvkVkToVsc = 0;
 
+    // POE2 窗口类名与标题，参考 xiletrade-master/Strings.cs。
+    private const string PoeWindowClass = "POEWindowClass";
+    private const string Poe2Caption = "Path of Exile 2";
+
+    /// <summary>
+    /// 查找 POE2 游戏窗口句柄。
+    /// 参考 xiletrade-master: Native.FindWindow(Strings.PoeClass, Strings.PoeCaption)。
+    /// 先按类名+标题精确匹配，找不到则只按类名查找（兼容不同发行版的标题差异）。
+    /// </summary>
+    public static IntPtr FindGameWindow()
+    {
+        var hwnd = FindWindow(PoeWindowClass, Poe2Caption);
+        if (hwnd != IntPtr.Zero) return hwnd;
+        return FindWindow(PoeWindowClass, null);
+    }
+
+    /// <summary>
+    /// 判断当前前台窗口是否为 POE2 游戏窗口。
+    /// 参考 xiletrade-master FeatureProvider: poeFocused = GetForegroundWindow().Equals(findPoeHwnd)。
+    /// </summary>
+    public static bool IsGameForeground()
+    {
+        var gameHwnd = FindGameWindow();
+        if (gameHwnd == IntPtr.Zero) return false;
+        return GetForegroundWindow().Equals(gameHwnd);
+    }
+
+    /// <summary>
+    /// 将焦点切换到 POE2 游戏窗口。
+    /// 参考 xiletrade-master Native.SwitchWindow: AttachThreadInput + SetForegroundWindow。
+    /// </summary>
+    public static bool FocusGameWindow()
+    {
+        var gameHwnd = FindGameWindow();
+        if (gameHwnd == IntPtr.Zero)
+        {
+            AppLogger.Instance.Warn("未找到 POE2 游戏窗口，无法切换焦点");
+            return false;
+        }
+
+        var foregroundHwnd = GetForegroundWindow();
+        if (foregroundHwnd.Equals(gameHwnd)) return true;
+
+        try
+        {
+            var currentThreadId = GetCurrentThreadId();
+            uint foregroundProcessId;
+            var foregroundThreadId = GetWindowThreadProcessId(foregroundHwnd, out foregroundProcessId);
+
+            AttachThreadInput(currentThreadId, foregroundThreadId, true);
+            SetForegroundWindow(gameHwnd);
+            AttachThreadInput(currentThreadId, foregroundThreadId, false);
+
+            var elapsed = 0;
+            while (!GetForegroundWindow().Equals(gameHwnd) && elapsed < 500)
+            {
+                Thread.Sleep(10);
+                elapsed += 10;
+            }
+
+            var success = GetForegroundWindow().Equals(gameHwnd);
+            AppLogger.Instance.Info($"切换到游戏窗口：{(success ? "成功" : "失败")}");
+            return success;
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Instance.Warn($"切换焦点到游戏窗口异常：{ex.Message}");
+            return false;
+        }
+    }
+
     /// <summary>
     /// 向当前前台窗口发送 Ctrl+C，然后读取剪贴板文本。
     /// 优先使用 PostMessage（不卡游戏），失败后回退到 SendInput。
+    /// 如果当前前台不是 POE2，会尝试先切换焦点。
     /// </summary>
     public static string CopyItemTextFromGame()
     {
@@ -29,6 +101,23 @@ public static class ClipboardService
         var foregroundHandle = GetForegroundWindow();
         var foregroundTitle = GetWindowTitle(foregroundHandle);
         AppLogger.Instance.Info($"发送 Ctrl+C 时前台窗口：{foregroundTitle}");
+
+        // 找到 POE2 游戏窗口；找不到就直接返回空。
+        var gameHandle = FindGameWindow();
+        if (gameHandle == IntPtr.Zero)
+        {
+            AppLogger.Instance.Warn("未找到 POE2 游戏窗口，跳过 Ctrl+C 发送");
+            return "";
+        }
+
+        // 如果前台不是游戏窗口，尝试切换焦点过去；失败也继续尝试发送 Ctrl+C。
+        if (!foregroundHandle.Equals(gameHandle))
+        {
+            AppLogger.Instance.Info($"前台窗口不是 POE2（当前前台：{foregroundTitle}），尝试切换焦点");
+            FocusGameWindow();
+            foregroundHandle = GetForegroundWindow();
+            foregroundTitle = GetWindowTitle(foregroundHandle);
+        }
 
         // 清空剪贴板，避免读到旧内容。
         try
@@ -41,6 +130,7 @@ public static class ClipboardService
         }
 
         // 第一轮：用 PostMessage（轻量，不经过硬件输入管道，不卡游戏）。
+        // 切换焦点后使用最新的前台句柄（可能是游戏窗口）发送消息。
         SendCopyViaPostMessage(foregroundHandle);
         var text1 = PollClipboardForText(totalWaitMs: 500, intervalMs: 80);
         if (!string.IsNullOrWhiteSpace(text1))
@@ -253,6 +343,21 @@ public static class ClipboardService
 
     [DllImport("user32.dll")]
     private static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll", SetLastError = true, CharSet = System.Runtime.InteropServices.CharSet.Auto)]
+    private static extern IntPtr FindWindow(string? lpClassName, string? lpWindowName);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+
+    [DllImport("kernel32.dll")]
+    private static extern uint GetCurrentThreadId();
 
     [DllImport("user32.dll", SetLastError = true)]
     private static extern bool PostMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
