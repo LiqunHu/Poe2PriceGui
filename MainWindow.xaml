@@ -274,17 +274,10 @@
                     <GroupBox Grid.Row="2" Header="泥人补丁" Margin="0,15,0,0">
                         <StackPanel Orientation="Vertical" Margin="10">
                             <TextBlock Text="⚠️ 重要提示： 会修改游戏文件，存在封号风险。请先关闭游戏再运行。" TextWrapping="Wrap" Foreground="#DC143C" Margin="0,0,0,10"/>
-                            <TextBlock Text="与价格补丁可共存（使用不同 bundle 前缀）,Tip:Up买了各类技能特效,不会去清空技能特效，保留商人头顶标志。" TextWrapping="Wrap" Foreground="Gray" Margin="0,0,0,10"/>
+                            <TextBlock Text="与价格补丁可共存(使用不同 bundle 前缀) Tip:Up买了各类技能特效,不会去清空技能特效，保留商人头顶标志。" TextWrapping="Wrap" Foreground="Gray" Margin="0,0,0,10"/>
                             <TextBlock Text="performance: 主要降低地图画质和少量特效" TextWrapping="Wrap" Foreground="Gray" Margin="0,0,0,10"/>
                             <TextBlock Text="blanket: 地毯式清理各种特效" TextWrapping="Wrap" Foreground="Gray" Margin="0,0,0,10"/>
                             <TextBlock Text="all: 地毯式清理各种特效+地图优化" TextWrapping="Wrap" Foreground="Gray" Margin="0,0,0,10"/>
-
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                                <TextBlock Text="当前预设：" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                <TextBlock Text="{Binding SmootherPresetLabel}" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,20,0"/>
-                                <TextBlock Text="状态：" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                <TextBlock Text="{Binding SmootherStatusText}" FontWeight="Bold" VerticalAlignment="Center"/>
-                            </StackPanel>
 
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
                                 <TextBlock Text="预设：" VerticalAlignment="Center" Margin="0,0,5,0"/>

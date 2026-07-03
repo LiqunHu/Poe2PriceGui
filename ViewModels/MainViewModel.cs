@@ -1362,11 +1362,6 @@ public class MainViewModel : INotifyPropertyChanged
     #region 泥人补丁
 
     /// <summary>
-    /// 泥人补丁预设标签（当前固定为 performance）。
-    /// </summary>
-    public string SmootherPresetLabel => "选择预设";
-
-    /// <summary>
     /// 可选的泥人补丁预设列表。
     /// performance: 性能优化（fog/rain/clouds/env-particles/delirium/particles/effects）
     /// blanket:     毯式补丁（清空 metadata/ 下全部 .epk + 简化全部 .ao）
@@ -1382,16 +1377,6 @@ public class MainViewModel : INotifyPropertyChanged
     {
         get => _smootherSelectedPreset;
         set => SetProperty(ref _smootherSelectedPreset, value);
-    }
-
-    private string _smootherStatusText = "未检测";
-    /// <summary>
-    /// 泥人补丁状态文本。
-    /// </summary>
-    public string SmootherStatusText
-    {
-        get => _smootherStatusText;
-        set => SetProperty(ref _smootherStatusText, value);
     }
 
     private string _smootherProgressText = "";
@@ -1483,7 +1468,6 @@ public class MainViewModel : INotifyPropertyChanged
             : isAll
                 ? "正在应用 all 预设（性能 + 毯式合并，请耐心等待）..."
                 : "正在应用泥人补丁...";
-        SmootherStatusText = $"应用 {presetName} 中...";
 
         try
         {
@@ -1502,7 +1486,6 @@ public class MainViewModel : INotifyPropertyChanged
                     msg2 += $"\n  {patch}: {count}";
                 }
                 SettingsStatusMessage = msg2.Replace("\n", " | ");
-                SmootherStatusText = $"已应用 {presetName}（{report.ChangedFileCount} 文件）";
                 SmootherProgressValue = 100;
                 SmootherProgressText = "完成";
                 _toastService.ShowSuccess($"{presetName} 预设应用成功：修改 {report.ChangedFileCount} 个文件");
@@ -1511,7 +1494,6 @@ public class MainViewModel : INotifyPropertyChanged
             else
             {
                 SettingsStatusMessage = $"{presetName} 预设应用失败：{report.ErrorMessage}";
-                SmootherStatusText = "失败";
                 SmootherProgressText = $"失败：{report.ErrorMessage}";
                 _toastService.ShowError($"{presetName} 预设应用失败：{report.ErrorMessage}");
                 AppLogger.Instance.Error($"{presetName} 预设应用失败：{report.ErrorMessage}");
@@ -1521,7 +1503,6 @@ public class MainViewModel : INotifyPropertyChanged
         {
             AppLogger.Instance.Error(ex, $"{presetName} 预设应用异常");
             SettingsStatusMessage = $"{presetName} 预设应用异常：{ex.Message}";
-            SmootherStatusText = "异常";
             SmootherProgressText = $"异常：{ex.Message}";
             _toastService.ShowError($"{presetName} 预设应用异常：{ex.Message}");
         }
@@ -1546,7 +1527,6 @@ public class MainViewModel : INotifyPropertyChanged
         SmootherProgressText = "准备中...";
         var presetName = SmootherSelectedPreset;
         SettingsStatusMessage = $"正在预览 {presetName} 预设...";
-        SmootherStatusText = $"预览 {presetName} 中...";
 
         try
         {
@@ -1565,7 +1545,6 @@ public class MainViewModel : INotifyPropertyChanged
                     msg += $"\n  {patch}: {count}";
                 }
                 SettingsStatusMessage = msg.Replace("\n", " | ");
-                SmootherStatusText = $"预览：{report.ChangedFileCount} 文件";
                 SmootherProgressValue = 100;
                 SmootherProgressText = "预览完成";
                 _toastService.ShowInfo($"泥人补丁预览：将修改 {report.ChangedFileCount} 个文件");
@@ -1574,7 +1553,6 @@ public class MainViewModel : INotifyPropertyChanged
             else
             {
                 SettingsStatusMessage = $"泥人补丁预览失败：{report.ErrorMessage}";
-                SmootherStatusText = "预览失败";
                 SmootherProgressText = $"失败：{report.ErrorMessage}";
                 _toastService.ShowError($"泥人补丁预览失败：{report.ErrorMessage}");
             }
@@ -1583,7 +1561,6 @@ public class MainViewModel : INotifyPropertyChanged
         {
             AppLogger.Instance.Error(ex, "泥人补丁预览异常");
             SettingsStatusMessage = $"泥人补丁预览异常：{ex.Message}";
-            SmootherStatusText = "异常";
             SmootherProgressText = $"异常：{ex.Message}";
             _toastService.ShowError($"泥人补丁预览异常：{ex.Message}");
         }
@@ -1602,14 +1579,12 @@ public class MainViewModel : INotifyPropertyChanged
         SmootherProgressValue = 0;
         SmootherProgressText = "正在还原...";
         SettingsStatusMessage = "正在还原泥人补丁...";
-        SmootherStatusText = "还原中...";
 
         try
         {
             var service = new SmootherPatchService(GameDirectory);
             var count = await Task.Run(() => service.Restore());
             SettingsStatusMessage = $"泥人补丁已还原（恢复 {count} 个文件）";
-            SmootherStatusText = "已还原";
             SmootherProgressValue = 100;
             SmootherProgressText = "还原完成";
             _toastService.ShowSuccess($"泥人补丁已还原（恢复 {count} 个文件）");
@@ -1619,7 +1594,6 @@ public class MainViewModel : INotifyPropertyChanged
         {
             AppLogger.Instance.Error(ex, "泥人补丁还原异常");
             SettingsStatusMessage = $"泥人补丁还原异常：{ex.Message}";
-            SmootherStatusText = "异常";
             SmootherProgressText = $"异常：{ex.Message}";
             _toastService.ShowError($"泥人补丁还原异常：{ex.Message}");
         }
@@ -1640,7 +1614,6 @@ public class MainViewModel : INotifyPropertyChanged
 
         IsBusy = true;
         SettingsStatusMessage = "正在检测泥人补丁状态...";
-        SmootherStatusText = "检测中...";
 
         try
         {
@@ -1650,11 +1623,6 @@ public class MainViewModel : INotifyPropertyChanged
 
             var summary = status.ToSummary();
             var backupInfo = $"备份：{(hasBackup ? "存在" : "不存在")}";
-
-            // 状态文本精简显示
-            SmootherStatusText = status.OurApplied
-                ? $"已应用（{status.OurFileCount} 文件）"
-                : "未应用";
 
             // 完整状态消息（状态栏 + 日志）
             var fullMsg = $"{summary}\n{backupInfo}";
@@ -1678,7 +1646,6 @@ public class MainViewModel : INotifyPropertyChanged
         {
             AppLogger.Instance.Error(ex, "泥人补丁检测异常");
             SettingsStatusMessage = $"泥人补丁检测异常：{ex.Message}";
-            SmootherStatusText = "异常";
             _toastService.ShowError($"泥人补丁检测异常：{ex.Message}");
         }
         finally
