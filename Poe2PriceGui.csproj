@@ -12,6 +12,7 @@
     <ApplicationIcon>app.ico</ApplicationIcon>
     <StartupObject>Poe2PriceGui.App</StartupObject>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <PlatformTarget>x64</PlatformTarget>
     <!--
       解决 .NET 10/11 SDK 构建 net8.0-windows WPF 项目时的 _wpftmp 重复 AssemblyInfo 错误。
       WPF markup 编译器生成的临时项目(*_wpftmp.csproj)会继承主项目的 AssemblyInfo 生成,
@@ -32,6 +33,22 @@
     <ProjectReference Include="Xiletrade\Xiletrade.Library.csproj" />
   </ItemGroup>
 
+  <!-- BundleExtractor 依赖：直接引用 LibBundle3，替代调用外部 exe -->
+  <ItemGroup>
+    <Reference Include="LibBundle3">
+      <HintPath>libs\bundle\LibBundle3.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="SystemExtensions">
+      <HintPath>libs\bundle\SystemExtensions.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <None Include="libs\bundle\oo2core.dll">
+      <Link>oo2core.dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
   <!-- Xiletrade 源码由其自身 csproj 编译为类库，不应被主项目重复编译 -->
   <ItemGroup>
     <Compile Remove="Xiletrade\**" />
@@ -46,6 +63,14 @@
     <None Remove="agent\**" />
     <EmbeddedResource Remove="agent\**" />
     <Page Remove="agent\**" />
+  </ItemGroup>
+
+  <!-- test_tools/ 目录是独立的测试/分析工具，含有各自的 Program.cs，不应参与主项目编译 -->
+  <ItemGroup>
+    <Compile Remove="test_tools\**" />
+    <None Remove="test_tools\**" />
+    <EmbeddedResource Remove="test_tools\**" />
+    <Page Remove="test_tools\**" />
   </ItemGroup>
 
   <ItemGroup>

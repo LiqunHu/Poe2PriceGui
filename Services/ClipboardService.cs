@@ -12,6 +12,7 @@ public static class ClipboardService
     private const uint KeyeventfScancode = 0x0008;
     private const uint KeyeventfExtendedkey = 0x0001;
     private const ushort VkControl = 0x11;
+    private const ushort VkRControl = 0xA3;  // 右Ctrl键，参考 xiletrade-master 使用右Ctrl
     private const ushort VkC = 0x43;
     private const int MaxRetry = 3;
     private const int RetryDelayMs = 150;
@@ -119,10 +120,16 @@ public static class ClipboardService
             foregroundTitle = GetWindowTitle(foregroundHandle);
         }
 
-        // 清空剪贴板，避免读到旧内容。
+        // 清空剪贴板，避免读到旧内容。使用Win32 API绕过WPF缓存问题。
         try
         {
-            Application.Current.Dispatcher.Invoke(() => Clipboard.Clear());
+            if (OpenClipboard(IntPtr.Zero))
+            {
+                EmptyClipboard();
+                CloseClipboard();
+            }
+            // 清空后等待一段时间，让系统剪贴板完全释放
+            Thread.Sleep(50);
         }
         catch (Exception ex)
         {
@@ -142,6 +149,16 @@ public static class ClipboardService
 
         // 第二轮：回退到 SendInput（只试 1 次，避免多次卡顿）。
         AppLogger.Instance.Info("回退到 SendInput");
+        
+        // 发送前再次确认游戏窗口是前台，确保输入能正确发送到游戏
+        if (!IsGameForeground())
+        {
+            AppLogger.Instance.Warn("SendInput 前游戏窗口不在前台，尝试切换焦点");
+            FocusGameWindow();
+            // 等待焦点切换生效
+            Thread.Sleep(100);
+        }
+        
         SendCopyKeyCombo();
         var text2 = PollClipboardForText(totalWaitMs: 500, intervalMs: 80);
         if (!string.IsNullOrWhiteSpace(text2))
@@ -157,6 +174,7 @@ public static class ClipboardService
 
     /// <summary>
     /// 轮询剪贴板，在 totalWaitMs 内尝试读取非空文本。
+    /// 使用Win32 API直接读取系统剪贴板，避免WPF Clipboard类的内部缓存同步问题。
     /// </summary>
     private static string PollClipboardForText(int totalWaitMs, int intervalMs)
     {
@@ -168,18 +186,10 @@ public static class ClipboardService
 
             try
             {
-                string? text = null;
-                Application.Current.Dispatcher.Invoke(() =>
-                {
-                    if (Clipboard.ContainsText())
-                    {
-                        text = Clipboard.GetText();
-                    }
-                });
-
+                var text = ReadClipboardTextViaWin32();
                 if (!string.IsNullOrWhiteSpace(text))
                 {
-                    return text!;
+                    return text;
                 }
             }
             catch (Exception ex)
@@ -189,6 +199,62 @@ public static class ClipboardService
         }
 
         return "";
+    }
+    
+    /// <summary>
+    /// 使用Win32 API直接读取系统剪贴板文本，绕过WPF Clipboard类的缓存问题。
+    /// </summary>
+    private static string ReadClipboardTextViaWin32()
+    {
+        // 尝试打开剪贴板，最多重试3次
+        var retryCount = 0;
+        while (!OpenClipboard(IntPtr.Zero) && retryCount < 3)
+        {
+            Thread.Sleep(50);
+            retryCount++;
+        }
+        
+        if (!OpenClipboard(IntPtr.Zero))
+        {
+            var err = Marshal.GetLastWin32Error();
+            AppLogger.Instance.Warn($"OpenClipboard 失败，Win32Error={err}");
+            return "";
+        }
+        
+        try
+        {
+            // 检查剪贴板是否包含文本格式
+            if (!IsClipboardFormatAvailable(CF_UNICODETEXT))
+            {
+                return "";
+            }
+            
+            var hData = GetClipboardData(CF_UNICODETEXT);
+            if (hData == IntPtr.Zero)
+            {
+                return "";
+            }
+            
+            var lpStr = GlobalLock(hData);
+            if (lpStr == IntPtr.Zero)
+            {
+                return "";
+            }
+            
+            try
+            {
+                var text = Marshal.PtrToStringUni(lpStr);
+                return text ?? "";
+            }
+            finally
+            {
+                GlobalUnlock(hData);
+            }
+        }
+        finally
+        {
+            CloseClipboard();
+        }
     }
 
     /// <summary>
@@ -227,20 +293,54 @@ public static class ClipboardService
     /// <summary>
     /// 发送 Ctrl+C：用 SendInput 发送硬件扫描码（WVk=0），绕过键盘布局影响。
     /// 参考 xiletrade-master 的 Input.Send 实现，使用 KEYEVENTF_SCANCODE 标志。
+    /// 使用右Ctrl键(VK_RCONTROL)，因为右Ctrl需要设置 KEYEVENTF_EXTENDEDKEY 标志，
+    /// 且 xiletrade-master 的实现也使用右Ctrl。
+    /// 将所有输入打包到一个数组中一次性发送，提高可靠性。
     /// </summary>
     private static void SendCopyKeyCombo()
     {
-        // 使用扫描码，wvK=0
-        SendScanCodeKeyDown(VkControl);
-        Thread.Sleep(20);                    // Ctrl 按下后等待
-        SendScanCodeKeyDown(VkC);
-        Thread.Sleep(20);                    // C 按住等待
-        SendScanCodeKeyUp(VkC);
-        Thread.Sleep(20);                    // C 释放后等待
-        SendScanCodeKeyUp(VkControl);
-        Thread.Sleep(20);                    // Ctrl 释放后等待
+        // 构建所有输入事件：右Ctrl按下 -> C按下 -> C释放 -> 右Ctrl释放
+        var inputs = new INPUT[4];
         
-        AppLogger.Instance.Info("SendInput 已发送扫描码 Ctrl+C");
+        // 右Ctrl键按下
+        inputs[0] = CreateScanCodeInput(VkRControl, KeyeventfScancode | KeyeventfExtendedkey);
+        
+        // C键按下
+        var cScan = (ushort)MapVirtualKey(VkC, MapvkVkToVsc);
+        inputs[1] = CreateScanCodeInput(VkC, KeyeventfScancode);
+        
+        // C键释放
+        inputs[2] = CreateScanCodeInput(VkC, KeyeventfScancode | KeyeventfKeyup);
+        
+        // 右Ctrl键释放
+        inputs[3] = CreateScanCodeInput(VkRControl, KeyeventfScancode | KeyeventfExtendedkey | KeyeventfKeyup);
+        
+        // 一次性发送所有输入，提高可靠性
+        var sent = SendInput((uint)inputs.Length, inputs, Marshal.SizeOf<INPUT>());
+        if (sent != inputs.Length)
+        {
+            var err = Marshal.GetLastWin32Error();
+            AppLogger.Instance.Warn($"SendInput 失败：预期发送 {inputs.Length} 个事件，实际发送 {sent} 个，Win32Error={err}");
+        }
+        
+        AppLogger.Instance.Info("SendInput 已发送扫描码 Ctrl+C（使用右Ctrl键）");
+    }
+    
+    /// <summary>
+    /// 创建扫描码输入事件。
+    /// </summary>
+    private static INPUT CreateScanCodeInput(ushort vk, uint flags)
+    {
+        var scanCode = (ushort)MapVirtualKey(vk, MapvkVkToVsc);
+        
+        return new INPUT
+        {
+            Type = 1,
+            U = new InputUnion
+            {
+                Ki = new KEYBDINPUT { WVk = 0, WScan = scanCode, DwFlags = flags }
+            }
+        };
     }
 
     /// <summary>
@@ -369,6 +469,30 @@ public static class ClipboardService
 
     [DllImport("user32.dll")]
     private static extern int GetWindowTextLength(IntPtr hWnd);
+
+    // Win32 剪贴板 API
+    private const uint CF_UNICODETEXT = 13;
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool OpenClipboard(IntPtr hWndNewOwner);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool CloseClipboard();
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool EmptyClipboard();
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool IsClipboardFormatAvailable(uint format);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern IntPtr GetClipboardData(uint uFormat);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern IntPtr GlobalLock(IntPtr hMem);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool GlobalUnlock(IntPtr hMem);
 
     // Win32 INPUT 结构体的完整定义，必须包含 union 的全部三个成员，
     // 否则 Marshal.SizeOf<INPUT>() 返回的尺寸比 Windows 期望的小，SendInput 返回 ERROR_INVALID_PARAMETER (87)。

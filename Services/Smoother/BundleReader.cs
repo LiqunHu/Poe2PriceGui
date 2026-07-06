@@ -32,8 +32,10 @@ public sealed class BundleStore
     private readonly string _indexPath;
 
     /// <summary>
-    /// oo2core.dll 的搜索路径（与 BundleExtractor.exe / PatchBundle3.exe 共用同一份）。
-    /// P/Invoke 会按 PATH 顺序查找，我们显式预加载以确保使用正确的 DLL。
+    /// oo2core.dll 的搜索路径。
+    /// 项目通过 csproj 的 CopyToOutputDirectory 将 DLL 输出到应用根目录，
+    /// P/Invoke 的 DllImport("oo2core.dll") 默认会从根目录加载；
+    /// 我们显式预加载以确保使用正确的 DLL。
     /// </summary>
     private readonly string _oodleDllPath;
 
@@ -42,7 +44,7 @@ public sealed class BundleStore
         _gameDir = gameDir;
         _bundlesDir = Path.Combine(gameDir, "Bundles2");
         _indexPath = Path.Combine(_bundlesDir, "_.index.bin");
-        _oodleDllPath = Path.Combine(AppContext.BaseDirectory, "tools", "BundleExtractor", "oo2core.dll");
+        _oodleDllPath = Path.Combine(AppContext.BaseDirectory, "oo2core.dll");
     }
 
     public string GameDirectory => _gameDir;

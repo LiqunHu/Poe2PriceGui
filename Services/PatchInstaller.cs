@@ -321,7 +321,7 @@ public class PatchInstaller
             {
                 progress?.Report("4/6 正在从 Bundles2 提取原始数据文件...");
             }
-            var extracted = await ExtractFromBundles2Async(gameDirectory, modeInfo.BaseItemsPath, tools.BundleExtractor, cancellationToken);
+            var extracted = await ExtractFromBundles2Async(gameDirectory, modeInfo.BaseItemsPath, cancellationToken);
             if (!extracted.Success)
             {
                 result.ErrorMessage = extracted.ErrorMessage;
@@ -592,52 +592,29 @@ public class PatchInstaller
     private async Task<ExtractionResult> ExtractFromBundles2Async(
         string gameDirectory,
         string virtualPath,
-        string bundleExtractor,
         CancellationToken cancellationToken)
     {
         var result = new ExtractionResult();
-        var indexBin = Path.Combine(gameDirectory, "Bundles2", "_.index.bin");
         var outputDir = Path.Combine(_exportService.OutputDirectory, "extracted");
-        Directory.CreateDirectory(outputDir);
-        result.FilePath = Path.Combine(outputDir, Path.GetFileName(virtualPath.Replace('/', Path.DirectorySeparatorChar)));
 
-        var psi = new ProcessStartInfo
+        try
         {
-            FileName = bundleExtractor,
-            Arguments = $"\"{indexBin}\" \"{virtualPath}\" \"{result.FilePath}\"",
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            CreateNoWindow = true,
-        };
-
-        AppLogger.Instance.Info($"提取 Bundles2 文件：{psi.FileName} {psi.Arguments}");
-        using var process = Process.Start(psi);
-        if (process == null)
+            // LibBundle3 的索引加载和文件读取是同步阻塞 IO，放到线程池避免卡死 UI。
+            result.FilePath = await Task.Run(
+                () => BundleExtractorService.ExtractFile(gameDirectory, virtualPath, outputDir),
+                cancellationToken);
+            result.Success = true;
+        }
+        catch (OperationCanceledException)
         {
-            result.ErrorMessage = "无法启动 BundleExtractor 进程";
-            return result;
+            throw;
+        }
+        catch (Exception ex)
+        {
+            result.ErrorMessage = $"提取 {virtualPath} 失败：{ex.Message}";
+            AppLogger.Instance.Warn(result.ErrorMessage);
         }
 
-        var output = await process.StandardOutput.ReadToEndAsync(cancellationToken);
-        var error = await process.StandardError.ReadToEndAsync(cancellationToken);
-        await process.WaitForExitAsync(cancellationToken);
-
-        LogProcessOutput(output, error);
-
-        if (process.ExitCode != 0)
-        {
-            result.ErrorMessage = $"提取 {virtualPath} 失败：{error}";
-            return result;
-        }
-
-        if (!File.Exists(result.FilePath))
-        {
-            result.ErrorMessage = $"提取后文件不存在：{result.FilePath}";
-            return result;
-        }
-
-        result.Success = true;
         return result;
     }
 
@@ -904,30 +881,21 @@ public class PatchInstaller
         // 英文版与目标语言版相同时（国际服英文用户）无需提取两份。
         var needEn = enVirtualPath != langVirtualPath;
 
-        // Bundles2 模式下 BundleExtractor 只取文件名输出，英文版和简中版会互相覆盖。
-        // 提取后移动到保留虚拟路径结构的位置，确保两份文件共存供翻译表构建。
+        // Bundles2 模式下 BundleExtractorService 已直接输出到保留虚拟路径结构的位置。
+        // GGPK 模式由 GGPKExtractor 保持路径结构，无需移动。
         if (needEn)
         {
             var enResult = modeInfo.Mode == GameMode.Bundles2
-                ? await ExtractFromBundles2Async(gameDirectory, enVirtualPath, tools.BundleExtractor, cancellationToken)
+                ? await ExtractFromBundles2Async(gameDirectory, enVirtualPath, cancellationToken)
                 : await ExtractFromGgpkAsync(gameDirectory, enVirtualPath, tools.GgpkExtractor, cancellationToken);
             if (!enResult.Success)
             {
                 AppLogger.Instance.Warn($"英文版 datc64 提取失败：{enResult.ErrorMessage}");
                 return false;
             }
-            // Bundles2 模式：移动到保留路径结构的位置（GGPK 模式已保留路径结构，无需移动）。
-            if (modeInfo.Mode == GameMode.Bundles2)
-            {
-                var enDestPath = Path.Combine(_exportService.OutputDirectory, "extracted",
-                    enVirtualPath.Replace('/', Path.DirectorySeparatorChar));
-                Directory.CreateDirectory(Path.GetDirectoryName(enDestPath)!);
-                if (File.Exists(enDestPath)) File.Delete(enDestPath);
-                File.Move(enResult.FilePath, enDestPath);
-            }
         }
 
-        // 目标语言版：检查保留路径结构后的最终位置是否已存在（如安装补丁时已提取并移动）。
+        // 目标语言版：检查保留路径结构后的最终位置是否已存在（如安装补丁时已提取）。
         var langFinalPath = modeInfo.Mode == GameMode.Bundles2
             ? Path.Combine(_exportService.OutputDirectory, "extracted",
                 langVirtualPath.Replace('/', Path.DirectorySeparatorChar))
@@ -937,19 +905,12 @@ public class PatchInstaller
         if (!File.Exists(langFinalPath))
         {
             var langResult = modeInfo.Mode == GameMode.Bundles2
-                ? await ExtractFromBundles2Async(gameDirectory, langVirtualPath, tools.BundleExtractor, cancellationToken)
+                ? await ExtractFromBundles2Async(gameDirectory, langVirtualPath, cancellationToken)
                 : await ExtractFromGgpkAsync(gameDirectory, langVirtualPath, tools.GgpkExtractor, cancellationToken);
             if (!langResult.Success)
             {
                 AppLogger.Instance.Warn($"目标语言 datc64 提取失败：{langResult.ErrorMessage}");
                 return false;
-            }
-            // Bundles2 模式：同样移动到保留路径结构的位置。
-            if (modeInfo.Mode == GameMode.Bundles2)
-            {
-                Directory.CreateDirectory(Path.GetDirectoryName(langFinalPath)!);
-                if (File.Exists(langFinalPath)) File.Delete(langFinalPath);
-                File.Move(langResult.FilePath, langFinalPath);
             }
         }
 
@@ -961,13 +922,6 @@ public class PatchInstaller
     {
         tools = new ToolPaths();
         error = "";
-
-        tools.BundleExtractor = ResolveToolPath("tools", "BundleExtractor", "BundleExtractor.exe");
-        if (!File.Exists(tools.BundleExtractor))
-        {
-            error = $"未找到 BundleExtractor.exe：{tools.BundleExtractor}";
-            return false;
-        }
 
         tools.PatchBundle3 = ResolveToolPath("tools", "PatchTools", "PatchBundle3.exe");
         if (!File.Exists(tools.PatchBundle3))
@@ -1045,7 +999,6 @@ public class PatchInstaller
 
     private class ToolPaths
     {
-        public string BundleExtractor { get; set; } = "";
         public string PatchBundle3 { get; set; } = "";
         public string PatchBundledGgpk { get; set; } = "";
         /// <summary>GGPKExtractor.exe 路径，国际服 GGPK 模式下必需，国服可缺省。</summary>
