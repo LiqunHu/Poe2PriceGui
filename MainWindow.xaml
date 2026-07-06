@@ -127,6 +127,7 @@
                             <Run Text="{Binding EditedCount, Mode=OneWay}"/>
                             <Run Text=" 条"/>
                             </TextBlock>
+                            <Separator Margin="10,0"/>
                         </ToolBar>
                     </ToolBarTray>
 
@@ -146,6 +147,13 @@
                                  MinWidth="200"
                                  VerticalAlignment="Center"/>
                         </StackPanel>
+                        <CheckBox IsChecked="{Binding IntlFallbackEnabled}"
+                                  VerticalAlignment="Center"
+                                  Margin="15,0,0,0"
+                                  ToolTip="开启后刷新价格时会并行获取国际服 poe2scout 数据，翻译后补充国服未覆盖的物品"
+                                  Visibility="{Binding IsChinaServer, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <TextBlock Text="没有的道具国际服兜底" Foreground="#1976D2"/>
+                        </CheckBox>
                     </StackPanel>
 
                     <!-- 价格表格 -->
@@ -169,6 +177,9 @@
                                     </DataTrigger>
                                     <DataTrigger Binding="{Binding IsEdited}" Value="True">
                                         <Setter Property="Background" Value="#FFF8E1"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding DataSource}" Value="国际服补充">
+                                        <Setter Property="Background" Value="#E3F2FD"/>
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
@@ -212,6 +223,23 @@
                             </DataGridTextColumn>
                             <DataGridCheckBoxColumn Header="异常" Binding="{Binding HasError}" IsReadOnly="True" Width="50"/>
                             <DataGridTextColumn Header="异常原因" Binding="{Binding ErrorInfo}" IsReadOnly="True" Width="200"/>
+                            <DataGridTextColumn Header="来源" Binding="{Binding DataSource}" IsReadOnly="True" Width="70">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="HorizontalAlignment" Value="Center"/>
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding DataSource}" Value="国际服补充">
+                                                <Setter Property="Foreground" Value="#1976D2"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding DataSource}" Value="国服">
+                                                <Setter Property="Foreground" Value="#888888"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
                         </DataGrid.Columns>
                     </DataGrid>
 
@@ -234,12 +262,12 @@
 
             <!-- 工具箱页 -->
             <TabItem Header="工具箱" Tag="🛠️">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <Grid Margin="14" Background="White">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
 
                     <TextBlock Grid.Row="0" Text="工具箱" FontSize="20" FontWeight="Bold" Margin="0,0,0,20"/>
@@ -273,22 +301,86 @@
 
                     <GroupBox Grid.Row="2" Header="泥人补丁" Margin="0,15,0,0">
                         <StackPanel Orientation="Vertical" Margin="10">
-                            <TextBlock Text="⚠️ 重要提示： 会修改游戏文件，存在封号风险。请先关闭游戏再运行。" TextWrapping="Wrap" Foreground="#DC143C" Margin="0,0,0,10"/>
+                            <TextBlock Text="⚠️ 重要提示： 会修改游戏文件，存在封号风险。请先关闭游戏再运行。应用/还原前会自动检测游戏进程。" TextWrapping="Wrap" Foreground="#DC143C" Margin="0,0,0,10"/>
                             <TextBlock Text="与价格补丁可共存(使用不同 bundle 前缀) Tip:Up买了各类技能特效,不会去清空技能特效，保留商人头顶标志。" TextWrapping="Wrap" Foreground="Gray" Margin="0,0,0,10"/>
-                            <TextBlock Text="performance: 主要降低地图画质和少量特效" TextWrapping="Wrap" Foreground="Gray" Margin="0,0,0,10"/>
-                            <TextBlock Text="blanket: 地毯式清理各种特效" TextWrapping="Wrap" Foreground="Gray" Margin="0,0,0,10"/>
-                            <TextBlock Text="all: 地毯式清理各种特效+地图优化" TextWrapping="Wrap" Foreground="Gray" Margin="0,0,0,10"/>
 
+                            <!-- 预设按钮区：点击把该预设的补丁追加到勾选集 -->
+                            <TextBlock Text="预设（点击追加到勾选）：" FontSize="12" Foreground="Gray" Margin="0,0,0,5"/>
+                            <ItemsControl ItemsSource="{Binding SmootherAllPresets}" Margin="0,0,0,10">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel Orientation="Horizontal"/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Button Content="{Binding DisplayName}" Padding="8,3" Margin="0,0,6,4"
+                                                Command="{Binding DataContext.SmootherApplyPresetCommand, RelativeSource={RelativeSource AncestorType=GroupBox}}"
+                                                CommandParameter="{Binding Name}"
+                                                ToolTip="{Binding Description}"/>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <!-- 全选/全不选 + Camera zoom 滑块 -->
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                <Button Content="全选" Command="{Binding SmootherSelectAllCommand}" Padding="10,3" Margin="0,0,6,0"/>
+                                <Button Content="全不选" Command="{Binding SmootherSelectNoneCommand}" Padding="10,3" Margin="0,0,15,0"/>
+                                <TextBlock Text="Camera Zoom：" VerticalAlignment="Center" Margin="0,0,5,0" FontSize="12"/>
+                                <Slider Minimum="1.2" Maximum="2.4" Value="{Binding SmootherCameraZoom}"
+                                        Width="180" VerticalAlignment="Center"
+                                        IsMoveToPointEnabled="True"
+                                        IsSnapToTickEnabled="True" TickFrequency="0.1" TickPlacement="BottomRight"
+                                        LargeChange="0.1" SmallChange="0.1"
+                                        ToolTip="相机缩放倍率（1.2~2.4），点击轨道直接跳到该位置"/>
+                                <TextBlock Text="{Binding SmootherCameraZoom, StringFormat=F1}" VerticalAlignment="Center" Margin="6,0,0,0" FontSize="12" Foreground="#FF4A90D9"/>
+                            </StackPanel>
+
+                            <!-- 补丁 checkbox 网格 -->
+                            <TextBlock Text="补丁列表（勾选要应用的补丁）：" FontSize="12" Foreground="Gray" Margin="0,0,0,5"/>
+                            <ItemsControl ItemsSource="{Binding SmootherPatchItems}" Margin="0,0,0,10">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <UniformGrid Columns="3"/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <CheckBox Margin="0,3" Padding="2,0"
+                                                  IsChecked="{Binding IsChecked, Mode=TwoWay}">
+                                            <CheckBox.Content>
+                                                <StackPanel Orientation="Vertical">
+                                                    <TextBlock FontSize="12" FontWeight="Bold">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock">
+                                                                <Setter Property="Text" Value="{Binding Info.DisplayName}"/>
+                                                                <Setter Property="Foreground" Value="Black"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding Info.IsDangerous}" Value="True">
+                                                                        <Setter Property="Text" Value="{Binding Info.DisplayName, StringFormat={}{0}(危)}"/>
+                                                                        <Setter Property="Foreground" Value="Red"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                    <TextBlock Text="{Binding Info.Description}" FontSize="10" Foreground="Gray" TextWrapping="Wrap" MaxWidth="220"/>
+                                                </StackPanel>
+                                            </CheckBox.Content>
+                                        </CheckBox>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <!-- 操作按钮区 -->
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                                <TextBlock Text="预设：" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                                <ComboBox ItemsSource="{Binding SmootherPresetOptions}" SelectedItem="{Binding SmootherSelectedPreset}" Width="120" Margin="0,0,10,0"/>
-                                <Button Content="应用预设" Command="{Binding SmootherApplyCommand}" Padding="15,5" Margin="0,0,10,0"/>
+                                <Button Content="应用勾选补丁" Command="{Binding SmootherApplyCommand}" Padding="15,5" Margin="0,0,10,0"/>
                                 <Button Content="预览" Command="{Binding SmootherPreviewCommand}" Padding="15,5" Margin="0,0,10,0" ToolTip="仅查看受影响文件数，不写入"/>
                                 <Button Content="还原" Command="{Binding SmootherRestoreCommand}" Padding="15,5" Margin="0,0,10,0"/>
                                 <Button Content="检测状态" Command="{Binding SmootherCheckCommand}" Padding="15,5" ToolTip="检测我们的补丁是否已应用"/>
                             </StackPanel>
 
-                            <!-- 任务2：泥人补丁进度条 + 描述文本，仅执行时显示 -->
+                            <!-- 泥人补丁进度条 + 描述文本，仅执行时显示 -->
                             <StackPanel Orientation="Vertical" Margin="0,0,0,10"
                                         Visibility="{Binding IsSmootherBusy, Converter={StaticResource BooleanToVisibilityConverter}}">
                                 <TextBlock Text="{Binding SmootherProgressText}" FontSize="12" Foreground="#FF4A90D9" Margin="0,0,0,4" TextWrapping="Wrap"/>
@@ -311,6 +403,7 @@
                         </StackPanel>
                     </GroupBox>
                 </Grid>
+                </ScrollViewer>
             </TabItem>
 
             <!-- 设置页 -->
@@ -443,6 +536,14 @@
                                     Padding="15,5" Margin="0,0,10,0"
                                     ToolTip="拉取 POE2 交易 API 的 stats 数据并导出为 JSON 文件，便于排查词缀匹配问题。需先配置 POESESSID。"/>
                             <TextBlock Text="输出：data/stats_cache_debug.json"
+                                       VerticalAlignment="Center"
+                                       Foreground="Gray"
+                                       FontSize="11" Margin="0,0,15,0"/>
+                            <Button Content="生成翻译表"
+                                    Command="{Binding GenerateTranslationsCommand}"
+                                    Padding="15,5" Margin="0,0,10,0"
+                                    ToolTip="开发者用：从游戏 datc64 提取英文+简中物品名，构建翻译表保存到 data/translations/。需先配置游戏目录。"/>
+                            <TextBlock Text="输出：data/translations/translations_zh-CN.json"
                                        VerticalAlignment="Center"
                                        Foreground="Gray"
                                        FontSize="11" Margin="0,0,15,0"/>

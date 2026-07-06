@@ -26,9 +26,18 @@ public static class GameModeDetector
         if (File.Exists(contentGgpk))
         {
             info.Mode = GameMode.GGPK;
+            info.InstallKind = InstallKind.IntlStandaloneGGPK;
             info.DisplayName = "国际服官方 GGPK";
-            info.BaseItemsPath = "data/balance/baseitemtypes.datc64";
-            info.WordsPath = "data/balance/words.datc64";
+            info.IsChina = false;
+
+            // 动态选择语言路径（参考 poe2_price-main Get-Poe2InstallInfo）。
+            // GGPK 内部同时存在 11 种语言的 datc64，游戏按用户选的语言加载对应路径。
+            // 硬编码英文路径会导致非英文用户补丁写入成功但游戏内不显示。
+            var languageCode = Poe2LanguageDetector.DetectLanguageCode();
+            info.BaseItemsPath = Poe2LanguageDetector.GetBaseItemsPath(languageCode);
+            info.WordsPath = Poe2LanguageDetector.GetWordsPath(info.BaseItemsPath);
+            info.EndgameMapsPath = Poe2LanguageDetector.GetEndgameMapsPath(info.BaseItemsPath);
+            info.LanguageCode = languageCode ?? "en";
         }
         else if (File.Exists(bundles2Index))
         {
@@ -65,18 +74,23 @@ public static class GameModeDetector
                 info.InstallKind = InstallKind.WeGameBundles2;
                 info.DisplayName = "国服 WeGame Bundles2";
                 info.IsChina = true;
+                // 国服强制简体中文路径。
+                info.BaseItemsPath = "data/balance/simplified chinese/baseitemtypes.datc64";
+                info.LanguageCode = "zh-CN";
             }
             else
             {
                 info.InstallKind = InstallKind.SteamEpicBundles2;
                 info.DisplayName = "国际服 Steam/Epic Bundles2";
                 info.IsChina = false;
+                // 国际服 Steam/Epic 按用户游戏内语言选择路径。
+                var languageCode = Poe2LanguageDetector.DetectLanguageCode();
+                info.BaseItemsPath = Poe2LanguageDetector.GetBaseItemsPath(languageCode);
+                info.LanguageCode = languageCode ?? "en";
             }
 
-            // Bundles2 默认使用简体中文路径。
-            info.BaseItemsPath = "data/balance/simplified chinese/baseitemtypes.datc64";
-            info.WordsPath = "data/balance/simplified chinese/words.datc64";
-            info.EndgameMapsPath = "data/balance/simplified chinese/endgamemaps.datc64";
+            info.WordsPath = Poe2LanguageDetector.GetWordsPath(info.BaseItemsPath);
+            info.EndgameMapsPath = Poe2LanguageDetector.GetEndgameMapsPath(info.BaseItemsPath);
         }
         else
         {
@@ -115,5 +129,7 @@ public class GameModeInfo
     public string BaseItemsPath { get; set; } = "";
     public string WordsPath { get; set; } = "";
     public string EndgameMapsPath { get; set; } = "";
+    /// <summary>检测到的游戏内语言代码（如 "zh-CN"、"en"），默认 "en"。</summary>
+    public string LanguageCode { get; set; } = "en";
     public string ErrorMessage { get; set; } = "";
 }

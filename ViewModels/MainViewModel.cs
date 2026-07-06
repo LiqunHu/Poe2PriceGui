@@ -74,6 +74,8 @@ public class MainViewModel : INotifyPropertyChanged
     private bool _isChinaServer = true;
     /// <summary>价格页数据来源说明。</summary>
     private string _priceDataSourceLabel = "poecurrency.top (国服)";
+    /// <summary>国际服物品名翻译器（英文名→游戏语言名）。</summary>
+    private ItemNameTranslator? _itemNameTranslator;
 
     public MainViewModel()
     {
@@ -87,6 +89,7 @@ public class MainViewModel : INotifyPropertyChanged
         _priceCheckerLeague = _settings.PriceCheckerLeague;
         _priceCheckerLanguage = _settings.PriceCheckerLanguage;
         _currencyPriceToken = _settings.CurrencyPriceToken;
+        _intlFallbackEnabled = _settings.IntlFallbackEnabled;
 
         // 先根据已保存的游戏目录检测区服，再创建对应的价格/交易服务。
         RefreshDetectedGameMode();
@@ -129,8 +132,19 @@ public class MainViewModel : INotifyPropertyChanged
         SmootherPreviewCommand = new RelayCommand(async () => await SmootherPreviewAsync(), () => !IsBusy);
         SmootherRestoreCommand = new RelayCommand(async () => await SmootherRestoreAsync(), () => !IsBusy);
         SmootherCheckCommand = new RelayCommand(async () => await SmootherCheckAsync(), () => !IsBusy);
+        SmootherSelectAllCommand = new RelayCommand(SmootherSelectAll, () => !IsBusy);
+        SmootherSelectNoneCommand = new RelayCommand(SmootherSelectNone, () => !IsBusy);
+        SmootherApplyPresetCommand = new RelayCommand<string>(SmootherApplyPreset, _ => !IsBusy);
+
+        // 生成翻译表命令（开发者用：从游戏 datc64 构建英文名→中文名映射表）
+        GenerateTranslationsCommand = new RelayCommand(async () => await GenerateTranslationsAsync(), () => !IsBusy && !string.IsNullOrWhiteSpace(GameDirectory));
 
         _filteredPrices.Filter = FilterBySelectedCategory;
+
+        // 初始化泥人补丁勾选状态（从 settings 读取已保存的勾选列表）。
+        InitSmootherPatchChecked();
+        // 同步读取已保存的 zoom 值。
+        _smootherCameraZoom = _settings.SmootherCameraZoom > 0 ? _settings.SmootherCameraZoom : 2.4;
 
         // 启动时优先加载本地数据。
         _ = LoadLocalPricesAsync();
@@ -250,6 +264,12 @@ public class MainViewModel : INotifyPropertyChanged
     public ICommand SmootherPreviewCommand { get; }
     public ICommand SmootherRestoreCommand { get; }
     public ICommand SmootherCheckCommand { get; }
+    public ICommand SmootherSelectAllCommand { get; }
+    public ICommand SmootherSelectNoneCommand { get; }
+    public RelayCommand<string> SmootherApplyPresetCommand { get; }
+
+    /// <summary>生成翻译表命令（开发者用）：从游戏 datc64 构建英文名→中文名映射表并保存到 data/translations/。</summary>
+    public ICommand GenerateTranslationsCommand { get; }
 
     /// <summary>
     /// 状态栏消息。设置页缓存清理状态文本。
@@ -285,6 +305,7 @@ public class MainViewModel : INotifyPropertyChanged
                 OnPropertyChanged();
                 RefreshDetectedGameMode();
                 ((RelayCommand)InstallPatchCommand).RaiseCanExecuteChanged();
+                ((RelayCommand)GenerateTranslationsCommand).RaiseCanExecuteChanged();
             }
         }
     }
@@ -456,6 +477,26 @@ public class MainViewModel : INotifyPropertyChanged
                 {
                     cn.Token = value;
                 }
+            }
+        }
+    }
+
+    private bool _intlFallbackEnabled;
+
+    /// <summary>
+    /// 国服模式下，是否启用"没有的道具国际服兜底"。
+    /// 开启后刷新价格时会并行获取国际服 poe2scout 数据，翻译后补充国服未覆盖的物品。
+    /// 默认关闭。仅国服模式可见。
+    /// </summary>
+    public bool IntlFallbackEnabled
+    {
+        get => _intlFallbackEnabled;
+        set
+        {
+            if (SetProperty(ref _intlFallbackEnabled, value))
+            {
+                _settings.IntlFallbackEnabled = value;
+                _settingsService.Save(_settings);
             }
         }
     }
@@ -812,6 +853,25 @@ public class MainViewModel : INotifyPropertyChanged
                     itemLevelMax = maxVal;
             }
 
+            // 品质 / 护甲 / 闪避 / 能量护盾：从 Panel.StatList 提取（参考 xiletrade ApplyStat）。
+            // 这些是结构化 filter（type_filters.filters.quality / equipment_filters.filters.ar/ev/es），不是 stat filter。
+            int? qualityVal = null;
+            int? armourVal = null;
+            int? evasionVal = null;
+            int? energyShieldVal = null;
+            var qualityEntry = form.Panel?.StatList?.FirstOrDefault(x => x.Id == StatPanel.CommonQuality);
+            if (qualityEntry is { Selected: true } && int.TryParse(qualityEntry.Min, out var qVal) && qVal > 0)
+                qualityVal = qVal;
+            var armourEntry = form.Panel?.StatList?.FirstOrDefault(x => x.Id == StatPanel.DefenseArmour);
+            if (armourEntry is { Selected: true } && int.TryParse(armourEntry.Min, out var arVal) && arVal > 0)
+                armourVal = arVal;
+            var evasionEntry = form.Panel?.StatList?.FirstOrDefault(x => x.Id == StatPanel.DefenseEvasion);
+            if (evasionEntry is { Selected: true } && int.TryParse(evasionEntry.Min, out var evVal) && evVal > 0)
+                evasionVal = evVal;
+            var esEntry = form.Panel?.StatList?.FirstOrDefault(x => x.Id == StatPanel.DefenseEnergy);
+            if (esEntry is { Selected: true } && int.TryParse(esEntry.Min, out var esVal) && esVal > 0)
+                energyShieldVal = esVal;
+
             // 已腐化 / 未鉴定：下拉框索引 0=Any, 1=No, 2=Yes（参考 xiletrade GetOption）。
             bool? corrupted = form.CorruptedIndex switch
             {
@@ -842,7 +902,10 @@ public class MainViewModel : INotifyPropertyChanged
                     rarity: rarity,
                     selectedMods: selectedMods,
                     isExactSearch: false,
-                    quality: null,
+                    quality: qualityVal,
+                    armour: armourVal,
+                    evasion: evasionVal,
+                    energyShield: energyShieldVal,
                     corrupted: corrupted,
                     identified: identified,
                     itemFlag: form.ItemFlag);
@@ -866,7 +929,10 @@ public class MainViewModel : INotifyPropertyChanged
                     rarity: rarity,
                     selectedMods: selectedMods,
                     isExactSearch: false,
-                    quality: null,
+                    quality: qualityVal,
+                    armour: armourVal,
+                    evasion: evasionVal,
+                    energyShield: energyShieldVal,
                     corrupted: corrupted,
                     identified: identified,
                     itemFlag: form.ItemFlag);
@@ -1106,6 +1172,28 @@ public class MainViewModel : INotifyPropertyChanged
             _tradeService = new PoeTradeService(_httpClient, isChina: false);
         }
 
+        // 国服和国际服都需要翻译器：
+        // - 国际服：把 poe2scout 返回的英文名替换为游戏语言名。
+        // - 国服：合并国际服补充数据时，把英文名翻译为中文。
+        // 翻译表来源：从已提取的 datc64 双文件构建（英文+目标语言），缓存到本地。
+        _itemNameTranslator = new ItemNameTranslator();
+        var langCode = _isChinaServer ? "zh-CN" :
+            (!string.IsNullOrWhiteSpace(GameDirectory)
+                ? GameModeDetector.Detect(GameDirectory).LanguageCode
+                : "en");
+        _ = Task.Run(async () =>
+        {
+            if (!await _itemNameTranslator.LoadCacheAsync(langCode))
+            {
+                // 缓存不存在时，尝试从已提取的 datc64 文件构建（如安装补丁后）。
+                var outputDir = Path.Combine(AppContext.BaseDirectory, "output");
+                if (_itemNameTranslator.TryBuildFromExtractedFiles(outputDir, langCode))
+                {
+                    await _itemNameTranslator.SaveCacheAsync(langCode);
+                }
+            }
+        });
+
         PriceDataSourceLabel = _priceService.DataSourceLabel;
         OnPropertyChanged(nameof(PricePageTitle));
         OnPropertyChanged(nameof(IsChinaServer));
@@ -1292,21 +1380,130 @@ public class MainViewModel : INotifyPropertyChanged
     #region 泥人补丁
 
     /// <summary>
-    /// 可选的泥人补丁预设列表。
-    /// performance: 性能优化（fog/rain/clouds/env-particles/delirium/particles/effects）
-    /// blanket:     毯式补丁（清空 metadata/ 下全部 .epk + 简化全部 .ao）
-    /// all:         全部应用（performance + blanket 合并）
+    /// 所有可选补丁元数据（17 个），用于 UI checkbox 网格绑定。
     /// </summary>
-    public IReadOnlyList<string> SmootherPresetOptions { get; } = new[] { "performance", "blanket", "all" };
+    public IReadOnlyList<PatchInfo> SmootherAllPatches { get; } = PatchCatalog.AllPatches;
 
-    private string _smootherSelectedPreset = "performance";
     /// <summary>
-    /// 当前选中的泥人补丁预设。
+    /// UI 可见的预设元数据（过滤掉 IsHidden 的预设），用于 UI 预设按钮绑定。
     /// </summary>
-    public string SmootherSelectedPreset
+    public IReadOnlyList<PresetInfo> SmootherAllPresets { get; } =
+        PatchCatalog.AllPresets.Where(p => !p.IsHidden).ToList();
+
+    /// <summary>
+    /// 用户勾选的补丁集合（绑定到 checkbox）。变更时持久化到 settings。
+    /// 使用 PatchSelectionItem wrapper 提供 INotifyPropertyChanged，支持双向绑定。
+    /// </summary>
+    public ObservableCollection<PatchSelectionItem> SmootherPatchItems { get; } = new();
+
+    private double _smootherCameraZoom = 2.4;
+    /// <summary>
+    /// 相机 zoom 倍率（1.2 ~ 2.4），用户可拖动滑块调节。变更时持久化到 settings。
+    /// </summary>
+    public double SmootherCameraZoom
     {
-        get => _smootherSelectedPreset;
-        set => SetProperty(ref _smootherSelectedPreset, value);
+        get => _smootherCameraZoom;
+        set
+        {
+            if (SetProperty(ref _smootherCameraZoom, value))
+            {
+                _settings.SmootherCameraZoom = value;
+                _settingsService.Save(_settings);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 初始化泥人补丁勾选状态：从 settings 读取已保存的勾选补丁名列表，构建 PatchSelectionItem。
+    /// 在构造函数末尾调用一次。
+    /// </summary>
+    private void InitSmootherPatchChecked()
+    {
+        SmootherPatchItems.Clear();
+        var saved = _settings.SmootherSelectedPatches ?? new();
+        foreach (var patch in SmootherAllPatches)
+        {
+            var isChecked = saved.Contains(patch.Name, StringComparer.OrdinalIgnoreCase);
+            SmootherPatchItems.Add(new PatchSelectionItem(patch, isChecked));
+        }
+    }
+
+    /// <summary>
+    /// 持久化当前勾选状态到 settings。
+    /// </summary>
+    private void SaveSmootherPatchChecked()
+    {
+        var list = SmootherPatchItems
+            .Where(item => item.IsChecked)
+            .Select(item => item.Info.Name)
+            .ToList();
+        _settings.SmootherSelectedPatches = list;
+        _settingsService.Save(_settings);
+    }
+
+    /// <summary>
+    /// 根据当前勾选状态返回选中的补丁列表。Camera 强制移到末尾（参考 tiny-poe2smoother-gui.rs:568-572）。
+    /// </summary>
+    private PatchId[] GetSelectedPatches()
+    {
+        var selected = SmootherPatchItems
+            .Where(item => item.IsChecked)
+            .Select(item => item.Info.Id)
+            .ToList();
+        // Camera 强制最后执行：从列表中移除并追加到末尾。
+        var cameraIdx = selected.IndexOf(PatchId.Camera);
+        if (cameraIdx >= 0)
+        {
+            selected.RemoveAt(cameraIdx);
+            selected.Add(PatchId.Camera);
+        }
+        return selected.ToArray();
+    }
+
+    /// <summary>"全选"按钮：勾选所有补丁。</summary>
+    private void SmootherSelectAll()
+    {
+        foreach (var item in SmootherPatchItems)
+            item.IsChecked = true;
+        SaveSmootherPatchChecked();
+    }
+
+    /// <summary>"全不选"按钮：取消所有勾选。</summary>
+    private void SmootherSelectNone()
+    {
+        foreach (var item in SmootherPatchItems)
+            item.IsChecked = false;
+        SaveSmootherPatchChecked();
+    }
+
+    /// <summary>
+    /// "预设按钮"：先清空所有勾选，再勾选指定预设包含的补丁（参考 tiny-poe2smoother-gui.rs:374-380）。
+    /// parameter = 预设名（如 "performance"、"maps-revealed"）。
+    /// </summary>
+    private void SmootherApplyPreset(string? presetName)
+    {
+        if (string.IsNullOrEmpty(presetName)) return;
+        var preset = PatchCatalog.AllPresets.FirstOrDefault(p =>
+            p.Name.Equals(presetName, StringComparison.OrdinalIgnoreCase));
+        if (preset == null) return;
+
+        // 先全不选，再勾选预设包含的补丁（替换模式，避免之前勾选的残留）
+        foreach (var item in SmootherPatchItems)
+        {
+            item.IsChecked = preset.Patches.Contains(item.Info.Id);
+        }
+        SaveSmootherPatchChecked();
+        _toastService.ShowInfo($"已应用预设：{preset.DisplayName}");
+    }
+
+    /// <summary>
+    /// 检测 POE2 游戏进程是否正在运行（参考 tiny-poe2smoother app.rs ensure_game_not_running）。
+    /// </summary>
+    private static bool IsGameRunning()
+    {
+        return Process.GetProcessesByName("PathOfExile2Steam").Length > 0
+            || Process.GetProcessesByName("PathOfExile2").Length > 0
+            || Process.GetProcessesByName("PathOfExile2_x64").Length > 0;
     }
 
     private string _smootherProgressText = "";
@@ -1339,35 +1536,6 @@ public class MainViewModel : INotifyPropertyChanged
         set => SetProperty(ref _isSmootherBusy, value);
     }
 
-    /// <summary>
-    /// performance 预设包含的补丁列表。
-    /// 与 tiny-poe2smoother 的 performance 预设一致。
-    /// </summary>
-    private static readonly PatchId[] SmootherPerformancePatches =
-    {
-        PatchId.Fog,
-        PatchId.Rain,
-        PatchId.Clouds,
-        PatchId.EnvParticles,
-        PatchId.Delirium,
-        PatchId.Particles,
-        PatchId.Effects,
-    };
-
-    /// <summary>
-    /// 根据选中的预设返回对应的补丁列表。
-    /// all 模式 = performance 全部 + blanket 合并，一次性做成一个补丁。
-    /// </summary>
-    private PatchId[] GetSelectedPatches()
-    {
-        return SmootherSelectedPreset switch
-        {
-            "blanket" => new[] { PatchId.Blanket },
-            "all" => SmootherPerformancePatches.Concat(new[] { PatchId.Blanket }).ToArray(),
-            _ => SmootherPerformancePatches,
-        };
-    }
-
     private async Task SmootherApplyAsync()
     {
         if (string.IsNullOrWhiteSpace(GameDirectory) || !Directory.Exists(GameDirectory))
@@ -1376,41 +1544,49 @@ public class MainViewModel : INotifyPropertyChanged
             return;
         }
 
-        var presetName = SmootherSelectedPreset;
-        var patches = GetSelectedPatches();
-        var isBlanket = presetName == "blanket";
-        var isAll = presetName == "all";
+        // 安全校验1：检测游戏进程是否运行（参考 tiny-poe2smoother app.rs ensure_game_not_running）。
+        if (IsGameRunning())
+        {
+            _toastService.ShowError("检测到 POE2 游戏正在运行，请先关闭游戏再应用补丁");
+            return;
+        }
 
-        // 任务3：改为右上角 Toast 提示，无需点击确认，直接开始应用。
-        var msg = isAll
-            ? "正在应用 all 预设（performance + blanket 合并），请确保游戏已关闭"
-            : isBlanket
-                ? "正在应用毯式补丁 (blanket)，请确保游戏已关闭"
-                : "正在应用泥人补丁 performance 预设，请确保游戏已关闭";
-        _toastService.ShowInfo(msg);
+        // 安全校验2：检测补丁是否已应用，拒绝重复打补丁（参考 tiny-poe2smoother app.rs ensure_can_apply）。
+        var preCheck = new SmootherPatchService(GameDirectory);
+        if (preCheck.IsPatchApplied())
+        {
+            _toastService.ShowError("检测到泥人补丁已应用，请先还原再重新应用");
+            return;
+        }
+
+        var patches = GetSelectedPatches();
+        if (patches.Length == 0)
+        {
+            _toastService.ShowError("请先勾选至少一个补丁");
+            return;
+        }
+
+        var patchNames = string.Join(", ", patches.Select(p => PatchCatalog.PatchDisplayName(p)));
+        _toastService.ShowInfo($"正在应用 {patches.Length} 个补丁：{patchNames}，请确保游戏已关闭");
 
         IsBusy = true;
         IsSmootherBusy = true;
         SmootherProgressValue = 0;
         SmootherProgressText = "准备中...";
-        SettingsStatusMessage = isBlanket
-            ? "正在应用毯式补丁（请耐心等待）..."
-            : isAll
-                ? "正在应用 all 预设（性能 + 毯式合并，请耐心等待）..."
-                : "正在应用泥人补丁...";
+        SettingsStatusMessage = $"正在应用泥人补丁（{patches.Length} 个）...";
 
         try
         {
-            var service = new SmootherPatchService(GameDirectory);
+            var service = preCheck;
             var progress = new Progress<SmootherProgress>(p =>
             {
                 SmootherProgressValue = p.Percent;
                 SmootherProgressText = p.Description;
             });
-            var report = await Task.Run(() => service.Apply(patches, progress: progress));
+            var report = await Task.Run(() => service.Apply(patches, zoom: SmootherCameraZoom, progress: progress));
             if (report.Success)
             {
-                var msg2 = $"{presetName} 预设已应用：修改 {report.ChangedFileCount} 个文件";
+                var msg2 = $"已应用 {patches.Length} 个补丁：修改 {report.ChangedFileCount} 个文件";
                 foreach (var (patch, count) in report.PatchHitCounts)
                 {
                     msg2 += $"\n  {patch}: {count}";
@@ -1418,23 +1594,23 @@ public class MainViewModel : INotifyPropertyChanged
                 SettingsStatusMessage = msg2.Replace("\n", " | ");
                 SmootherProgressValue = 100;
                 SmootherProgressText = "完成";
-                _toastService.ShowSuccess($"{presetName} 预设应用成功：修改 {report.ChangedFileCount} 个文件");
-                AppLogger.Instance.Info($"{presetName} 预设应用成功：{msg2}");
+                _toastService.ShowSuccess($"泥人补丁应用成功：修改 {report.ChangedFileCount} 个文件");
+                AppLogger.Instance.Info($"泥人补丁应用成功：{msg2}");
             }
             else
             {
-                SettingsStatusMessage = $"{presetName} 预设应用失败：{report.ErrorMessage}";
+                SettingsStatusMessage = $"泥人补丁应用失败：{report.ErrorMessage}";
                 SmootherProgressText = $"失败：{report.ErrorMessage}";
-                _toastService.ShowError($"{presetName} 预设应用失败：{report.ErrorMessage}");
-                AppLogger.Instance.Error($"{presetName} 预设应用失败：{report.ErrorMessage}");
+                _toastService.ShowError($"泥人补丁应用失败：{report.ErrorMessage}");
+                AppLogger.Instance.Error($"泥人补丁应用失败：{report.ErrorMessage}");
             }
         }
         catch (Exception ex)
         {
-            AppLogger.Instance.Error(ex, $"{presetName} 预设应用异常");
-            SettingsStatusMessage = $"{presetName} 预设应用异常：{ex.Message}";
+            AppLogger.Instance.Error(ex, "泥人补丁应用异常");
+            SettingsStatusMessage = $"泥人补丁应用异常：{ex.Message}";
             SmootherProgressText = $"异常：{ex.Message}";
-            _toastService.ShowError($"{presetName} 预设应用异常：{ex.Message}");
+            _toastService.ShowError($"泥人补丁应用异常：{ex.Message}");
         }
         finally
         {
@@ -1455,8 +1631,15 @@ public class MainViewModel : INotifyPropertyChanged
         IsSmootherBusy = true;
         SmootherProgressValue = 0;
         SmootherProgressText = "准备中...";
-        var presetName = SmootherSelectedPreset;
-        SettingsStatusMessage = $"正在预览 {presetName} 预设...";
+        var patches = GetSelectedPatches();
+        if (patches.Length == 0)
+        {
+            _toastService.ShowError("请先勾选至少一个补丁");
+            IsBusy = false;
+            IsSmootherBusy = false;
+            return;
+        }
+        SettingsStatusMessage = $"正在预览 {patches.Length} 个补丁...";
 
         try
         {
@@ -1466,7 +1649,7 @@ public class MainViewModel : INotifyPropertyChanged
                 SmootherProgressValue = p.Percent;
                 SmootherProgressText = p.Description;
             });
-            var report = await Task.Run(() => service.Preview(GetSelectedPatches(), progress: progress));
+            var report = await Task.Run(() => service.Preview(patches, zoom: SmootherCameraZoom, progress: progress));
             if (report.Success)
             {
                 var msg = $"预览：将修改 {report.ChangedFileCount} 个文件";
@@ -1503,7 +1686,13 @@ public class MainViewModel : INotifyPropertyChanged
 
     private async Task SmootherRestoreAsync()
     {
-        // 任务3：去除 MessageBox 确认，直接执行还原并用 Toast 反馈。
+        // 安全校验：还原也需要游戏关闭。
+        if (IsGameRunning())
+        {
+            _toastService.ShowError("检测到 POE2 游戏正在运行，请先关闭游戏再还原补丁");
+            return;
+        }
+
         IsBusy = true;
         IsSmootherBusy = true;
         SmootherProgressValue = 0;
@@ -1672,45 +1861,159 @@ public class MainViewModel : INotifyPropertyChanged
             var oldPriceMap = oldPrices.ToDictionary(p => p.ItemName, p => p.PriceExalted);
             AppLogger.Instance.Info($"读取本地旧数据 {oldPrices.Count} 条用于对比");
 
-            var pricesTask = _priceService.FetchPricesAsync();
             var mappingTask = _iconCacheService.LoadMappingAsync();
 
+            // 国服模式：根据"国际服兜底"开关决定是否并行获取国际服数据补充。
+            if (_isChinaServer)
+            {
+                var cnTask = _priceService.FetchPricesAsync();
+                Task<ObservableCollection<PoecurrencyItem>>? intlTask = null;
+                if (IntlFallbackEnabled)
+                {
+                    // 用独立实例获取国际服数据，避免影响主服务状态。
+                    var intlPriceService = new Poe2ScoutPriceService(_httpClient, league: "runes");
+                    intlTask = intlPriceService.FetchPricesAsync();
+                }
+
+                if (intlTask != null)
+                {
+                    await Task.WhenAll(cnTask, intlTask, mappingTask);
+                }
+                else
+                {
+                    await Task.WhenAll(cnTask, mappingTask);
+                }
+
+                var cnPrices = await cnTask;
+                var merged = new List<PoecurrencyItem>(cnPrices);
+                var intlSupplementCount = 0;
+
+                if (intlTask != null)
+                {
+                    var intlPrices = await intlTask;
+                    AppLogger.Instance.Info($"国服获取 {cnPrices.Count} 条，国际服获取 {intlPrices.Count} 条");
+
+                    // 翻译国际服英文名为中文，翻译表随程序打包，未命中翻译的物品跳过。
+                    if (_itemNameTranslator is { HasTranslations: true })
+                    {
+                        var translated = 0;
+                        foreach (var item in intlPrices)
+                        {
+                            var localized = _itemNameTranslator.Translate(item.ItemName);
+                            if (!ReferenceEquals(localized, item.ItemName))
+                            {
+                                item.ItemName = localized;
+                                item.DataSource = "国际服补充";
+                                translated++;
+                            }
+                            // 翻译未命中的物品跳过（保留英文会出现重复且无法和国服去重）。
+                        }
+                        AppLogger.Instance.Info($"国际服物品名翻译：{translated}/{intlPrices.Count} 条命中");
+
+                        // 合并：以中文名为 key 去重，国服优先。仅加入翻译成功的国际服物品。
+                        var cnNames = cnPrices.Select(p => p.ItemName)
+                            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                        foreach (var item in intlPrices.Where(p => p.DataSource == "国际服补充"))
+                        {
+                            if (!cnNames.Contains(item.ItemName))
+                            {
+                                merged.Add(item);
+                                intlSupplementCount++;
+                            }
+                        }
+                        AppLogger.Instance.Info($"合并完成：国服 {cnPrices.Count} 条 + 国际服补充 {intlSupplementCount} 条 = {merged.Count} 条");
+                    }
+                    else
+                    {
+                        AppLogger.Instance.Warn("翻译表未就绪，跳过国际服数据补充（请检查 data/translations/ 目录）");
+                    }
+                }
+                else
+                {
+                    AppLogger.Instance.Info($"国服获取 {cnPrices.Count} 条（国际服兜底已关闭）");
+                }
+
+                var prices = new ObservableCollection<PoecurrencyItem>(merged);
+                var changedCount = ComparePriceChanges(prices, oldPriceMap);
+
+                Prices = prices;
+                UpdateEditedCount();
+
+                await _priceDataService.SaveAsync(prices);
+                AppLogger.Instance.Info($"保存 {prices.Count} 条价格到本地");
+
+                _settings.LastRefreshTime = DateTime.UtcNow;
+                _settingsService.Save(_settings);
+                RefreshLastRefreshTimeDisplay();
+
+                // 提示用户补充数量。
+                if (intlSupplementCount > 0)
+                {
+                    _toastService.ShowSuccess($"刷新成功，价格变动 {changedCount} 个，国际服补充 {intlSupplementCount} 个");
+                    StatusMessage = $"已加载 {prices.Count} 条价格（国际服补充 {intlSupplementCount} 个），正在加载图标...";
+                }
+                else
+                {
+                    _toastService.ShowSuccess($"刷新成功，价格变动 {changedCount} 个物品");
+                    StatusMessage = $"已加载 {prices.Count} 条价格数据，正在加载图标...";
+                }
+
+                _ = Task.Run(async () => await LoadIconsAsync(prices, CancellationToken.None));
+                return;
+            }
+
+            // 国际服模式：原有逻辑。
+            var pricesTask = _priceService.FetchPricesAsync();
             await Task.WhenAll(pricesTask, mappingTask);
 
-            var prices = await pricesTask;
-            var changedCount = 0;
-            AppLogger.Instance.Info($"从网络获取价格 {prices.Count} 条");
+            var intlPricesList = await pricesTask;
+            var changedCountIntl = 0;
+            AppLogger.Instance.Info($"从网络获取价格 {intlPricesList.Count} 条");
+
+            // 国际服：把英文物品名翻译为游戏语言名（如简中）。
+            // 翻译在价格对比之前进行，保证旧数据（已翻译）和新数据 key 一致。
+            if (_itemNameTranslator is { HasTranslations: true })
+            {
+                var translated = 0;
+                foreach (var item in intlPricesList)
+                {
+                    var localized = _itemNameTranslator.Translate(item.ItemName);
+                    if (!ReferenceEquals(localized, item.ItemName))
+                    {
+                        item.ItemName = localized;
+                        translated++;
+                    }
+                }
+                AppLogger.Instance.Info($"物品名翻译完成：{translated}/{intlPricesList.Count} 条命中");
+            }
 
             // 订阅属性变更以统计编辑次数，并对比价格变动。
-            foreach (var item in prices)
+            foreach (var item in intlPricesList)
             {
                 item.PropertyChanged += OnPriceItemPropertyChanged;
 
                 if (oldPriceMap.TryGetValue(item.ItemName, out var oldPrice) && oldPrice != item.PriceExalted)
                 {
                     item.IsPriceChanged = true;
-                    changedCount++;
+                    changedCountIntl++;
                 }
             }
 
-            Prices = prices;
+            Prices = intlPricesList;
             UpdateEditedCount();
 
-            // 保存到本地。
-            await _priceDataService.SaveAsync(prices);
-            AppLogger.Instance.Info($"保存 {prices.Count} 条价格到本地");
+            await _priceDataService.SaveAsync(intlPricesList);
+            AppLogger.Instance.Info($"保存 {intlPricesList.Count} 条价格到本地");
 
-            // 记录并保存最后刷新时间。
             _settings.LastRefreshTime = DateTime.UtcNow;
             _settingsService.Save(_settings);
             RefreshLastRefreshTimeDisplay();
 
-            _toastService.ShowSuccess($"刷新成功，价格变动 {changedCount} 个物品");
-            AppLogger.Instance.Info($"刷新成功，价格变动 {changedCount} 个物品");
-            StatusMessage = $"已加载 {prices.Count} 条价格数据，正在加载图标...";
+            _toastService.ShowSuccess($"刷新成功，价格变动 {changedCountIntl} 个物品");
+            AppLogger.Instance.Info($"刷新成功，价格变动 {changedCountIntl} 个物品");
+            StatusMessage = $"已加载 {intlPricesList.Count} 条价格数据，正在加载图标...";
 
-            // 异步加载图标并缓存到本地。
-            _ = Task.Run(async () => await LoadIconsAsync(prices, CancellationToken.None));
+            _ = Task.Run(async () => await LoadIconsAsync(intlPricesList, CancellationToken.None));
         }
         catch (Exception ex)
         {
@@ -1723,6 +2026,25 @@ public class MainViewModel : INotifyPropertyChanged
         {
             IsBusy = false;
         }
+    }
+
+    /// <summary>
+    /// 订阅属性变更并对比价格变动，返回变动条数。
+    /// </summary>
+    private int ComparePriceChanges(ObservableCollection<PoecurrencyItem> prices, Dictionary<string, decimal> oldPriceMap)
+    {
+        var changedCount = 0;
+        foreach (var item in prices)
+        {
+            item.PropertyChanged += OnPriceItemPropertyChanged;
+
+            if (oldPriceMap.TryGetValue(item.ItemName, out var oldPrice) && oldPrice != item.PriceExalted)
+            {
+                item.IsPriceChanged = true;
+                changedCount++;
+            }
+        }
+        return changedCount;
     }
 
     /// <summary>
@@ -1950,6 +2272,64 @@ public class MainViewModel : INotifyPropertyChanged
     }
 
     /// <summary>
+    /// 生成翻译表：从游戏 datc64 提取英文+目标语言版，构建英文名→中文名映射表。
+    /// 翻译表保存到 data/translations/translations_zh-CN.json，随程序打包发布。
+    /// </summary>
+    private async Task GenerateTranslationsAsync()
+    {
+        IsBusy = true;
+        StatusMessage = "正在提取游戏数据文件并构建翻译表...";
+        AppLogger.Instance.Info("开始生成翻译表");
+
+        try
+        {
+            var modeInfo = GameModeDetector.Detect(GameDirectory);
+            var extracted = await _patchInstaller.ExtractDatc64ForTranslationAsync(
+                GameDirectory, modeInfo, CancellationToken.None);
+            if (!extracted)
+            {
+                _toastService.ShowError("datc64 提取失败，请检查游戏目录和工具配置");
+                StatusMessage = "翻译表生成失败";
+                return;
+            }
+
+            var outputDir = Path.Combine(AppContext.BaseDirectory, "output");
+            var translator = new ItemNameTranslator();
+            if (!translator.TryBuildFromExtractedFiles(outputDir, "zh-CN"))
+            {
+                _toastService.ShowError("翻译表构建失败：datc64 解析未产生映射");
+                StatusMessage = "翻译表生成失败";
+                return;
+            }
+
+            // 保存到程序目录 data/translations/，随 Release 打包。
+            var bundledDir = Path.Combine(AppContext.BaseDirectory, "data", "translations");
+            Directory.CreateDirectory(bundledDir);
+            var targetPath = Path.Combine(bundledDir, "translations_zh-CN.json");
+            await using var stream = File.Create(targetPath);
+            await System.Text.Json.JsonSerializer.SerializeAsync(stream,
+                translator.GetTranslationsSnapshot(),
+                new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+
+            AppLogger.Instance.Info($"翻译表生成成功：{translator.Count} 条映射 → {targetPath}");
+            _toastService.ShowSuccess($"翻译表生成成功：{translator.Count} 条映射");
+
+            // 同步更新内存中的翻译器。
+            _itemNameTranslator = translator;
+            StatusMessage = $"翻译表生成成功：{translator.Count} 条映射";
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Instance.Error(ex, "生成翻译表失败");
+            _toastService.ShowError($"生成翻译表失败：{ex.Message}");
+            StatusMessage = "翻译表生成失败";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
     /// 手动导出查价器 stats 缓存到 data/stats_cache_debug.json，便于排查词缀匹配问题。
     /// 需要 POESESSID，若缓存未加载会先从 API 拉取。
     /// </summary>

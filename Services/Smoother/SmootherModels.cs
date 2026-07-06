@@ -1,3 +1,6 @@
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
+
 namespace Poe2PriceGui.Services.Smoother;
 
 /// <summary>
@@ -31,8 +34,48 @@ public enum PatchId
 public sealed class PatchInfo
 {
     public PatchId Id { get; init; }
+    /// <summary>英文标识符，用于持久化和命令行解析（不可改）。</summary>
     public string Name { get; init; } = "";
+    /// <summary>中文显示名，用于 UI 展示。</summary>
+    public string DisplayName { get; init; } = "";
     public string Description { get; init; } = "";
+    /// <summary>是否为高风险补丁（UI 显示红色 + "(危)" 后缀）。这类补丁可能触发封号或崩溃风险。</summary>
+    public bool IsDangerous { get; init; }
+}
+
+/// <summary>
+/// UI 绑定用：补丁元数据 + 勾选状态。实现 INotifyPropertyChanged 以支持双向绑定。
+/// </summary>
+public sealed class PatchSelectionItem : INotifyPropertyChanged
+{
+    private bool _isChecked;
+
+    public PatchInfo Info { get; }
+
+    public PatchSelectionItem(PatchInfo info, bool isChecked = false)
+    {
+        Info = info;
+        _isChecked = isChecked;
+    }
+
+    /// <summary>当前是否被勾选。设置时触发 PropertyChanged 以驱动 UI 双向绑定。</summary>
+    public bool IsChecked
+    {
+        get => _isChecked;
+        set
+        {
+            if (_isChecked != value)
+            {
+                _isChecked = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 }
 
 /// <summary>
@@ -40,9 +83,14 @@ public sealed class PatchInfo
 /// </summary>
 public sealed class PresetInfo
 {
+    /// <summary>英文标识符，用于命令参数传递（不可改）。</summary>
     public string Name { get; init; } = "";
+    /// <summary>中文显示名，用于 UI 展示。</summary>
+    public string DisplayName { get; init; } = "";
     public string Description { get; init; } = "";
     public PatchId[] Patches { get; init; } = [];
+    /// <summary>是否在 UI 中隐藏（不显示为预设按钮）。隐藏后仍可通过命令行/代码调用。</summary>
+    public bool IsHidden { get; init; }
 }
 
 /// <summary>

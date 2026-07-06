@@ -467,6 +467,16 @@ internal static class PatchTransforms
             return bytes;
         }
 
+        //受保护的不修改
+        var normalized = PatchCatalog.NormalizePath(path);
+        foreach (var prefix in PatchCatalog.EffectProtectedPrefixes)
+        {
+            if (normalized.StartsWith(prefix, StringComparison.Ordinal))
+            {
+                return bytes;
+            }
+        }
+
         // .epk → 清空为 BOM（空字符串）。已经是 2 字节的跳过避免重复写入。
         if (PatchCatalog.EndsWithPathCi(path, ".epk"))
         {

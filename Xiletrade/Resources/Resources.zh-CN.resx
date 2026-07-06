@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <root>
   <!-- 
     Microsoft ResX Schema 
@@ -1398,7 +1398,7 @@
     <value>异界升级物品</value>
   </data>
   <data name="ItemClass_bodyArmours" xml:space="preserve">
-    <value>胸甲</value>
+    <value>护甲</value>
   </data>
   <data name="ItemClass_boots" xml:space="preserve">
     <value>鞋子</value>
@@ -1799,7 +1799,7 @@
     <value>物品等级</value>
   </data>
   <data name="Main066_tbQuality" xml:space="preserve">
-    <value>质量</value>
+    <value>品质</value>
   </data>
   <data name="Main067_tbSockets" xml:space="preserve">
     <value>套接字和链接</value>
@@ -1811,7 +1811,7 @@
     <value>能源</value>
   </data>
   <data name="Main070_tbEvasion" xml:space="preserve">
-    <value>逃避</value>
+    <value>闪避值</value>
   </data>
   <data name="Main071_tbSynthesis" xml:space="preserve">
     <value>合成</value>
@@ -1829,10 +1829,10 @@
     <value>每秒元素伤害</value>
   </data>
   <data name="Main076_tbTotalResist" xml:space="preserve">
-    <value>总抗蚀剂</value>
+    <value>总元素抗性</value>
   </data>
   <data name="Main077_tbTotalLife" xml:space="preserve">
-    <value>总寿命</value>
+    <value>总生命</value>
   </data>
   <data name="Main078_tbGlobalES" xml:space="preserve">
     <value>全球能源</value>

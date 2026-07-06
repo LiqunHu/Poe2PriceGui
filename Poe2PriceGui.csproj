@@ -64,6 +64,13 @@
     <Compile Remove="tools\**" />
   </ItemGroup>
 
+  <!-- 预构建的翻译表随程序打包发布（开发者通过"生成翻译表"按钮生成后提交到 Git） -->
+  <ItemGroup>
+    <Content Include="data\translations\*.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
   <!-- Velopack: 将 App.xaml 从 ApplicationDefinition 改为 Page，以便使用自定义 Main 方法 -->
   <ItemGroup>
     <ApplicationDefinition Remove="App.xaml" />

@@ -75,6 +75,7 @@ public class PriceDataService
             DivineExaltedRatio = record.DivineExaltedRatio > 0 ? record.DivineExaltedRatio : globalDivineRatio,
             SourcePair = record.SourcePair,
             IsEdited = record.IsEdited,
+            DataSource = string.IsNullOrWhiteSpace(record.DataSource) ? "国服" : record.DataSource,
         }).ToList();
     }
 
@@ -102,6 +103,7 @@ public class PriceDataService
             DivineExaltedRatio = item.DivineExaltedRatio,
             SourcePair = item.SourcePair,
             IsEdited = item.IsEdited,
+            DataSource = item.DataSource,
         }).ToList();
 
         var data = new PriceData
@@ -144,6 +146,7 @@ public class PriceDataService
         public decimal DivineExaltedRatio { get; set; }
         public string SourcePair { get; set; } = "";
         public bool IsEdited { get; set; }
+        public string DataSource { get; set; } = "国服";
     }
 
     private static bool IsDivineOrbName(string name)

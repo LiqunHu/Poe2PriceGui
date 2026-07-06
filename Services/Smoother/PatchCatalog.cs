@@ -24,6 +24,7 @@ public static class PatchCatalog
         "metadata/particles/ground_effects_v2/smoke_blind_chimera",
         "metadata/particles/monster_effects/atlasofworldsbosses/chimera",
         "metadata/particles/monster_effects/atlasexiles/orion",
+        //"metadata/particles/conditions/",                                              //异常状态粒子（点燃/冰冻/感电/腐蚀等）
     };
 
     /// <summary>
@@ -48,18 +49,22 @@ public static class PatchCatalog
         "metadata/effects/spells/monsters_effects/league_hellscape/mechanics",
         "metadata/effects/spells/monsters_effects/atlasofworldsbosses/maven",
         "metadata/effects/spells/monsters_effects/atlasexiles/adjudicator",
-        "metadata/effects/spells/ground_effects/chimera_smoke",
-        "metadata/effects/spells/ground_effects/evil",
-        "metadata/effects/spells/ground_effects_v2/smoke_blind_chimera",
+        "metadata/effects/spells/ground_effects/",                                  //怪物技能环境特效，地面的火应该在这里
+        "metadata/effects/spells/ground_effects_v2/",                               //怪物技能环境特效
+        "metadata/effects/spells/ground_effects_v3/",                               //怪物技能环境特效
+        "metadata/effects/spells/grd_zones/",                                      //地面环境特效
         "metadata/effects/spells/monsters_effects/atlasofworldsbosses/chimera",
         "metadata/effects/spells/monsters_effects/atlasexiles/orion",
         "metadata/effects/spells/monsters_effects/prophecy_league",
-        "metadata/effects/spells/ground_effects/caustic",
+        "metadata/effects/spells/monsters_effects/league_delirium/tangmazu/",       //恢弘之镜系列的东西
+        //"metadata/effects/spells/environment_effects/",
         "metadata/effects/spells/ground_effects_v2/caustic_arrow_ground",
         "metadata/effects/spells/ground_effects_v2/desecrated",
         "metadata/effects/spells/ground_effects_v2/desecrated_maligaro",
         "metadata/effects/spells/ground_effects_v2/desecrated_red",
         "metadata/effects/spells/ground_effects_v3/caustic",
+        //"metadata/effects/spells/monsters_effects/league_delirium/fog_origin",              //雾的起源
+        "metadata/effects/spells/monsters_effects/league_delirium/deliriumobject/",       //恢复弘之镜系列的东西
     };
 
     /// <summary>
@@ -80,23 +85,23 @@ public static class PatchCatalog
 
     public static IReadOnlyList<PatchInfo> AllPatches { get; } = new[]
     {
-        new PatchInfo { Id = PatchId.Camera, Name = "camera", Description = "Adjust camera zoom and remove camera reset calls." },
-        new PatchInfo { Id = PatchId.Minimap, Name = "minimap", Description = "Reveal more of the minimap by default." },
-        new PatchInfo { Id = PatchId.AtlasFog, Name = "atlas-fog", Description = "Remove Atlas fog of war graph nodes." },
-        new PatchInfo { Id = PatchId.Fog, Name = "fog", Description = "Disable environment fog." },
-        new PatchInfo { Id = PatchId.Rain, Name = "rain", Description = "Set rain intensity to zero." },
-        new PatchInfo { Id = PatchId.Clouds, Name = "clouds", Description = "Set cloud intensity to zero." },
-        new PatchInfo { Id = PatchId.EnvParticles, Name = "env-particles", Description = "Disable environment particles and related effects." },
-        new PatchInfo { Id = PatchId.Shadow, Name = "shadow", Description = "Disable shadows in environment settings." },
-        new PatchInfo { Id = PatchId.Light, Name = "light", Description = "Disable selected environment lighting systems." },
-        new PatchInfo { Id = PatchId.Delirium, Name = "delirium", Description = "Disable delirium/affliction environment effects." },
-        new PatchInfo { Id = PatchId.Particles, Name = "particles", Description = "Blank particle effect files." },
-        new PatchInfo { Id = PatchId.Effects, Name = "effects", Description = "Strip nonessential client effect blocks." },
-        new PatchInfo { Id = PatchId.DisableSounds, Name = "disable-sounds", Description = "Silence sounds by emptying SoundEvents/SoundParams blocks." },
-        new PatchInfo { Id = PatchId.SkillSounds, Name = "skill-sounds", Description = "Silence skill-effect sounds (empty SoundEvents/SoundParams)." },
-        new PatchInfo { Id = PatchId.MonsterSounds, Name = "monster-sounds", Description = "Silence monster sounds (empty SoundEvents/SoundParams)." },
-        new PatchInfo { Id = PatchId.MtxSoft, Name = "mtx-soft", Description = "Blank microtransaction effect/particle files." },
-        new PatchInfo { Id = PatchId.Blanket, Name = "blanket", Description = "Aggressive blanket patch: empty ALL .epk and simplify ALL .ao across metadata/ (matches third-party TinyBundle coverage)." },
+        new PatchInfo { Id = PatchId.Camera, Name = "camera", DisplayName = "相机", Description = "调整相机缩放倍率，移除相机重置调用。", IsDangerous = true },
+        new PatchInfo { Id = PatchId.Minimap, Name = "minimap", DisplayName = "小地图", Description = "默认显示更多小地图区域。", IsDangerous = true },
+        new PatchInfo { Id = PatchId.AtlasFog, Name = "atlas-fog", DisplayName = "异界迷雾", Description = "移除异界图集的战争迷雾图节点。", IsDangerous = true },
+        new PatchInfo { Id = PatchId.Fog, Name = "fog", DisplayName = "雾", Description = "禁用环境雾。" },
+        new PatchInfo { Id = PatchId.Rain, Name = "rain", DisplayName = "雨", Description = "将雨强度设为零。" },
+        new PatchInfo { Id = PatchId.Clouds, Name = "clouds", DisplayName = "云", Description = "将云强度设为零。" },
+        new PatchInfo { Id = PatchId.EnvParticles, Name = "env-particles", DisplayName = "环境粒子", Description = "禁用环境粒子及相关效果。" },
+        new PatchInfo { Id = PatchId.Shadow, Name = "shadow", DisplayName = "阴影", Description = "在环境设置中禁用阴影。" },
+        new PatchInfo { Id = PatchId.Light, Name = "light", DisplayName = "光照", Description = "禁用选定的环境光照系统。" },
+        new PatchInfo { Id = PatchId.Delirium, Name = "delirium", DisplayName = "谵妄", Description = "禁用谵妄/苦难环境效果。" },
+        new PatchInfo { Id = PatchId.Particles, Name = "particles", DisplayName = "粒子", Description = "清空粒子效果文件。" },
+        new PatchInfo { Id = PatchId.Effects, Name = "effects", DisplayName = "特效", Description = "剥离非必要的客户端特效块。" },
+        new PatchInfo { Id = PatchId.DisableSounds, Name = "disable-sounds", DisplayName = "静音", Description = "清空 SoundEvents/SoundParams 块实现静音。" },
+        new PatchInfo { Id = PatchId.SkillSounds, Name = "skill-sounds", DisplayName = "技能音效", Description = "静音技能特效音效（清空 SoundEvents/SoundParams）。" },
+        new PatchInfo { Id = PatchId.MonsterSounds, Name = "monster-sounds", DisplayName = "怪物音效", Description = "静音怪物音效（清空 SoundEvents/SoundParams）。" },
+        new PatchInfo { Id = PatchId.MtxSoft, Name = "mtx-soft", DisplayName = "微交易软化", Description = "清空微交易特效/粒子文件。" },
+        new PatchInfo { Id = PatchId.Blanket, Name = "blanket", DisplayName = "地毯式", Description = "激进地毯式补丁：清空 metadata/ 下所有 .epk 并简化所有 .ao。" },
     };
 
     public static IReadOnlyList<PresetInfo> AllPresets { get; } = new[]
@@ -104,47 +109,47 @@ public static class PatchCatalog
         new PresetInfo
         {
             Name = "maps-revealed",
-            Description = "Reveal minimap and Atlas fog.",
+            DisplayName = "地图全开",
+            Description = "显示小地图和异界图集迷雾。",
             Patches = new[] { PatchId.Minimap, PatchId.AtlasFog },
+            IsHidden = true,
         },
         new PresetInfo
         {
             Name = "performance",
-            Description = "Balanced visual cleanup for performance.",
-            Patches = new[] { PatchId.Fog, PatchId.Rain, PatchId.Clouds, PatchId.EnvParticles, PatchId.Delirium, PatchId.Particles, PatchId.Effects },
+            DisplayName = "性能",
+            Description = "平衡的视觉清理以提升性能。",
+            Patches = new[] { PatchId.Fog, PatchId.Rain, PatchId.Clouds, PatchId.EnvParticles, PatchId.Particles, PatchId.Effects },
         },
         new PresetInfo
         {
             Name = "optimal",
-            Description = "Safe recommended mix of map and environment patches.",
+            DisplayName = "最优",
+            Description = "地图与环境补丁的安全推荐组合。",
             Patches = new[] { PatchId.Minimap, PatchId.AtlasFog, PatchId.Fog, PatchId.Rain, PatchId.Clouds, PatchId.EnvParticles, PatchId.Effects },
+            IsHidden = true,
         },
         new PresetInfo
         {
             Name = "daylight",
-            Description = "Remove darkness, fog, shadows, and heavy environment particles.",
+            DisplayName = "白昼",
+            Description = "移除黑暗、雾、阴影和重型环境粒子。",
             Patches = new[] { PatchId.Fog, PatchId.Shadow, PatchId.Light, PatchId.EnvParticles, PatchId.Delirium },
+            IsHidden = true,
+        },
+        new PresetInfo
+        {
+            Name = "blanket-only",
+            DisplayName = "地毯式",
+            Description = "仅勾选地毯式补丁：清空 metadata/ 下所有 .epk 并简化所有 .ao。",
+            Patches = new[] { PatchId.Blanket },
         },
         new PresetInfo
         {
             Name = "high-performance",
-            Description = "Aggressive performance preset with effects, particles, sounds, and MTX reduced.",
-            Patches = new[] { PatchId.Fog, PatchId.Rain, PatchId.Clouds, PatchId.EnvParticles, PatchId.Delirium, PatchId.Particles, PatchId.Effects, PatchId.DisableSounds, PatchId.MtxSoft, PatchId.Blanket },
-        },
-        new PresetInfo
-        {
-            Name = "check-all",
-            Description = "Select every ported patch.",
-            Patches = new[]
-            {
-                PatchId.Camera, PatchId.Minimap, PatchId.AtlasFog,
-                PatchId.Fog, PatchId.Rain, PatchId.Clouds, PatchId.EnvParticles,
-                PatchId.Shadow, PatchId.Light, PatchId.Delirium,
-                PatchId.Particles, PatchId.Effects,
-                PatchId.DisableSounds, PatchId.SkillSounds, PatchId.MonsterSounds,
-                PatchId.MtxSoft,
-                PatchId.Blanket,
-            },
+            DisplayName = "高性能",
+            Description = "性能预设 + 地毯式：视觉清理与激进 .epk/.ao 简化。",
+            Patches = new[] { PatchId.Fog, PatchId.Rain, PatchId.Clouds, PatchId.EnvParticles, PatchId.Particles, PatchId.Effects, PatchId.Blanket },
         },
     };
 
@@ -186,6 +191,9 @@ public static class PatchCatalog
     }
 
     public static string PatchLabel(PatchId id) => GetPatchInfo(id)?.Name ?? "unknown";
+
+    /// <summary>获取补丁的中文显示名（UI 展示用）。找不到时回退到英文 Name。</summary>
+    public static string PatchDisplayName(PatchId id) => GetPatchInfo(id)?.DisplayName ?? PatchLabel(id);
 
     #endregion
 

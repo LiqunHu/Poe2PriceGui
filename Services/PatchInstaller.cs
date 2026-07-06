@@ -11,8 +11,6 @@ namespace Poe2PriceGui.Services;
 /// </summary>
 public class PatchInstaller
 {
-    private const string DefaultLanguagePath = "data/balance/simplified chinese/baseitemtypes.datc64";
-
     private readonly PatchExportService _exportService;
 
     public PatchInstaller(PatchExportService exportService)
@@ -646,6 +644,7 @@ public class PatchInstaller
     /// <summary>
     /// GGPK 模式：调用 GGPKExtractor.exe 从 Content.ggpk 提取指定虚拟路径的文件到临时目录。
     /// GGPKExtractor 参数：&lt;Content.ggpk&gt; &lt;输出目录&gt;，提取后保持内部路径结构。
+    /// 提取后校验文件 LastWriteTime，确保确实被刷新（参考 poe2_price-main update_price_patch.ps1:1717-1720）。
     /// </summary>
     private async Task<ExtractionResult> ExtractFromGgpkAsync(
         string gameDirectory,
@@ -683,6 +682,9 @@ public class PatchInstaller
             CreateNoWindow = true,
         };
 
+        // 记录提取开始时间，稍后校验文件确实被刷新，避免误用旧缓存。
+        var extractStartedAt = DateTime.Now.AddSeconds(-2);
+
         AppLogger.Instance.Info($"提取 GGPK 文件：{psi.FileName} {psi.Arguments}");
         using var process = Process.Start(psi);
         if (process == null)
@@ -706,6 +708,14 @@ public class PatchInstaller
         if (!File.Exists(result.FilePath))
         {
             result.ErrorMessage = $"提取后文件不存在：{result.FilePath}，虚拟路径：{virtualPath}";
+            return result;
+        }
+
+        // 校验文件确实被刷新（参考 poe2_price-main update_price_patch.ps1:1717-1720）。
+        var fileInfo = new FileInfo(result.FilePath);
+        if (fileInfo.LastWriteTime < extractStartedAt)
+        {
+            result.ErrorMessage = $"提取后文件未被刷新（LastWriteTime={fileInfo.LastWriteTime}），可能 GGPKExtractor 未覆盖旧文件。虚拟路径：{virtualPath}";
             return result;
         }
 
@@ -871,6 +881,80 @@ public class PatchInstaller
 
         result.Success = true;
         return result;
+    }
+
+    /// <summary>
+    /// 提取英文版+目标语言版 baseitemtypes.datc64，用于 ItemNameTranslator 构建翻译表。
+    /// 刷新价格时翻译表未就绪可调用此方法主动提取，无需安装补丁。
+    /// </summary>
+    public async Task<bool> ExtractDatc64ForTranslationAsync(
+        string gameDirectory,
+        GameModeInfo modeInfo,
+        CancellationToken cancellationToken = default)
+    {
+        if (!TryResolveToolPaths(out var tools, out var toolError))
+        {
+            AppLogger.Instance.Warn($"翻译表提取跳过：{toolError}");
+            return false;
+        }
+
+        var enVirtualPath = "data/balance/baseitemtypes.datc64";
+        var langVirtualPath = modeInfo.BaseItemsPath;
+
+        // 英文版与目标语言版相同时（国际服英文用户）无需提取两份。
+        var needEn = enVirtualPath != langVirtualPath;
+
+        // Bundles2 模式下 BundleExtractor 只取文件名输出，英文版和简中版会互相覆盖。
+        // 提取后移动到保留虚拟路径结构的位置，确保两份文件共存供翻译表构建。
+        if (needEn)
+        {
+            var enResult = modeInfo.Mode == GameMode.Bundles2
+                ? await ExtractFromBundles2Async(gameDirectory, enVirtualPath, tools.BundleExtractor, cancellationToken)
+                : await ExtractFromGgpkAsync(gameDirectory, enVirtualPath, tools.GgpkExtractor, cancellationToken);
+            if (!enResult.Success)
+            {
+                AppLogger.Instance.Warn($"英文版 datc64 提取失败：{enResult.ErrorMessage}");
+                return false;
+            }
+            // Bundles2 模式：移动到保留路径结构的位置（GGPK 模式已保留路径结构，无需移动）。
+            if (modeInfo.Mode == GameMode.Bundles2)
+            {
+                var enDestPath = Path.Combine(_exportService.OutputDirectory, "extracted",
+                    enVirtualPath.Replace('/', Path.DirectorySeparatorChar));
+                Directory.CreateDirectory(Path.GetDirectoryName(enDestPath)!);
+                if (File.Exists(enDestPath)) File.Delete(enDestPath);
+                File.Move(enResult.FilePath, enDestPath);
+            }
+        }
+
+        // 目标语言版：检查保留路径结构后的最终位置是否已存在（如安装补丁时已提取并移动）。
+        var langFinalPath = modeInfo.Mode == GameMode.Bundles2
+            ? Path.Combine(_exportService.OutputDirectory, "extracted",
+                langVirtualPath.Replace('/', Path.DirectorySeparatorChar))
+            : Path.Combine(_exportService.OutputDirectory, "extracted_ggpk",
+                langVirtualPath.Replace('/', Path.DirectorySeparatorChar));
+
+        if (!File.Exists(langFinalPath))
+        {
+            var langResult = modeInfo.Mode == GameMode.Bundles2
+                ? await ExtractFromBundles2Async(gameDirectory, langVirtualPath, tools.BundleExtractor, cancellationToken)
+                : await ExtractFromGgpkAsync(gameDirectory, langVirtualPath, tools.GgpkExtractor, cancellationToken);
+            if (!langResult.Success)
+            {
+                AppLogger.Instance.Warn($"目标语言 datc64 提取失败：{langResult.ErrorMessage}");
+                return false;
+            }
+            // Bundles2 模式：同样移动到保留路径结构的位置。
+            if (modeInfo.Mode == GameMode.Bundles2)
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(langFinalPath)!);
+                if (File.Exists(langFinalPath)) File.Delete(langFinalPath);
+                File.Move(langResult.FilePath, langFinalPath);
+            }
+        }
+
+        AppLogger.Instance.Info($"翻译表 datc64 提取完成：英文={(needEn ? "已提取" : "同语言")}，目标语言=已就绪");
+        return true;
     }
 
     private static bool TryResolveToolPaths(out ToolPaths tools, out string error)

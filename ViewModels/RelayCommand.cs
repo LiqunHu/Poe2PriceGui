@@ -57,3 +57,34 @@ public class RelayCommand : ICommand
         CommandManager.InvalidateRequerySuggested();
     }
 }
+
+/// <summary>
+/// 带参数的命令实现，用于绑定需要传递参数的按钮（如预设名）。
+/// </summary>
+public class RelayCommand<T> : ICommand
+{
+    private readonly Action<T?> _execute;
+    private readonly Func<T?, bool>? _canExecute;
+
+    public RelayCommand(Action<T?> execute, Func<T?, bool>? canExecute = null)
+    {
+        _execute = execute;
+        _canExecute = canExecute;
+    }
+
+    public bool CanExecute(object? parameter)
+    {
+        return _canExecute?.Invoke((T?)parameter) ?? true;
+    }
+
+    public void Execute(object? parameter)
+    {
+        _execute((T?)parameter);
+    }
+
+    public event EventHandler? CanExecuteChanged
+    {
+        add => CommandManager.RequerySuggested += value;
+        remove => CommandManager.RequerySuggested -= value;
+    }
+}

@@ -28,6 +28,7 @@ public class PoecurrencyItem : INotifyPropertyChanged
     private string _sourcePair = "";
     private bool _isPriceChanged;
     private bool _isEdited;
+    private string _dataSource = "国服";
 
     /// <summary>分类名称，例如"通货仓库"。</summary>
     public string CategoryLabel
@@ -185,6 +186,16 @@ public class PoecurrencyItem : INotifyPropertyChanged
     {
         get => _isPriceChanged;
         set => SetProperty(ref _isPriceChanged, value);
+    }
+
+    /// <summary>
+    /// 数据来源："国服" 或 "国际服补充"。
+    /// 国际服补充的道具在 UI 中显示醒目标志。
+    /// </summary>
+    public string DataSource
+    {
+        get => _dataSource;
+        set => SetProperty(ref _dataSource, value);
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

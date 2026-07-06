@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -137,6 +137,11 @@ internal sealed record ItemModifier
             sb.Append(data[last..]);
 
         parsedMod = sb.ToString();
+        // 清理移除 tier 范围括号后留下的空格伪影（如 "+37 (36-40)%" → "+37 %" → "+37%"）。
+        // 否则与 stat 过滤器 "#%" 的 Levenshtein 距离会超限导致匹配失败。
+        parsedMod = parsedMod.Replace(" %", "%");
+        // 折叠可能产生的双空格。
+        while (parsedMod.Contains("  ")) parsedMod = parsedMod.Replace("  ", " ");
         return (tierValMin, tierValMax);
     }
 
