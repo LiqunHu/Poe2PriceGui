@@ -230,14 +230,16 @@ public static class ClipboardService
     /// </summary>
     private static void SendCopyKeyCombo()
     {
-        // 扫描码 KeyDown：Ctrl → C
+        // 使用扫描码，wvK=0
         SendScanCodeKeyDown(VkControl);
+        Thread.Sleep(20);                    // Ctrl 按下后等待
         SendScanCodeKeyDown(VkC);
-        Thread.Sleep(20);
-        // 扫描码 KeyUp：C → Ctrl
+        Thread.Sleep(20);                    // C 按住等待
         SendScanCodeKeyUp(VkC);
+        Thread.Sleep(20);                    // C 释放后等待
         SendScanCodeKeyUp(VkControl);
-
+        Thread.Sleep(20);                    // Ctrl 释放后等待
+        
         AppLogger.Instance.Info("SendInput 已发送扫描码 Ctrl+C");
     }
 
