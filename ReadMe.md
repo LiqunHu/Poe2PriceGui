@@ -137,7 +137,7 @@ vpk pack --packId Poe2PriceGui --packVersion 1.0.2 --packDir .\publish --mainExe
 
 |            主界面            |           工具箱-补丁           |           游戏效果          |
 | :-----------------------: | :------------------------: | :---------------------: |
-| ![软件主界面](image/image.png) | ![工具箱-补丁](image/tools.png) | ![游戏效果](image/game.png) |
+| ![软件主界面](image/image.png) | ![工具箱-补丁](image/tools1.png) | ![游戏效果](image/game.png) |
 
 |           游戏效果           |           游戏效果           |
 | :----------------------: | :----------------------: |
