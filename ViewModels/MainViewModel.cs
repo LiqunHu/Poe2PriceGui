@@ -45,6 +45,7 @@ public class MainViewModel : INotifyPropertyChanged
     private bool _priceCheckerEnabled;
     private string _priceCheckerHotkey = "Ctrl+D";
     private string _priceCheckerPoeSessionId = "";
+    private string _priceCheckerIntlPoeSessionId = "";
     private string _priceCheckerLeague = "";
     private int _priceCheckerLanguage = 9;
     private ObservableCollection<string> _availableLeagues = new();
@@ -86,6 +87,7 @@ public class MainViewModel : INotifyPropertyChanged
         _priceCheckerEnabled = _settings.PriceCheckerEnabled;
         _priceCheckerHotkey = _settings.PriceCheckerHotkey;
         _priceCheckerPoeSessionId = _settings.PriceCheckerPoeSessionId;
+        _priceCheckerIntlPoeSessionId = _settings.PriceCheckerIntlPoeSessionId;
         _priceCheckerLeague = _settings.PriceCheckerLeague;
         _priceCheckerLanguage = _settings.PriceCheckerLanguage;
         _currencyPriceToken = _settings.CurrencyPriceToken;
@@ -110,7 +112,7 @@ public class MainViewModel : INotifyPropertyChanged
         CleanCacheCommand = new RelayCommand(CleanCache, () => !IsBusy);
         OpenLogCommand = new RelayCommand(OpenLogFile, () => File.Exists(AppLogger.Instance.LogFilePath));
         CleanLogCommand = new RelayCommand(CleanLogs, () => Directory.Exists(AppLogger.Instance.LogDirectory) && Directory.GetFiles(AppLogger.Instance.LogDirectory, "*.log").Length > 0);
-        ExportStatsCacheCommand = new RelayCommand(async () => await ExportStatsCacheAsync(), () => !IsBusy && !string.IsNullOrWhiteSpace(PriceCheckerPoeSessionId));
+        ExportStatsCacheCommand = new RelayCommand(async () => await ExportStatsCacheAsync(), () => !IsBusy && !string.IsNullOrWhiteSpace(EffectivePoeSessionId));
         ExportPricesCommand = new RelayCommand(async () => await ExportPricesAsync(), () => Prices.Count > 0);
         ExportPatchCommand = new RelayCommand(async () => await ExportPatchAsync(), () => Prices.Count > 0);
         InstallPatchCommand = new RelayCommand(async () => await InstallPatchAsync(), () => Prices.Count > 0);
@@ -119,11 +121,11 @@ public class MainViewModel : INotifyPropertyChanged
         AutoDetectGameDirectoryCommand = new RelayCommand(ShowAutoDetectGameDirectory, () => !IsBusy);
         OpenPriceCheckerLoginCommand = new RelayCommand(OpenPriceCheckerLoginBrowser);
         CaptureHotkeyCommand = new RelayCommand(CaptureHotkey);
-        TestPriceCheckerCommand = new RelayCommand(async () => await TestPriceCheckerAsync(), () => !IsBusy && !string.IsNullOrWhiteSpace(PriceCheckerPoeSessionId));
-        TestPriceCheckerQuiverCommand = new RelayCommand(async () => await TestPriceCheckerAsync("quiver"), () => !IsBusy && !string.IsNullOrWhiteSpace(PriceCheckerPoeSessionId));
-        TestPriceCheckerSpearCommand = new RelayCommand(async () => await TestPriceCheckerAsync("spear"), () => !IsBusy && !string.IsNullOrWhiteSpace(PriceCheckerPoeSessionId));
-        TestPriceCheckerCharmCommand = new RelayCommand(async () => await TestPriceCheckerAsync("charm"), () => !IsBusy && !string.IsNullOrWhiteSpace(PriceCheckerPoeSessionId));
-        TestPriceCheckerArmourCommand = new RelayCommand(async () => await TestPriceCheckerAsync("armour"), () => !IsBusy && !string.IsNullOrWhiteSpace(PriceCheckerPoeSessionId));
+        TestPriceCheckerCommand = new RelayCommand(async () => await TestPriceCheckerAsync(), () => !IsBusy && !string.IsNullOrWhiteSpace(EffectivePoeSessionId));
+        TestPriceCheckerQuiverCommand = new RelayCommand(async () => await TestPriceCheckerAsync("quiver"), () => !IsBusy && !string.IsNullOrWhiteSpace(EffectivePoeSessionId));
+        TestPriceCheckerSpearCommand = new RelayCommand(async () => await TestPriceCheckerAsync("spear"), () => !IsBusy && !string.IsNullOrWhiteSpace(EffectivePoeSessionId));
+        TestPriceCheckerCharmCommand = new RelayCommand(async () => await TestPriceCheckerAsync("charm"), () => !IsBusy && !string.IsNullOrWhiteSpace(EffectivePoeSessionId));
+        TestPriceCheckerArmourCommand = new RelayCommand(async () => await TestPriceCheckerAsync("armour"), () => !IsBusy && !string.IsNullOrWhiteSpace(EffectivePoeSessionId));
         CheckForUpdateCommand = new RelayCommand(async () => await CheckForUpdateAsync(), () => !IsBusy);
         ForceSwitchServerCommand = new RelayCommand(ForceSwitchServer, () => !IsBusy);
 
@@ -137,7 +139,8 @@ public class MainViewModel : INotifyPropertyChanged
         SmootherApplyPresetCommand = new RelayCommand<string>(SmootherApplyPreset, _ => !IsBusy);
 
         // 生成翻译表命令（开发者用：从游戏 datc64 构建英文名→中文名映射表）
-        GenerateTranslationsCommand = new RelayCommand(async () => await GenerateTranslationsAsync(), () => !IsBusy && !string.IsNullOrWhiteSpace(GameDirectory));
+        GenerateTranslationsCommand = new RelayCommand(async () => await GenerateTranslationsAsync("zh-CN"), () => !IsBusy && !string.IsNullOrWhiteSpace(GameDirectory));
+        GenerateTranslationsTradCommand = new RelayCommand(async () => await GenerateTranslationsAsync("zh-TW"), () => !IsBusy && !string.IsNullOrWhiteSpace(GameDirectory));
 
         _filteredPrices.Filter = FilterBySelectedCategory;
 
@@ -271,6 +274,9 @@ public class MainViewModel : INotifyPropertyChanged
     /// <summary>生成翻译表命令（开发者用）：从游戏 datc64 构建英文名→中文名映射表并保存到 data/translations/。</summary>
     public ICommand GenerateTranslationsCommand { get; }
 
+    /// <summary>生成繁体翻译表命令（开发者用）：从游戏 datc64 构建英文名→繁中名映射表并保存到 data/translations/。</summary>
+    public ICommand GenerateTranslationsTradCommand { get; }
+
     /// <summary>
     /// 状态栏消息。设置页缓存清理状态文本。
     /// </summary>
@@ -374,7 +380,7 @@ public class MainViewModel : INotifyPropertyChanged
         }
     }
 
-    /// <summary>查价器 POESESSID。</summary>
+    /// <summary>查价器国服 POESESSID（仅国服模式下使用与保存）。</summary>
     public string PriceCheckerPoeSessionId
     {
         get => _priceCheckerPoeSessionId;
@@ -384,28 +390,62 @@ public class MainViewModel : INotifyPropertyChanged
             {
                 _settings.PriceCheckerPoeSessionId = value;
                 _settingsService.Save(_settings);
-                ((RelayCommand)ExportStatsCacheCommand).RaiseCanExecuteChanged();
-                ((RelayCommand)TestPriceCheckerCommand).RaiseCanExecuteChanged();
-                ((RelayCommand)TestPriceCheckerQuiverCommand).RaiseCanExecuteChanged();
-                ((RelayCommand)TestPriceCheckerSpearCommand).RaiseCanExecuteChanged();
-                ((RelayCommand)TestPriceCheckerCharmCommand).RaiseCanExecuteChanged();
-                ((RelayCommand)TestPriceCheckerArmourCommand).RaiseCanExecuteChanged();
-                OnPropertyChanged(nameof(IsLoggedIn));
-                OnPropertyChanged(nameof(LoginStatusText));
-                OnPropertyChanged(nameof(LoginStatusColor));
-
-                // 后台预加载 stats 数据，避免首次查价时阻塞。
-                // 参考 xiletrade-master 启动时同步加载所有静态数据到内存。
-                if (!string.IsNullOrWhiteSpace(value) && _tradeService != null)
-                {
-                    _ = _tradeService.PreloadStatsAsync(value);
-                }
+                OnPoeSessionIdChanged();
             }
         }
     }
 
-    /// <summary>是否已登录（POESESSID 非空）。</summary>
-    public bool IsLoggedIn => !string.IsNullOrWhiteSpace(PriceCheckerPoeSessionId);
+    /// <summary>查价器国际服 POESESSID（仅国际服模式下使用与保存，与国服分离）。</summary>
+    public string PriceCheckerIntlPoeSessionId
+    {
+        get => _priceCheckerIntlPoeSessionId;
+        set
+        {
+            if (SetProperty(ref _priceCheckerIntlPoeSessionId, value))
+            {
+                _settings.PriceCheckerIntlPoeSessionId = value;
+                _settingsService.Save(_settings);
+                OnPoeSessionIdChanged();
+            }
+        }
+    }
+
+    /// <summary>
+    /// 当前区服生效的 POESESSID：国服返回国服字段，国际服返回国际服字段。
+    /// 所有查价/测试/导出等命令均应使用此属性，避免取错区服 Cookie。
+    /// </summary>
+    public string EffectivePoeSessionId => _isChinaServer
+        ? _priceCheckerPoeSessionId
+        : _priceCheckerIntlPoeSessionId;
+
+    /// <summary>
+    /// 会话 ID 变更或区服切换时的统一通知：刷新命令可用性、登录状态、预加载 stats。
+    /// 命令在构造函数早期可能尚未创建，做 null 保护。
+    /// </summary>
+    private void OnPoeSessionIdChanged()
+    {
+        if (ExportStatsCacheCommand is RelayCommand exportCmd) exportCmd.RaiseCanExecuteChanged();
+        if (TestPriceCheckerCommand is RelayCommand testCmd) testCmd.RaiseCanExecuteChanged();
+        if (TestPriceCheckerQuiverCommand is RelayCommand quiverCmd) quiverCmd.RaiseCanExecuteChanged();
+        if (TestPriceCheckerSpearCommand is RelayCommand spearCmd) spearCmd.RaiseCanExecuteChanged();
+        if (TestPriceCheckerCharmCommand is RelayCommand charmCmd) charmCmd.RaiseCanExecuteChanged();
+        if (TestPriceCheckerArmourCommand is RelayCommand armourCmd) armourCmd.RaiseCanExecuteChanged();
+        OnPropertyChanged(nameof(EffectivePoeSessionId));
+        OnPropertyChanged(nameof(IsLoggedIn));
+        OnPropertyChanged(nameof(LoginStatusText));
+        OnPropertyChanged(nameof(LoginStatusColor));
+
+        // 后台预加载 stats 数据，避免首次查价时阻塞。
+        // 参考 xiletrade-master 启动时同步加载所有静态数据到内存。
+        var sid = EffectivePoeSessionId;
+        if (!string.IsNullOrWhiteSpace(sid) && _tradeService != null)
+        {
+            _ = _tradeService.PreloadStatsAsync(sid);
+        }
+    }
+
+    /// <summary>是否已登录（当前区服的 POESESSID 非空）。</summary>
+    public bool IsLoggedIn => !string.IsNullOrWhiteSpace(EffectivePoeSessionId);
 
     /// <summary>登录状态文本。</summary>
     public string LoginStatusText => IsLoggedIn ? "已登录" : "未登录";
@@ -802,8 +842,14 @@ public class MainViewModel : INotifyPropertyChanged
                 return;
             }
 
-            // ByBase=true → 按基底搜索；否则按名称搜索（参考 xiletrade ByType = ByBase != true）
-            var searchByType = form.ByBase;
+            // 参考 xiletrade JsonDataTwoFactory.Create：
+            // - 只有 Unique/FoilVariant 物品按名称搜索（同时传 type）
+            // - 其他物品（稀有/魔法/普通等）按基底类型搜索，不应按名称搜索
+            // 稀有/魔法装备有随机名称，按名称搜索会返回 400 "Unknown item name"。
+            var flag = form.ItemFlag;
+            var isNamedItem = flag != null && (flag.Unique || flag.FoilVariant)
+                              && !string.IsNullOrWhiteSpace(form.ItemName);
+            var searchByType = !isNamedItem;
             var searchTerm = searchByType ? form.ItemBaseType : form.ItemName;
             var baseTypeValue = form.ItemBaseType;
 
@@ -888,13 +934,17 @@ public class MainViewModel : INotifyPropertyChanged
 
             AppLogger.Instance.Info($"叠加层搜索：league={PriceCheckerLeague}, term={searchTerm}, byType={searchByType}, rarity={rarity}, corrupt={corrupted}, ident={identified}, mods={selectedMods?.Count ?? 0}");
 
+            // 限流等待时通过 IProgress 回调更新叠加层状态文本（如"限流等待中，14 秒后重试..."），
+            // 避免用户只看到"搜索中..."却不知道在等限流。Progress<T> 在捕获的同步上下文（UI 线程）上回调。
+            var progress = new Progress<string>(msg => vm.StatusMessage = msg);
+
             TradeSearchResult searchResult;
             try
             {
                 searchResult = await _tradeService.SearchAsync(
                     PriceCheckerLeague,
                     searchTerm,
-                    PriceCheckerPoeSessionId,
+                    EffectivePoeSessionId,
                     searchByType: searchByType,
                     baseType: baseTypeValue,
                     itemLevelMin: itemLevelMin,
@@ -908,7 +958,8 @@ public class MainViewModel : INotifyPropertyChanged
                     energyShield: energyShieldVal,
                     corrupted: corrupted,
                     identified: identified,
-                    itemFlag: form.ItemFlag);
+                    itemFlag: form.ItemFlag,
+                    progress: progress);
             }
             catch (HttpRequestException ex) when (!searchByType && ex.Message.Contains("400"))
             {
@@ -921,7 +972,7 @@ public class MainViewModel : INotifyPropertyChanged
                 searchResult = await _tradeService.SearchAsync(
                     PriceCheckerLeague,
                     searchTerm,
-                    PriceCheckerPoeSessionId,
+                    EffectivePoeSessionId,
                     searchByType: searchByType,
                     baseType: baseTypeValue,
                     itemLevelMin: itemLevelMin,
@@ -935,7 +986,8 @@ public class MainViewModel : INotifyPropertyChanged
                     energyShield: energyShieldVal,
                     corrupted: corrupted,
                     identified: identified,
-                    itemFlag: form.ItemFlag);
+                    itemFlag: form.ItemFlag,
+                    progress: progress);
             }
 
             AppLogger.Instance.Info($"搜索结果：total={searchResult.Total}, ids={searchResult.ResultIds.Count}");
@@ -955,7 +1007,7 @@ public class MainViewModel : INotifyPropertyChanged
             var listings = await _tradeService.FetchAsync(
                 searchResult.SearchId,
                 pageIds,
-                PriceCheckerPoeSessionId);
+                EffectivePoeSessionId);
 
             if (listings.Count == 0)
             {
@@ -994,7 +1046,7 @@ public class MainViewModel : INotifyPropertyChanged
         var listings = await _tradeService.FetchAsync(
             vm.SearchId,
             pageIds,
-            PriceCheckerPoeSessionId);
+            EffectivePoeSessionId);
 
         if (listings.Count == 0)
         {
@@ -1070,8 +1122,15 @@ public class MainViewModel : INotifyPropertyChanged
             _isChinaServer = newIsChina;
             RebuildPriceAndTradeServices();
             PriceDataSourceLabel = _priceService.DataSourceLabel;
+            // 区服切换时重置查价器默认语言：国服=简体中文(9)，国际服=繁体中文(8)
+            PriceCheckerLanguage = _isChinaServer ? 9 : 8;
             OnPropertyChanged(nameof(PricePageTitle));
             OnPropertyChanged(nameof(IsChinaServer));
+
+            // 区服切换后赛季列表也需要重新拉取（国服中文赛季名 vs 国际服英文赛季名），
+            // 否则切换到国际服后 AvailableLeagues 仍是国服的中文列表，下拉框显示错乱。
+            // 不阻塞 UI，与构造函数一致使用 Task.Run 异步刷新。
+            _ = Task.Run(async () => await ValidateLeagueAsync());
         }
 
         // 始终校验赛季名与区服是否匹配，避免启动时 saved league 与当前区服不一致。
@@ -1180,13 +1239,14 @@ public class MainViewModel : INotifyPropertyChanged
         var langCode = _isChinaServer ? "zh-CN" :
             (!string.IsNullOrWhiteSpace(GameDirectory)
                 ? GameModeDetector.Detect(GameDirectory).LanguageCode
-                : "en");
+                : Poe2LanguageDetector.GetDefaultLanguageCode(isChina: false));
         _ = Task.Run(async () =>
         {
             if (!await _itemNameTranslator.LoadCacheAsync(langCode))
             {
                 // 缓存不存在时，尝试从已提取的 datc64 文件构建（如安装补丁后）。
-                var outputDir = Path.Combine(AppContext.BaseDirectory, "output");
+                // 已迁移到 %LOCALAPPDATA%\Poe2PriceGui\output\。
+                var outputDir = AppDataPath.Output;
                 if (_itemNameTranslator.TryBuildFromExtractedFiles(outputDir, langCode))
                 {
                     await _itemNameTranslator.SaveCacheAsync(langCode);
@@ -1198,11 +1258,8 @@ public class MainViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(PricePageTitle));
         OnPropertyChanged(nameof(IsChinaServer));
 
-        // 启动时若已有 POESESSID，后台预加载 stats 数据，避免首次查价时阻塞。
-        if (!string.IsNullOrWhiteSpace(PriceCheckerPoeSessionId))
-        {
-            _ = _tradeService.PreloadStatsAsync(PriceCheckerPoeSessionId);
-        }
+        // 区服切换后 EffectivePoeSessionId 指向的字段已变化，统一刷新登录状态、命令可用性及 stats 预加载。
+        OnPoeSessionIdChanged();
     }
 
     /// <summary>
@@ -1212,6 +1269,8 @@ public class MainViewModel : INotifyPropertyChanged
     {
         _isChinaServer = !_isChinaServer;
         RebuildPriceAndTradeServices();
+        // 区服切换时重置查价器默认语言：国服=简体中文(9)，国际服=繁体中文(8)
+        PriceCheckerLanguage = _isChinaServer ? 9 : 8;
 
         // 切换默认赛季（仅在为默认值时自动切换，避免覆盖用户自定义）。
         var defaultCn = "奥杜尔秘符";
@@ -1228,6 +1287,9 @@ public class MainViewModel : INotifyPropertyChanged
         var modeText = _isChinaServer ? "国服" : "国际服";
         _toastService.ShowInfo($"已强制切换为{modeText}模式（调试）");
         AppLogger.Instance.Info($"强制切换区服：IsChina={_isChinaServer}, DataSource={PriceDataSourceLabel}, League={PriceCheckerLeague}");
+
+        // 区服切换后重新拉取赛季列表（与 RefreshDetectedGameMode 一致）。
+        _ = Task.Run(async () => await ValidateLeagueAsync());
     }
 
     private void RefreshLastRefreshTimeDisplay()
@@ -1265,16 +1327,26 @@ public class MainViewModel : INotifyPropertyChanged
     {
         try
         {
-            var window = new LoginBrowserWindow(PriceCheckerPoeSessionId, isChina: _isChinaServer)
+            // 注入已保存的 POESESSID 以恢复登录态：按当前区服取对应字段。
+            var existing = _isChinaServer ? PriceCheckerPoeSessionId : PriceCheckerIntlPoeSessionId;
+            var window = new LoginBrowserWindow(existing, isChina: _isChinaServer)
             {
                 Owner = Application.Current.MainWindow,
             };
 
             if (window.ShowDialog() == true && !string.IsNullOrWhiteSpace(window.CapturedPoeSessionId))
             {
-                PriceCheckerPoeSessionId = window.CapturedPoeSessionId;
+                // 按当前区服写入对应字段，避免国服/国际服 Cookie 互相覆盖。
+                if (_isChinaServer)
+                {
+                    PriceCheckerPoeSessionId = window.CapturedPoeSessionId;
+                }
+                else
+                {
+                    PriceCheckerIntlPoeSessionId = window.CapturedPoeSessionId;
+                }
                 _toastService.ShowSuccess("已自动获取并保存 POESESSID");
-                AppLogger.Instance.Info("通过内置浏览器获取 POESESSID 成功");
+                AppLogger.Instance.Info($"通过内置浏览器获取 POESESSID 成功（{(_isChinaServer ? "国服" : "国际服")}）");
             }
         }
         catch (Exception ex)
@@ -1551,14 +1623,6 @@ public class MainViewModel : INotifyPropertyChanged
             return;
         }
 
-        // 安全校验2：检测补丁是否已应用，拒绝重复打补丁（参考 tiny-poe2smoother app.rs ensure_can_apply）。
-        var preCheck = new SmootherPatchService(GameDirectory);
-        if (preCheck.IsPatchApplied())
-        {
-            _toastService.ShowError("检测到泥人补丁已应用，请先还原再重新应用");
-            return;
-        }
-
         var patches = GetSelectedPatches();
         if (patches.Length == 0)
         {
@@ -1575,15 +1639,28 @@ public class MainViewModel : INotifyPropertyChanged
         SmootherProgressText = "准备中...";
         SettingsStatusMessage = $"正在应用泥人补丁（{patches.Length} 个）...";
 
+        // 必须把 SmootherPatchService 构造 + IsPatchApplied + Apply 全部放进 Task.Run，
+        // 否则 GGPK 模式下打开 100GB+ Content.ggpk 会卡 UI 线程 30+ 秒。
         try
         {
-            var service = preCheck;
             var progress = new Progress<SmootherProgress>(p =>
             {
                 SmootherProgressValue = p.Percent;
                 SmootherProgressText = p.Description;
             });
-            var report = await Task.Run(() => service.Apply(patches, zoom: SmootherCameraZoom, progress: progress));
+            var report = await Task.Run(() =>
+            {
+                var service = new SmootherPatchService(GameDirectory);
+
+                // 安全校验2：检测补丁是否已应用，拒绝重复打补丁。
+                // 这一步在 GGPK 模式下要打开 Content.ggPK，必须在后台线程做。
+                if (service.IsPatchApplied())
+                {
+                    return SmootherPatchReport.CreateFailure("检测到泥人补丁已应用，请先还原再重新应用");
+                }
+
+                return service.Apply(patches, zoom: SmootherCameraZoom, progress: progress);
+            });
             if (report.Success)
             {
                 var msg2 = $"已应用 {patches.Length} 个补丁：修改 {report.ChangedFileCount} 个文件";
@@ -2272,14 +2349,16 @@ public class MainViewModel : INotifyPropertyChanged
     }
 
     /// <summary>
-    /// 生成翻译表：从游戏 datc64 提取英文+目标语言版，构建英文名→中文名映射表。
-    /// 翻译表保存到 data/translations/translations_zh-CN.json，随程序打包发布。
+    /// 生成翻译表：从游戏 datc64 提取英文+目标语言版，构建英文名→目标语言名映射表。
+    /// 翻译表保存到 data/translations/translations_{languageCode}.json，随程序打包发布。
     /// </summary>
-    private async Task GenerateTranslationsAsync()
+    /// <param name="languageCode">目标语言代码（"zh-CN" 或 "zh-TW"）。</param>
+    private async Task GenerateTranslationsAsync(string languageCode)
     {
+        var langName = languageCode == "zh-TW" ? "繁体中文" : "简体中文";
         IsBusy = true;
-        StatusMessage = "正在提取游戏数据文件并构建翻译表...";
-        AppLogger.Instance.Info("开始生成翻译表");
+        StatusMessage = $"正在提取游戏数据文件并构建{langName}翻译表...";
+        AppLogger.Instance.Info($"开始生成{langName}翻译表（{languageCode}）");
 
         try
         {
@@ -2289,40 +2368,39 @@ public class MainViewModel : INotifyPropertyChanged
             if (!extracted)
             {
                 _toastService.ShowError("datc64 提取失败，请检查游戏目录和工具配置");
-                StatusMessage = "翻译表生成失败";
+                StatusMessage = $"{langName}翻译表生成失败";
                 return;
             }
 
-            var outputDir = Path.Combine(AppContext.BaseDirectory, "output");
+            var outputDir = AppDataPath.Output;
             var translator = new ItemNameTranslator();
-            if (!translator.TryBuildFromExtractedFiles(outputDir, "zh-CN"))
+            if (!translator.TryBuildFromExtractedFiles(outputDir, languageCode))
             {
-                _toastService.ShowError("翻译表构建失败：datc64 解析未产生映射");
-                StatusMessage = "翻译表生成失败";
+                _toastService.ShowError($"{langName}翻译表构建失败：datc64 解析未产生映射");
+                StatusMessage = $"{langName}翻译表生成失败";
                 return;
             }
 
-            // 保存到程序目录 data/translations/，随 Release 打包。
-            var bundledDir = Path.Combine(AppContext.BaseDirectory, "data", "translations");
-            Directory.CreateDirectory(bundledDir);
-            var targetPath = Path.Combine(bundledDir, "translations_zh-CN.json");
+            // 保存到 %LOCALAPPDATA%\Poe2PriceGui\data\translations\（运行时生成目录）。
+            // 之前会写入 AppContext.BaseDirectory\data\translations\，导致每次 Release 构建后
+            // 该目录被同步进安装包（污染用户程序文件 + 升级时丢失）。
+            var runtimeTranslationsDir = AppDataPath.TranslationsRuntime;
+            Directory.CreateDirectory(runtimeTranslationsDir);
+            var targetPath = Path.Combine(runtimeTranslationsDir, $"translations_{languageCode}.json");
             await using var stream = File.Create(targetPath);
             await System.Text.Json.JsonSerializer.SerializeAsync(stream,
                 translator.GetTranslationsSnapshot(),
                 new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
 
-            AppLogger.Instance.Info($"翻译表生成成功：{translator.Count} 条映射 → {targetPath}");
-            _toastService.ShowSuccess($"翻译表生成成功：{translator.Count} 条映射");
-
-            // 同步更新内存中的翻译器。
-            _itemNameTranslator = translator;
-            StatusMessage = $"翻译表生成成功：{translator.Count} 条映射";
+            AppLogger.Instance.Info($"{langName}翻译表生成成功：{translator.Count} 条映射 → {targetPath}");
+            _toastService.ShowSuccess($"{langName}翻译表生成成功：{translator.Count} 条映射");
+            StatusMessage = $"{langName}翻译表生成成功：{translator.Count} 条映射";
         }
         catch (Exception ex)
         {
-            AppLogger.Instance.Error(ex, "生成翻译表失败");
-            _toastService.ShowError($"生成翻译表失败：{ex.Message}");
-            StatusMessage = "翻译表生成失败";
+            AppLogger.Instance.Error(ex, $"生成{langName}翻译表失败");
+            _toastService.ShowError($"生成{langName}翻译表失败：{ex.Message}");
+            StatusMessage = $"{langName}翻译表生成失败";
         }
         finally
         {
@@ -2335,7 +2413,7 @@ public class MainViewModel : INotifyPropertyChanged
     /// </summary>
     private async Task ExportStatsCacheAsync()
     {
-        if (string.IsNullOrWhiteSpace(PriceCheckerPoeSessionId))
+        if (string.IsNullOrWhiteSpace(EffectivePoeSessionId))
         {
             _toastService.ShowWarning("请先配置 POESESSID");
             return;
@@ -2345,7 +2423,7 @@ public class MainViewModel : INotifyPropertyChanged
         SettingsStatusMessage = "正在从 API 拉取 stats 数据并导出...";
         try
         {
-            var count = await _tradeService.DumpStatsCacheAsync(PriceCheckerPoeSessionId);
+            var count = await _tradeService.DumpStatsCacheAsync(EffectivePoeSessionId);
             if (count > 0)
             {
                 SettingsStatusMessage = $"stats 缓存已导出（{count} 条）到 data/stats_cache_debug.json";

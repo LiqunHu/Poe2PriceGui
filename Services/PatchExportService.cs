@@ -17,7 +17,8 @@ public class PatchExportService
 
     public PatchExportService()
     {
-        _outputDirectory = Path.Combine(AppContext.BaseDirectory, "output");
+        // 输出目录存到 %LOCALAPPDATA%\Poe2PriceGui\output\，避免 Velopack 升级时补丁包/备份丢失。
+        _outputDirectory = AppDataPath.Output;
         _jsonOptions = new JsonSerializerOptions
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,

@@ -495,7 +495,7 @@
                                       Margin="0,0,0,5"
                                       ToolTip="物品文本解析语言，需与游戏客户端语言一致（国服默认简体中文）"/>
 
-                            <TextBlock Grid.Row="5" Grid.ColumnSpan="2" Text="点击「浏览器登录」打开内置浏览器，登录国服市集后自动获取 POESESSID。" Foreground="Gray" TextWrapping="Wrap"/>
+                            <TextBlock Grid.Row="5" Grid.ColumnSpan="2" Text="点击「浏览器登录」打开内置浏览器，登录当前区服市集后自动获取 POESESSID（国服/国际服 Cookie 分开保存）。" Foreground="Gray" TextWrapping="Wrap"/>
 
                             <WrapPanel Grid.Row="6" Grid.ColumnSpan="2" Margin="0,8,0,0">
                                 <Button Content="猎首腰带"
@@ -539,11 +539,19 @@
                                        VerticalAlignment="Center"
                                        Foreground="Gray"
                                        FontSize="11" Margin="0,0,15,0"/>
-                            <Button Content="生成翻译表"
+                            <Button Content="生成简中翻译表"
                                     Command="{Binding GenerateTranslationsCommand}"
                                     Padding="15,5" Margin="0,0,10,0"
                                     ToolTip="开发者用：从游戏 datc64 提取英文+简中物品名，构建翻译表保存到 data/translations/。需先配置游戏目录。"/>
-                            <TextBlock Text="输出：data/translations/translations_zh-CN.json"
+                            <TextBlock Text="输出：translations_zh-CN.json"
+                                       VerticalAlignment="Center"
+                                       Foreground="Gray"
+                                       FontSize="11" Margin="0,0,15,0"/>
+                            <Button Content="生成繁中翻译表"
+                                    Command="{Binding GenerateTranslationsTradCommand}"
+                                    Padding="15,5" Margin="0,0,10,0"
+                                    ToolTip="开发者用：从游戏 datc64 提取英文+繁中物品名，构建翻译表保存到 data/translations/。需先配置游戏目录。"/>
+                            <TextBlock Text="输出：translations_zh-TW.json"
                                        VerticalAlignment="Center"
                                        Foreground="Gray"
                                        FontSize="11" Margin="0,0,15,0"/>

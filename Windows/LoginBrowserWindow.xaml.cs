@@ -22,6 +22,7 @@ public partial class LoginBrowserWindow : Window
         InitializeComponent();
         _existingSessionId = existingSessionId;
         _isChina = isChina;
+        Title = $"{(isChina ? "国服" : "国际服")}市集登录并获取 POESESSID";
         Loaded += OnLoaded;
     }
 

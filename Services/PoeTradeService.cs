@@ -147,7 +147,8 @@ public class PoeTradeService
         int? dpsPhys = null,
         int? dpsElem = null,
         ItemFlag? itemFlag = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        IProgress<string>? progress = null)
     {
         if (string.IsNullOrWhiteSpace(league))
         {
@@ -354,7 +355,7 @@ public class PoeTradeService
             for (var attempt = 0; attempt < 2; attempt++)
             {
                 // 每次发送前（含 429 重试）都检查滑动窗口，确保不超速。
-                await EnforceSearchRateLimitAsync(cancellationToken);
+                await EnforceSearchRateLimitAsync(cancellationToken, progress);
 
                 using var request = new HttpRequestMessage(HttpMethod.Post, url);
                 request.Content = new StringContent(requestBody, Encoding.UTF8, "application/json");
@@ -998,8 +999,9 @@ public class PoeTradeService
     /// <summary>
     /// 滑动窗口限流：在发送 search 请求前检查 60 秒窗口内已发请求数，
     /// 若已达上限则等待最早的请求滑出窗口。参考 xiletrade PoeApiService.ApplyCooldown。
+    /// progress 回调用于在叠加层显示"限流等待中"提示，避免用户只看到"搜索中..."却不知道在等限流。
     /// </summary>
-    private async Task EnforceSearchRateLimitAsync(CancellationToken ct)
+    private async Task EnforceSearchRateLimitAsync(CancellationToken ct, IProgress<string>? progress = null)
     {
         DateTime now;
         while (true)
@@ -1022,6 +1024,8 @@ public class PoeTradeService
             var waitSec = (oldest.AddSeconds(SearchRateWindowSec) - now).TotalSeconds + 1;
             if (waitSec <= 0) break;
             AppLogger.Instance.Info($"滑动窗口限流：{SearchRateLimit}/{SearchRateLimit} 已用，等待 {waitSec:F0} 秒后重试");
+            // 通知 UI 显示限流等待提示（在捕获上下文的调用方线程上回调）。
+            progress?.Report($"限流等待中，{waitSec:F0} 秒后重试...");
             await Task.Delay(TimeSpan.FromSeconds(Math.Min(waitSec, SearchRateWindowSec)), ct);
         }
         _searchTimestamps.Enqueue(now);

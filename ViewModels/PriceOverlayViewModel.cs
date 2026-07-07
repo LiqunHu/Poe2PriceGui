@@ -15,6 +15,7 @@ public class PriceOverlayViewModel : INotifyPropertyChanged
 {
     private bool _isConfigMode = true;
     private bool _isSearching;
+    private string _statusMessage = "搜索中...";
     private string _title = "";
     private string _resultSummary = "";
     private string _errorMessage = "";
@@ -161,10 +162,23 @@ public class PriceOverlayViewModel : INotifyPropertyChanged
         {
             if (SetProperty(ref _isSearching, value))
             {
+                // 开始搜索时重置为默认提示，避免上次的"限流等待"文本残留。
+                if (value) _statusMessage = "搜索中...";
+                OnPropertyChanged(nameof(StatusMessage));
                 OnPropertyChanged(nameof(CanSearch));
                 OnPropertyChanged(nameof(CanChangePage));
             }
         }
+    }
+
+    /// <summary>
+    /// 搜索过程中的状态提示文本（如"搜索中..."、"限流等待中，14 秒后重试..."）。
+    /// 由搜索流程通过 IProgress 回调更新，叠加层 XAML 绑定此属性显示。
+    /// </summary>
+    public string StatusMessage
+    {
+        get => _statusMessage;
+        set => SetProperty(ref _statusMessage, value);
     }
 
     /// <summary>是否可以搜索（!IsSearching）。</summary>

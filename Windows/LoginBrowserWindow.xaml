@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
         mc:Ignorable="d"
-        Title="登录国服市集并获取 POESESSID" Height="700" Width="1100"
+        Title="市集登录并获取 POESESSID" Height="700" Width="1100"
         WindowStartupLocation="CenterScreen">
     <Grid>
         <Grid.RowDefinitions>

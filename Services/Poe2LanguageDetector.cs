@@ -64,11 +64,19 @@ public static class Poe2LanguageDetector
     /// 未识别或空值回退到英文路径。
     /// </summary>
     public static string GetBaseItemsPath(string? languageCode)
+        => GetBaseItemsPath(languageCode, isChina: false);
+
+    /// <summary>
+    /// 把语言代码映射到 baseitemtypes.datc64 的 bundle 虚拟路径。
+    /// 参考 poe2_price-main Get-Poe2LanguageInfoFromCode + Get-Poe2InstallInfo。
+    /// 国服未识别时回退到简体中文，国际服未识别时回退到繁体中文。
+    /// </summary>
+    public static string GetBaseItemsPath(string? languageCode, bool isChina)
     {
         var code = (languageCode ?? "").Trim().ToLowerInvariant().Replace('_', '-');
         return code switch
         {
-            "" or "en" or "en-us" or "en-gb" or "english"
+            "en" or "en-us" or "en-gb" or "english"
                 => "data/balance/baseitemtypes.datc64",
             "zh-cn" or "zh-hans" or "simplified chinese" or "simplified-chinese" or "sc"
                 => "data/balance/simplified chinese/baseitemtypes.datc64",
@@ -82,9 +90,19 @@ public static class Poe2LanguageDetector
             "th" or "thai" => "data/balance/thai/baseitemtypes.datc64",
             "ja" or "japanese" => "data/balance/japanese/baseitemtypes.datc64",
             "ko" or "korean" => "data/balance/korean/baseitemtypes.datc64",
-            _ => "data/balance/baseitemtypes.datc64",
+            // 未识别或空值：国服回退到简体中文，国际服回退到繁体中文。
+            _ => isChina
+                ? "data/balance/simplified chinese/baseitemtypes.datc64"
+                : "data/balance/traditional chinese/baseitemtypes.datc64",
         };
     }
+
+    /// <summary>
+    /// 获取默认语言代码。国服默认 zh-CN，国际服默认 zh-TW。
+    /// 参考 poe2_price-main: $DefaultLanguageCode = if ($IsChina) { "zh-CN" } else { "zh-TW" }。
+    /// </summary>
+    public static string GetDefaultLanguageCode(bool isChina)
+        => isChina ? "zh-CN" : "zh-TW";
 
     /// <summary>
     /// 由 baseitemtypes 路径推导 words 路径（替换文件名）。

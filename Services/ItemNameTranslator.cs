@@ -28,12 +28,26 @@ public class ItemNameTranslator
 
     public ItemNameTranslator(string? cacheDirectory = null)
     {
-        // 优先使用程序目录下的 data/translations/（随 Release 打包的预构建翻译表）。
-        // 找不到时退回到 %LocalAppData%/Poe2PriceGui/translations/（运行时缓存）。
+        // 翻译表加载顺序：
+        // 1) 程序内置 data\translations\translations_{lang}.json（开发者预构建，随 Release 打包）
+        // 2) 用户运行时生成的 %LOCALAPPDATA%\Poe2PriceGui\data\translations\translations_{lang}.json
+        //    （例如运行"生成繁体翻译表"工具时写入，避免污染程序目录）
+        // 3) 指定 cacheDirectory 参数（测试用）
         var bundledDir = Path.Combine(AppContext.BaseDirectory, "data", "translations");
-        _cacheDirectory = cacheDirectory ?? (Directory.Exists(bundledDir) ? bundledDir :
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "Poe2PriceGui", "translations"));
+        var runtimeDir = AppDataPath.TranslationsRuntime;
+        // 优先选已有翻译表的目录，避免覆盖用户运行时生成的版本
+        if (Directory.Exists(runtimeDir))
+        {
+            _cacheDirectory = runtimeDir;
+        }
+        else if (Directory.Exists(bundledDir))
+        {
+            _cacheDirectory = bundledDir;
+        }
+        else
+        {
+            _cacheDirectory = cacheDirectory ?? runtimeDir;
+        }
         Directory.CreateDirectory(_cacheDirectory);
     }
 
@@ -109,17 +123,22 @@ public class ItemNameTranslator
     }
 
     /// <summary>
-    /// 查找已提取的 datc64 文件。兼容 GGPK 模式（extracted_ggpk/）和 Bundles2 模式（dat_files_latest/）的目录结构。
+    /// 查找已提取的 datc64 文件。兼容 GGPK 模式（extracted_ggpk/）和 Bundles2 模式（extracted/）的目录结构。
+    /// GGPKExtractor 实际输出为扁平化文件名：把虚拟路径中的 '/' 替换为 '_'，放在 output/data/ 下。
+    /// 参考 poe2_price-main: $LanguageFileSlug = $LanguagePath -replace '/','_'; 输出到 $LatestDir/data/$LanguageFileSlug。
     /// </summary>
     private static string? FindDatc64Path(string outputDirectory, string virtualPath)
     {
         // virtualPath 如 "data/balance/simplified chinese/baseitemtypes.datc64"
-        // GGPK 模式提取后保持内部路径结构
         var relativePath = virtualPath.Replace('/', Path.DirectorySeparatorChar);
+        // 扁平化：把 / 替换为 _，得到 "data_balance_simplified chinese_baseitemtypes.datc64"
+        var flattenedName = virtualPath.Replace('/', '_');
 
         var candidates = new[]
         {
-            // GGPK 模式（GGPKExtractor 保留内部路径结构）
+            // GGPK 模式（GGPKExtractor 输出：把 / 替换为 _，放在 data/ 下）— 首选
+            Path.Combine(outputDirectory, "extracted_ggpk", "data", flattenedName),
+            // GGPK 模式旧格式（兼容旧缓存，假设保留内部路径结构）
             Path.Combine(outputDirectory, "extracted_ggpk", relativePath),
             // Bundles2 模式（ExtractDatc64ForTranslationAsync 提取后移动到保留路径结构的位置）
             Path.Combine(outputDirectory, "extracted", relativePath),
@@ -139,31 +158,42 @@ public class ItemNameTranslator
 
     /// <summary>
     /// 加载缓存的翻译表。缓存文件为 JSON 格式：{ "Exalted Orb": "崇高石", ... }。
+    ///
+    /// 加载顺序（找到第一个非空即停）：
+    /// 1) _cacheDirectory（运行时优先，开发者预构建 fallback）
+    /// 2) 程序目录 data\translations\（开发者预构建的兜底）
     /// </summary>
     public async Task<bool> LoadCacheAsync(string languageCode)
     {
-        var cachePath = GetCachePath(languageCode);
-        if (!File.Exists(cachePath)) return false;
-
-        try
+        var candidates = new List<string>
         {
-            await using var stream = File.OpenRead(cachePath);
-            var dict = await JsonSerializer.DeserializeAsync<Dictionary<string, string>>(stream);
-            if (dict == null || dict.Count == 0) return false;
+            GetCachePath(languageCode),
+            Path.Combine(AppContext.BaseDirectory, "data", "translations", $"translations_{languageCode}.json"),
+        };
 
-            _translations.Clear();
-            foreach (var (k, v) in dict)
+        foreach (var cachePath in candidates)
+        {
+            if (!File.Exists(cachePath)) continue;
+            try
             {
-                _translations[k] = v;
+                await using var stream = File.OpenRead(cachePath);
+                var dict = await JsonSerializer.DeserializeAsync<Dictionary<string, string>>(stream);
+                if (dict == null || dict.Count == 0) continue;
+
+                _translations.Clear();
+                foreach (var (k, v) in dict)
+                {
+                    _translations[k] = v;
+                }
+                AppLogger.Instance.Info($"翻译表缓存加载成功：{Count} 条映射（{languageCode}，源：{cachePath}）");
+                return true;
             }
-            AppLogger.Instance.Info($"翻译表缓存加载成功：{Count} 条映射（{languageCode}）");
-            return true;
+            catch (Exception ex)
+            {
+                AppLogger.Instance.Warn($"翻译表缓存加载失败：{cachePath} - {ex.Message}");
+            }
         }
-        catch (Exception ex)
-        {
-            AppLogger.Instance.Warn($"翻译表缓存加载失败：{ex.Message}");
-            return false;
-        }
+        return false;
     }
 
     /// <summary>保存翻译表到缓存。</summary>

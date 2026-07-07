@@ -22,7 +22,8 @@ public class AppLogger
 
     private AppLogger()
     {
-        _logDirectory = Path.Combine(AppContext.BaseDirectory, "logs");
+        // 日志存到 %LOCALAPPDATA%\Poe2PriceGui\logs\，避免 Velopack 升级时随应用目录被替换。
+        _logDirectory = AppDataPath.Logs;
         _logFilePath = InitLogFile();
     }
 

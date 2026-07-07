@@ -16,8 +16,10 @@ public class PriceDataService
 
     public PriceDataService()
     {
-        _dataDirectory = Path.Combine(AppContext.BaseDirectory, "data");
-        _dataFilePath = Path.Combine(_dataDirectory, "prices.json");
+        // 价格快照存到 %LOCALAPPDATA%\Poe2PriceGui\data\prices.json，
+        // 避免 Velopack 升级时用户的价格快照被覆盖成空文件。
+        _dataDirectory = AppDataPath.Data;
+        _dataFilePath = AppDataPath.PricesJson;
         _jsonOptions = new JsonSerializerOptions
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,

@@ -1808,7 +1808,7 @@
     <value>盔甲</value>
   </data>
   <data name="Main069_tbEnergy" xml:space="preserve">
-    <value>能源</value>
+    <value>能量护盾</value>
   </data>
   <data name="Main070_tbEvasion" xml:space="preserve">
     <value>闪避值</value>

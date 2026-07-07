@@ -33,6 +33,21 @@
     <ProjectReference Include="Xiletrade\Xiletrade.Library.csproj" />
   </ItemGroup>
 
+  <!--
+    泥人补丁 GGPK 模式专用工具。
+    通过 ProjectReference 让 MSBuild 先编译这个 Exe，再把它的输出
+    （exe + 依赖 dll）作为 Content 复制到主项目 output 目录。
+    ReferenceOutputAssembly=false 因为主项目不通过 dll 引用它，而是通过 Process.Start 调起。
+  -->
+  <ItemGroup>
+    <ProjectReference Include="test_tools\SmootherPatchBundledGGPK3\SmootherPatchBundledGGPK3.csproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <Private>false</Private>
+      <SkipGetTargetFrameworkProperties>true</SkipGetTargetFrameworkProperties>
+      <SetTargetFramework>TargetFramework=net8.0</SetTargetFramework>
+    </ProjectReference>
+  </ItemGroup>
+
   <!-- BundleExtractor 依赖：直接引用 LibBundle3，替代调用外部 exe -->
   <ItemGroup>
     <Reference Include="LibBundle3">
@@ -47,6 +62,19 @@
       <Link>oo2core.dll</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+  </ItemGroup>
+
+  <!-- GGPK 写入依赖：直接引用 LibGGPK3 + LibBundledGGPK3，替代调用外部 exe -->
+  <!-- 用途：泥人补丁 GGPK 模式把新 _.index.bin 和 TinyPoe2Smoother/0.bundle.bin 写入 Content.ggpk -->
+  <ItemGroup>
+    <Reference Include="LibGGPK3">
+      <HintPath>libs\ggpk\LibGGPK3.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="LibBundledGGPK3">
+      <HintPath>libs\ggpk\LibBundledGGPK3.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
   </ItemGroup>
 
   <!-- Xiletrade 源码由其自身 csproj 编译为类库，不应被主项目重复编译 -->

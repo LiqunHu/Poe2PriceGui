@@ -19,6 +19,39 @@ public class PatchInstaller
     }
 
     /// <summary>
+    /// 获取服务器特定的 Bundles2 还原包名称。
+    /// 参考 poe2_price-main: 国服用"国服还原包.zip"，国际服用"国际服还原补丁.zip"。
+    /// </summary>
+    private static string GetBundles2RestoreZipName(bool isChina)
+        => isChina ? "国服还原包.zip" : "国际服还原补丁.zip";
+
+    /// <summary>
+    /// 获取服务器特定的 GGPK 还原包名称。
+    /// GGPK 模式仅用于国际服，统一使用"国际服还原补丁.zip"。
+    /// </summary>
+    private static string GetGgpkRestoreZipName()
+        => "国际服还原补丁.zip";
+
+    /// <summary>
+    /// 查找已存在的还原包路径，兼容新旧命名。
+    /// 新命名：国服还原包.zip / 国际服还原补丁.zip
+    /// 旧命名：bundles2_backup.zip / ggpk_restore.zip
+    /// </summary>
+    private static string? FindExistingRestoreZip(string backupDir, bool isChina, bool isGgpk)
+    {
+        var newName = isGgpk ? GetGgpkRestoreZipName() : GetBundles2RestoreZipName(isChina);
+        var oldName = isGgpk ? "ggpk_restore.zip" : "bundles2_backup.zip";
+
+        var newPath = Path.Combine(backupDir, newName);
+        if (File.Exists(newPath)) return newPath;
+
+        var oldPath = Path.Combine(backupDir, oldName);
+        if (File.Exists(oldPath)) return oldPath;
+
+        return null;
+    }
+
+    /// <summary>
     /// 仅生成 zip 补丁包到 output 目录，不修改游戏文件。
     /// </summary>
     public async Task<InstallResult> ExportPatchZipAsync(
@@ -60,10 +93,10 @@ public class PatchInstaller
         if (modeInfo.Mode == GameMode.GGPK)
         {
             var targetFile = Path.Combine(gameDirectory, "Content.ggpk");
-            var restoreZip = Path.Combine(backupDir, "ggpk_restore.zip");
+            var restoreZip = FindExistingRestoreZip(backupDir, isChina: false, isGgpk: true);
 
             // 优先从还原 zip 还原（仅几 MB），兼容旧版 Content.ggpk.original（100GB 完整复制）。
-            if (File.Exists(restoreZip))
+            if (restoreZip != null)
             {
                 if (!TryResolveToolPaths(out var tools, out var toolError))
                 {
@@ -104,8 +137,8 @@ public class PatchInstaller
         }
 
         // Bundles2 模式：优先从 ZIP 还原，兼容旧版 .original 文件
-        var zipBackup = Path.Combine(backupDir, "bundles2_backup.zip");
-        if (File.Exists(zipBackup))
+        var zipBackup = FindExistingRestoreZip(backupDir, modeInfo.IsChina, isGgpk: false);
+        if (zipBackup != null)
         {
             try
             {
@@ -232,9 +265,9 @@ public class PatchInstaller
 
         if (modeInfo.Mode == GameMode.GGPK)
         {
-            // GGPK 模式：优先从 ggpk_restore.zip 还原（仅几 MB），兼容旧版 Content.ggpk.original（100GB 完整复制）。
-            var ggpkRestoreZip = Path.Combine(backupDir, "ggpk_restore.zip");
-            if (File.Exists(ggpkRestoreZip))
+            // GGPK 模式：优先从还原包还原（仅几 MB），兼容旧版 Content.ggpk.original（100GB 完整复制）。
+            var ggpkRestoreZip = FindExistingRestoreZip(backupDir, isChina: false, isGgpk: true);
+            if (ggpkRestoreZip != null)
             {
                 progress?.Report("4/6 正在从还原包还原原始数据文件...");
                 var restoreResult = await RestoreGgpkFromZipAsync(gameDirectory, ggpkRestoreZip, tools, modeInfo, cancellationToken);
@@ -268,9 +301,9 @@ public class PatchInstaller
         {
             // Bundles2 模式（非增量更新）：优先从 ZIP 还原，兼容旧版 .original 文件。
             // 增量更新模式下跳过此步骤，保留 _.index.bin 中的所有前缀记录。
-            var zipBackup = Path.Combine(backupDir, "bundles2_backup.zip");
+            var zipBackup = FindExistingRestoreZip(backupDir, modeInfo.IsChina, isGgpk: false);
             var oldBackup = Path.Combine(backupDir, "_.index.bin.original");
-            if (File.Exists(zipBackup))
+            if (zipBackup != null)
             {
                 progress?.Report("4/6 正在还原原始数据文件...");
                 try
@@ -348,7 +381,7 @@ public class PatchInstaller
 
             // 将提取的原始 datc64 打包成还原 zip（仅几 MB），避免备份整个 Content.ggpk（可达 100GB）。
             // 还原时用 PatchBundledGGPK3 将这些干净条目写回 Content.ggpk。
-            var ggpkRestoreZip = Path.Combine(backupDir, "ggpk_restore.zip");
+            var ggpkRestoreZip = Path.Combine(backupDir, GetGgpkRestoreZipName());
             try
             {
                 CreateGgpkRestoreZip(ggpkRestoreZip, sourceDat, modeInfo.BaseItemsPath);
@@ -401,7 +434,7 @@ public class PatchInstaller
         progress?.Report("6/6 正在备份并安装补丁...");
         var installResult = modeInfo.Mode == GameMode.GGPK
             ? await InstallToGgpkAsync(gameDirectory, zipPath, tools, cancellationToken)
-            : await InstallToBundles2Async(gameDirectory, zipPath, tools, incrementalUpdate, cancellationToken);
+            : await InstallToBundles2Async(gameDirectory, zipPath, tools, incrementalUpdate, modeInfo.IsChina, cancellationToken);
         // 回填导出数量和游戏模式（安装方法创建新 InstallResult，需保留前序信息）。
         installResult.ExportedCount = exportedCount;
         installResult.GameMode = modeInfo.DisplayName;
@@ -416,10 +449,10 @@ public class PatchInstaller
     {
         var ggpkPath = Path.Combine(gameDirectory, "Content.ggpk");
         // GGPK 模式不备份整个 Content.ggpk（可能高达 100GB），
-        // 还原包（ggpk_restore.zip，仅含 datc64 小文件）在 BuildAndMaybeInstallAsync 提取阶段已创建。
+        // 还原包（国际服还原补丁.zip，仅含 datc64 小文件）在 BuildAndMaybeInstallAsync 提取阶段已创建。
         var result = new InstallResult
         {
-            BackupPath = Path.Combine(_exportService.OutputDirectory, "backup", "ggpk_restore.zip")
+            BackupPath = Path.Combine(_exportService.OutputDirectory, "backup", GetGgpkRestoreZipName())
         };
 
         var psi = new ProcessStartInfo
@@ -463,6 +496,7 @@ public class PatchInstaller
         string zipPath,
         ToolPaths tools,
         bool incrementalUpdate,
+        bool isChina,
         CancellationToken cancellationToken)
     {
         var indexBin = Path.Combine(gameDirectory, "Bundles2", "_.index.bin");
@@ -471,7 +505,9 @@ public class PatchInstaller
         Directory.CreateDirectory(backupDir);
         // 使用 ZIP 保存"原始"备份，包含 _.index.bin、_.index.high.bin、_.index.low.bin、.index.dbg 和 LibGGPK3/ 目录
         // 只在首次安装时创建，避免备份已打补丁的文件导致无法还原。
-        var zipBackupPath = Path.Combine(backupDir, "bundles2_backup.zip");
+        // 服务器特定的命名：国服 → 国服还原包.zip，国际服 → 国际服还原补丁.zip
+        var restoreZipName = GetBundles2RestoreZipName(isChina);
+        var zipBackupPath = Path.Combine(backupDir, restoreZipName);
         var oldBackupPath = Path.Combine(backupDir, "_.index.bin.original");
         var result = new InstallResult
         {
@@ -480,16 +516,18 @@ public class PatchInstaller
 
         // 增量更新模式下跳过备份创建：此时 _.index.bin 已含 LibGGPK3/ 与 TinyPoe2Smoother/ 等记录，
         // 备份已打补丁的状态会污染原始备份导致后续无法正确还原。原始备份应在首次安装时已创建。
-        if (incrementalUpdate && !File.Exists(zipBackupPath))
+        // 兼容旧版 bundles2_backup.zip
+        var existingBackup = FindExistingRestoreZip(backupDir, isChina, isGgpk: false);
+        if (incrementalUpdate && existingBackup == null)
         {
-            AppLogger.Instance.Warn("增量更新模式：bundles2_backup.zip 不存在，跳过备份创建（首次安装时未创建备份，无法还原到原始状态）");
+            AppLogger.Instance.Warn($"增量更新模式：{restoreZipName} 不存在，跳过备份创建（首次安装时未创建备份，无法还原到原始状态）");
         }
         else if (!incrementalUpdate)
         {
             try
             {
-                // 如果旧版 .original 存在但 ZIP 不存在，迁移旧备份并补充其他文件
-                if (!File.Exists(zipBackupPath))
+                // 如果旧版备份已存在（新名或旧名），跳过创建
+                if (existingBackup == null)
                 {
                     using (var archive = ZipFile.Open(zipBackupPath, ZipArchiveMode.Create))
                     {
@@ -536,10 +574,31 @@ public class PatchInstaller
                     {
                         File.Delete(oldBackupPath);
                     }
+                    // 若旧版 bundles2_backup.zip 存在，迁移后删除
+                    var legacyZip = Path.Combine(backupDir, "bundles2_backup.zip");
+                    if (File.Exists(legacyZip) && legacyZip != zipBackupPath)
+                    {
+                        File.Delete(legacyZip);
+                        AppLogger.Instance.Info($"已迁移旧版 bundles2_backup.zip → {restoreZipName}");
+                    }
                 }
                 else
                 {
-                    AppLogger.Instance.Info($"原始备份 ZIP 已存在，跳过备份：{zipBackupPath}");
+                    AppLogger.Instance.Info($"原始备份 ZIP 已存在，跳过备份：{existingBackup}");
+                    // 若旧版备份存在但名称不是新格式，迁移到新名称
+                    if (existingBackup != zipBackupPath)
+                    {
+                        try
+                        {
+                            File.Move(existingBackup, zipBackupPath);
+                            AppLogger.Instance.Info($"已迁移还原包：{existingBackup} → {zipBackupPath}");
+                            result.BackupPath = zipBackupPath;
+                        }
+                        catch (Exception moveEx)
+                        {
+                            AppLogger.Instance.Warn($"迁移还原包失败（不影响功能）：{moveEx.Message}");
+                        }
+                    }
                 }
             }
             catch (Exception ex)
@@ -550,7 +609,7 @@ public class PatchInstaller
         }
         else
         {
-            AppLogger.Instance.Info($"增量更新模式：跳过备份创建，使用现有备份：{zipBackupPath}");
+            AppLogger.Instance.Info($"增量更新模式：跳过备份创建，使用现有备份：{existingBackup}");
         }
 
         var psi = new ProcessStartInfo
@@ -639,8 +698,11 @@ public class PatchInstaller
 
         var outputDir = Path.Combine(_exportService.OutputDirectory, "extracted_ggpk");
         Directory.CreateDirectory(outputDir);
-        // GGPKExtractor 保持内部路径结构，提取后文件位于 outputDir/<virtualPath>。
-        result.FilePath = Path.Combine(outputDir, virtualPath.Replace('/', Path.DirectorySeparatorChar));
+        // GGPKExtractor 实际输出为扁平化文件名：把虚拟路径中的 '/' 替换为 '_'，
+        // 所有 datc64 放在 outputDir/data/ 下。参考 poe2_price-main 的
+        // $LatestDir/data/$($LanguagePath -replace '/','_')。
+        var flattenedName = virtualPath.Replace('/', '_');
+        result.FilePath = Path.Combine(outputDir, "data", flattenedName);
 
         // 若已提取且文件存在，先删除避免覆盖冲突。
         if (File.Exists(result.FilePath))
@@ -895,12 +957,13 @@ public class PatchInstaller
             }
         }
 
-        // 目标语言版：检查保留路径结构后的最终位置是否已存在（如安装补丁时已提取）。
+        // 目标语言版：检查最终位置是否已存在（如安装补丁时已提取）。
+        // GGPK 模式输出为扁平化文件名（/ -> _），Bundles2 模式保留原路径结构。
         var langFinalPath = modeInfo.Mode == GameMode.Bundles2
             ? Path.Combine(_exportService.OutputDirectory, "extracted",
                 langVirtualPath.Replace('/', Path.DirectorySeparatorChar))
-            : Path.Combine(_exportService.OutputDirectory, "extracted_ggpk",
-                langVirtualPath.Replace('/', Path.DirectorySeparatorChar));
+            : Path.Combine(_exportService.OutputDirectory, "extracted_ggpk", "data",
+                langVirtualPath.Replace('/', '_'));
 
         if (!File.Exists(langFinalPath))
         {

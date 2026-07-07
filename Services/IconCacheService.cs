@@ -23,7 +23,8 @@ public class IconCacheService
     public IconCacheService(HttpClient httpClient)
     {
         _httpClient = httpClient;
-        _cacheDirectory = Path.Combine(AppContext.BaseDirectory, "cache");
+        // 缓存存到 %LOCALAPPDATA%\Poe2PriceGui\cache\，避免 Velopack 升级时图标缓存被清空。
+        _cacheDirectory = AppDataPath.Cache;
     }
 
     /// <summary>图标缓存根目录。</summary>

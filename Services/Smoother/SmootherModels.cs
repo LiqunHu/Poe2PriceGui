@@ -124,6 +124,19 @@ public sealed class SmootherPatchReport
     public List<PatchChange> Changes { get; set; } = [];
     public string OutputZipPath { get; set; } = "";
     public Dictionary<PatchId, int> PatchHitCounts { get; set; } = [];
+
+    /// <summary>
+    /// 创建一个失败报告，用于不需要走完整 ComputeReport 流程的快速失败场景
+    /// （如 GGPK 模式下 IsPatchApplied 预检查在后台线程里发现已应用）。
+    /// </summary>
+    public static SmootherPatchReport CreateFailure(string errorMessage)
+    {
+        return new SmootherPatchReport
+        {
+            Success = false,
+            ErrorMessage = errorMessage,
+        };
+    }
 }
 
 /// <summary>

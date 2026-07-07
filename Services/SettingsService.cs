@@ -13,7 +13,10 @@ public class SettingsService
 
     public SettingsService()
     {
-        _settingsFilePath = Path.Combine(AppContext.BaseDirectory, "settings.json");
+        // 配置存到 %LOCALAPPDATA%\Poe2PriceGui\settings.json，避免 Velopack 升级时
+        // AppContext.BaseDirectory 被整体替换导致用户配置丢失。
+        // 首次启动时 App.Main 已自动从旧位置迁移。
+        _settingsFilePath = AppDataPath.SettingsFile;
         _jsonOptions = new JsonSerializerOptions
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -78,8 +81,11 @@ public class AppSettings
     /// <summary>查价器全局热键，例如 "Ctrl+D"。</summary>
     public string PriceCheckerHotkey { get; set; } = "Ctrl+D";
 
-    /// <summary>查价器 POESESSID Cookie。</summary>
+    /// <summary>查价器国服 POESESSID Cookie（仅国服使用）。</summary>
     public string PriceCheckerPoeSessionId { get; set; } = "";
+
+    /// <summary>查价器国际服 POESESSID Cookie（仅国际服使用，与国服分离存储）。</summary>
+    public string PriceCheckerIntlPoeSessionId { get; set; } = "";
 
     /// <summary>查价器目标赛季，例如 "奥杜尔秘符"。</summary>
     public string PriceCheckerLeague { get; set; } = "奥杜尔秘符";

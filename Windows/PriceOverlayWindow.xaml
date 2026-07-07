@@ -567,7 +567,7 @@
                                 Height="34" FontSize="13" FontWeight="Bold"/>
                     </Grid>
 
-                    <TextBlock Text="搜索中..."
+                    <TextBlock Text="{Binding StatusMessage}"
                                FontSize="11" Foreground="#FF4A90D9"
                                HorizontalAlignment="Center" Margin="0,4,0,0"
                                Visibility="{Binding IsSearching, Converter={StaticResource BoolToVis}}"/>

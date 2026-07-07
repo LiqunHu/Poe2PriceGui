@@ -34,10 +34,10 @@ public static class GameModeDetector
             // GGPK 内部同时存在 11 种语言的 datc64，游戏按用户选的语言加载对应路径。
             // 硬编码英文路径会导致非英文用户补丁写入成功但游戏内不显示。
             var languageCode = Poe2LanguageDetector.DetectLanguageCode();
-            info.BaseItemsPath = Poe2LanguageDetector.GetBaseItemsPath(languageCode);
+            info.BaseItemsPath = Poe2LanguageDetector.GetBaseItemsPath(languageCode, isChina: false);
             info.WordsPath = Poe2LanguageDetector.GetWordsPath(info.BaseItemsPath);
             info.EndgameMapsPath = Poe2LanguageDetector.GetEndgameMapsPath(info.BaseItemsPath);
-            info.LanguageCode = languageCode ?? "en";
+            info.LanguageCode = languageCode ?? Poe2LanguageDetector.GetDefaultLanguageCode(isChina: false);
         }
         else if (File.Exists(bundles2Index))
         {
@@ -85,8 +85,8 @@ public static class GameModeDetector
                 info.IsChina = false;
                 // 国际服 Steam/Epic 按用户游戏内语言选择路径。
                 var languageCode = Poe2LanguageDetector.DetectLanguageCode();
-                info.BaseItemsPath = Poe2LanguageDetector.GetBaseItemsPath(languageCode);
-                info.LanguageCode = languageCode ?? "en";
+                info.BaseItemsPath = Poe2LanguageDetector.GetBaseItemsPath(languageCode, isChina: false);
+                info.LanguageCode = languageCode ?? Poe2LanguageDetector.GetDefaultLanguageCode(isChina: false);
             }
 
             info.WordsPath = Poe2LanguageDetector.GetWordsPath(info.BaseItemsPath);
