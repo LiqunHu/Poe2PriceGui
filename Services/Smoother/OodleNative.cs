@@ -5,9 +5,9 @@ namespace Poe2PriceGui.Services.Smoother;
 /// <summary>
 /// Oodle 压缩/解压 P/Invoke 封装。
 ///
-/// 使用项目自带的 oo2core.dll（RAD Game Tools 闭源，与 BundleExtractor.exe /
-/// PatchBundle3.exe 共用同一份）。该 DLL 同时支持压缩和解压——本项目已有的物价补丁
-/// 写入功能（通过 PatchBundle3.exe）正是基于此 DLL 的压缩能力实现的。
+/// 使用项目自带的 oo2core.dll（RAD Game Tools 闭源，与 BundleExtractor.exe
+/// 共用同一份）。该 DLL 同时支持压缩和解压——本项目的 Bundles2/GGPK 补丁写入
+/// 正是基于此 DLL 的压缩能力实现的。
 ///
 /// P/Invoke 签名参考 VisualGGPK2 / LibBundle（Oodle 9 API）:
 /// https://github.com/aianlinb/VisualGGPK2/blob/ee8a5a415cc5bb749e41489b4b0143551097a1f4/LibBundle/BundleContainer.cs#L10

@@ -14,7 +14,7 @@ namespace Poe2PriceGui.Services.Smoother;
 /// 写入策略（按游戏模式自动选择）：
 /// - Bundles2 模式：直接修改 Bundles2/_.index.bin + 生成 TinyPoe2Smoother/{ordinal}.bundle.bin。
 /// - GGPK 模式：进程内只读取 + 变换（不写入），收集变更后构建 patch zip，
-///              关闭 GGPK 句柄，调用 SmootherPatchBundledGGPK3 --apply 走
+///              关闭 GGPK 句柄，由 SmootherGgpkBackupStore.ApplyPatch 走
 ///              LibBundle3.Index.Replace 写回（创建新 bundle + 重指索引，不原地改
 ///              原始 bundle）。与 poe2_price-main 的 PatchBundledGGPK3 方式一致，
 ///              避免 100GB+ GGPK 上原地改大 bundle 的损坏风险。
@@ -22,7 +22,7 @@ namespace Poe2PriceGui.Services.Smoother;
 /// 备份策略（按游戏模式自动选择）：
 /// - Bundles2 模式：SmootherBackupStore 在 %LOCALAPPDATA%/Poe2PriceGui/smoother.bak 中
 ///                  保存应用补丁前的 _.index.bin（仅追加新条目，已存在则跳过）。
-/// - GGPK 模式：SmootherGgpkBackupStore 调用 SmootherPatchBundledGGPK3 --backup 抽出
+/// - GGPK 模式：SmootherGgpkBackupStore.Backup 抽出
 ///              GGPK 内当前的 Bundles2/_.index.bin + TinyPoe2Smoother/*.bundle.bin
 ///              打包成 zip（几 MB），存到 %LOCALAPPDATA%/Poe2PriceGui/smoother_ggpk.zip。
 /// </summary>
@@ -360,7 +360,7 @@ public sealed class SmootherPatchService
     {
         if (_gameMode == GameMode.GGPK)
         {
-            // GGPK 模式：调用 SmootherPatchBundledGGPK3 --restore 把备份 zip 写回 GGPK。
+            // GGPK 模式：通过 FileRecord.Write 把备份 zip 中的 _.index.bin 字节直接写回 GGPK。
             _ggpkBackup!.Restore();
             return 1;
         }
@@ -545,17 +545,17 @@ public sealed class SmootherPatchService
 
     /// <summary>
     /// GGPK 模式的 ComputeReport：进程内只读取 + 变换，写回委托给
-    /// SmootherPatchBundledGGPK3 --apply（走 LibBundle3.Index.Replace）。
+    /// SmootherGgpkBackupStore.ApplyPatch（走 LibBundle3.Index.Replace）。
     ///
     /// 流程：
-    /// 1. （apply 时）先调 --backup 备份原始 _.index.bin（必须在打开 GGPK 前，
+    /// 1. （apply 时）先备份原始 _.index.bin（必须在打开 GGPK 前，
     ///    避免文件锁竞争）
     /// 2. 进程内打开 BundledGGPK（parsePathsInIndex=false），手动 ParsePaths
     /// 3. 收集候选文件：复用 PatchCatalog.PatchTargetsPath / ExactPatchTargets
     /// 4. 逐个 FileRecord.Read() 拿到字节，调用 PatchTransforms.Transform，
     ///    收集 {path: newBytes}（只读，不调用 FileRecord.Write）
     /// 5. 关闭 GGPK 句柄（using 块结束）
-    /// 6. （apply 时）把变更打包成 patch zip，调用 --apply 工具走 Index.Replace
+    /// 6. （apply 时）把变更打包成 patch zip，通过 Index.Replace
     ///    写回：创建新 bundle + 重指索引，不原地改原始 bundle。
     ///
     /// 为何不原地 Write：参考 poe2_price-main 的 PatchBundledGGPK3 工具，
@@ -762,7 +762,7 @@ public sealed class SmootherPatchService
 
     /// <summary>
     /// 把变更文件列表打包成补丁 zip：条目名为游戏内虚拟路径（'/' 分隔），
-    /// 条目内容为文件字节。供 SmootherPatchBundledGGPK3 --apply 通过
+    /// 条目内容为文件字节。供 SmootherGgpkBackupStore.ApplyPatch 通过
     /// LibBundle3.Index.Replace 写入 GGPK。
     /// </summary>
     private static string BuildPatchZip(List<(string Path, byte[] Data)> files)

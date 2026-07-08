@@ -34,19 +34,9 @@
   </ItemGroup>
 
   <!--
-    泥人补丁 GGPK 模式专用工具。
-    通过 ProjectReference 让 MSBuild 先编译这个 Exe，再把它的输出
-    （exe + 依赖 dll）作为 Content 复制到主项目 output 目录。
-    ReferenceOutputAssembly=false 因为主项目不通过 dll 引用它，而是通过 Process.Start 调起。
+    泥人补丁 GGPK 模式的写入逻辑在主项目内（SmootherGgpkBackupStore.cs），
+    直接调用 LibBundledGGPK3 + LibBundle3 + LibGGPK3，无需外部工具进程。
   -->
-  <ItemGroup>
-    <ProjectReference Include="test_tools\SmootherPatchBundledGGPK3\SmootherPatchBundledGGPK3.csproj">
-      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
-      <Private>false</Private>
-      <SkipGetTargetFrameworkProperties>true</SkipGetTargetFrameworkProperties>
-      <SetTargetFramework>TargetFramework=net8.0</SetTargetFramework>
-    </ProjectReference>
-  </ItemGroup>
 
   <!-- BundleExtractor 依赖：直接引用 LibBundle3，替代调用外部 exe -->
   <ItemGroup>
@@ -109,6 +99,9 @@
     <None Update="scripts\**">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <!-- tools\PatchTools 和 tools\GGPKExtractor 已被内置 LibBundle3/LibBundledGGPK3 代码替代，不再随发布复制 -->
+    <None Remove="tools\PatchTools\**" />
+    <None Remove="tools\GGPKExtractor\**" />
     <None Update="tools\**">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

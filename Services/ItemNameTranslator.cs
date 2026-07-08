@@ -124,7 +124,7 @@ public class ItemNameTranslator
 
     /// <summary>
     /// 查找已提取的 datc64 文件。兼容 GGPK 模式（extracted_ggpk/）和 Bundles2 模式（extracted/）的目录结构。
-    /// GGPKExtractor 实际输出为扁平化文件名：把虚拟路径中的 '/' 替换为 '_'，放在 output/data/ 下。
+    /// GGPK 模式输出为扁平化文件名：把虚拟路径中的 '/' 替换为 '_'，放在 output/data/ 下。
     /// 参考 poe2_price-main: $LanguageFileSlug = $LanguagePath -replace '/','_'; 输出到 $LatestDir/data/$LanguageFileSlug。
     /// </summary>
     private static string? FindDatc64Path(string outputDirectory, string virtualPath)
@@ -136,7 +136,7 @@ public class ItemNameTranslator
 
         var candidates = new[]
         {
-            // GGPK 模式（GGPKExtractor 输出：把 / 替换为 _，放在 data/ 下）— 首选
+            // GGPK 模式（内置 BundledGGPK 提取：把 / 替换为 _，放在 data/ 下）— 首选
             Path.Combine(outputDirectory, "extracted_ggpk", "data", flattenedName),
             // GGPK 模式旧格式（兼容旧缓存，假设保留内部路径结构）
             Path.Combine(outputDirectory, "extracted_ggpk", relativePath),

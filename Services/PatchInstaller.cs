@@ -3,6 +3,9 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Text.RegularExpressions;
+using LibBundle3;
+using LibBundledGGPK3;
+using BundleIndex = LibBundle3.Index;
 
 namespace Poe2PriceGui.Services;
 
@@ -98,12 +101,8 @@ public class PatchInstaller
             // 优先从还原 zip 还原（仅几 MB），兼容旧版 Content.ggpk.original（100GB 完整复制）。
             if (restoreZip != null)
             {
-                if (!TryResolveToolPaths(out var tools, out var toolError))
-                {
-                    result.ErrorMessage = toolError;
-                    return result;
-                }
-                var restoreResult = await RestoreGgpkFromZipAsync(gameDirectory, restoreZip, tools, modeInfo, cancellationToken);
+                // GGPK 还原已改为内置 BundledGGPK + Index.Replace，不再依赖外部工具。
+                var restoreResult = await RestoreGgpkFromZipAsync(gameDirectory, restoreZip, modeInfo, cancellationToken);
                 if (!restoreResult.Success)
                 {
                     return restoreResult;
@@ -194,7 +193,7 @@ public class PatchInstaller
     /// <summary>
     /// 检测 Bundles2 模式下是否已应用过价格补丁。
     /// 判定依据：Bundles2/LibGGPK3/ 目录存在且包含文件。
-    /// LibGGPK3/ 由 PatchBundle3.exe 在首次应用价格补丁时创建，存放增量 bundle。
+    /// LibGGPK3/ 在首次应用价格补丁时由 Index.Replace 创建，存放增量 bundle。
     /// 存在该目录说明 _.index.bin 中已有 LibGGPK3/ 前缀记录，可走增量更新流程。
     /// </summary>
     private static bool IsPricePatchAlreadyAppliedBundles2(string gameDirectory)
@@ -236,13 +235,8 @@ public class PatchInstaller
 
         result.GameMode = modeInfo.DisplayName;
 
-        // 3. 校验工具。
-        progress?.Report("3/6 正在校验补丁工具...");
-        if (!TryResolveToolPaths(out var tools, out var toolError))
-        {
-            result.ErrorMessage = toolError;
-            return result;
-        }
+        // 3. 工具已内置（LibBundle3/LibBundledGGPK3），无需校验外部工具。
+        progress?.Report("3/6 正在校验环境...");
 
         // 4. 检测增量更新模式（仅 Bundles2 模式）。
         //    若 LibGGPK3/ 目录存在且非空，说明已应用过价格补丁。此时可跳过还原步骤，
@@ -270,7 +264,7 @@ public class PatchInstaller
             if (ggpkRestoreZip != null)
             {
                 progress?.Report("4/6 正在从还原包还原原始数据文件...");
-                var restoreResult = await RestoreGgpkFromZipAsync(gameDirectory, ggpkRestoreZip, tools, modeInfo, cancellationToken);
+                var restoreResult = await RestoreGgpkFromZipAsync(gameDirectory, ggpkRestoreZip, modeInfo, cancellationToken);
                 if (!restoreResult.Success)
                 {
                     result.ErrorMessage = restoreResult.ErrorMessage;
@@ -364,14 +358,9 @@ public class PatchInstaller
         }
         else
         {
-            // GGPK 模式：使用 GGPKExtractor 从 Content.ggpk 提取 datc64 到临时目录。
-            if (string.IsNullOrEmpty(tools.GgpkExtractor) || !File.Exists(tools.GgpkExtractor))
-            {
-                result.ErrorMessage = $"国际服 GGPK 模式需要 GGPKExtractor.exe，未找到：{tools.GgpkExtractor}";
-                return result;
-            }
+            // GGPK 模式：内置 BundledGGPK 从 Content.ggpk 提取 datc64 到临时目录。
             progress?.Report("4/6 正在从 Content.ggpk 提取原始数据文件...");
-            var extracted = await ExtractFromGgpkAsync(gameDirectory, modeInfo.BaseItemsPath, tools.GgpkExtractor, cancellationToken);
+            var extracted = await ExtractFromGgpkAsync(gameDirectory, modeInfo.BaseItemsPath, cancellationToken);
             if (!extracted.Success)
             {
                 result.ErrorMessage = extracted.ErrorMessage;
@@ -380,7 +369,7 @@ public class PatchInstaller
             sourceDat = extracted.FilePath;
 
             // 将提取的原始 datc64 打包成还原 zip（仅几 MB），避免备份整个 Content.ggpk（可达 100GB）。
-            // 还原时用 PatchBundledGGPK3 将这些干净条目写回 Content.ggpk。
+            // 还原时通过内置 BundledGGPK + Index.Replace 将这些干净条目写回 Content.ggpk。
             var ggpkRestoreZip = Path.Combine(backupDir, GetGgpkRestoreZipName());
             try
             {
@@ -433,8 +422,8 @@ public class PatchInstaller
         // 6. 备份并安装补丁。
         progress?.Report("6/6 正在备份并安装补丁...");
         var installResult = modeInfo.Mode == GameMode.GGPK
-            ? await InstallToGgpkAsync(gameDirectory, zipPath, tools, cancellationToken)
-            : await InstallToBundles2Async(gameDirectory, zipPath, tools, incrementalUpdate, modeInfo.IsChina, cancellationToken);
+            ? await InstallToGgpkAsync(gameDirectory, zipPath, cancellationToken)
+            : await InstallToBundles2Async(gameDirectory, zipPath, incrementalUpdate, modeInfo.IsChina, cancellationToken);
         // 回填导出数量和游戏模式（安装方法创建新 InstallResult，需保留前序信息）。
         installResult.ExportedCount = exportedCount;
         installResult.GameMode = modeInfo.DisplayName;
@@ -444,7 +433,6 @@ public class PatchInstaller
     private async Task<InstallResult> InstallToGgpkAsync(
         string gameDirectory,
         string zipPath,
-        ToolPaths tools,
         CancellationToken cancellationToken)
     {
         var ggpkPath = Path.Combine(gameDirectory, "Content.ggpk");
@@ -455,46 +443,53 @@ public class PatchInstaller
             BackupPath = Path.Combine(_exportService.OutputDirectory, "backup", GetGgpkRestoreZipName())
         };
 
-        var psi = new ProcessStartInfo
+        // 直接用 BundledGGPK + LibBundle3.Index.Replace
+        // 将补丁 zip 中的条目写入 GGPK 内的 bundle。saveIndex=true 确保索引立即落盘。
+        AppLogger.Instance.Info($"安装 GGPK 补丁（内置）：ggpk={ggpkPath}, zip={zipPath}");
+        try
         {
-            FileName = "dotnet",
-            Arguments = $"\"{tools.PatchBundledGgpk}\" \"{ggpkPath}\" \"{zipPath}\"",
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            CreateNoWindow = true,
-        };
+            int replaced = await Task.Run(() =>
+            {
+                using var ggpk = new BundledGGPK(ggpkPath, parsePathsInIndex: false);
+                var failedPaths = ggpk.Index.ParsePaths();
+                if (failedPaths > 0)
+                {
+                    AppLogger.Instance.Warn($"GGPK 索引解析：{failedPaths} 个文件路径解析失败（已忽略）");
+                }
 
-        AppLogger.Instance.Info($"安装 GGPK 补丁：{psi.FileName} {psi.Arguments}");
-        using var process = Process.Start(psi);
-        if (process == null)
+                using var zip = ZipFile.OpenRead(zipPath);
+                return BundleIndex.Replace(
+                    ggpk.Index,
+                    zip.Entries,
+                    (fileRecord, path) =>
+                    {
+                        var bundlePath = fileRecord.BundleRecord?.Path ?? "<unknown>";
+                        AppLogger.Instance.Info($"  GGPK 替换：{path} -> size={fileRecord.Size} bundle={bundlePath}");
+                        return false;
+                    },
+                    saveIndex: true);
+            }, cancellationToken);
+
+            AppLogger.Instance.Info($"GGPK 补丁安装完成：替换/新增 {replaced} 个文件，ggpk={ggpkPath}");
+            result.Success = true;
+            result.InstalledPath = ggpkPath;
+        }
+        catch (OperationCanceledException)
         {
-            result.ErrorMessage = "无法启动 dotnet 进程";
-            return result;
+            throw;
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Instance.Error(ex, "GGPK 补丁安装失败");
+            result.ErrorMessage = $"GGPK 补丁安装失败：{ex.Message}";
         }
 
-        var output = await process.StandardOutput.ReadToEndAsync(cancellationToken);
-        var error = await process.StandardError.ReadToEndAsync(cancellationToken);
-        await process.WaitForExitAsync(cancellationToken);
-
-        LogProcessOutput(output, error);
-
-        if (process.ExitCode != 0)
-        {
-            result.ErrorMessage = $"GGPK 补丁安装失败：{error}";
-            return result;
-        }
-
-        result.Success = true;
-        result.InstalledPath = ggpkPath;
-        AppLogger.Instance.Info($"GGPK 补丁安装完成：{ggpkPath}");
         return result;
     }
 
     private async Task<InstallResult> InstallToBundles2Async(
         string gameDirectory,
         string zipPath,
-        ToolPaths tools,
         bool incrementalUpdate,
         bool isChina,
         CancellationToken cancellationToken)
@@ -612,39 +607,50 @@ public class PatchInstaller
             AppLogger.Instance.Info($"增量更新模式：跳过备份创建，使用现有备份：{existingBackup}");
         }
 
-        var psi = new ProcessStartInfo
+        // 直接用 LibBundle3.Index.Replace 将补丁 zip 中的条目
+        // 写入 _.index.bin（磁盘文件模式）。saveIndex=true 确保索引立即落盘。
+        // LibBundle3 的操作是同步阻塞 IO，放到线程池避免卡死 UI。
+        AppLogger.Instance.Info($"安装 Bundles2 补丁（内置）：index={indexBin}, zip={zipPath}");
+        try
         {
-            FileName = tools.PatchBundle3,
-            Arguments = $"\"{indexBin}\" \"{zipPath}\"",
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            CreateNoWindow = true,
-        };
+            int replaced = await Task.Run(() =>
+            {
+                var bundles2Dir = Path.Combine(gameDirectory, "Bundles2");
+                var factory = new DriveBundleFactory(bundles2Dir);
+                using var index = new BundleIndex(indexBin, false, factory);
+                var failedPaths = index.ParsePaths();
+                if (failedPaths > 0)
+                {
+                    AppLogger.Instance.Warn($"Bundles2 索引解析：{failedPaths} 个文件路径解析失败（已忽略）");
+                }
 
-        AppLogger.Instance.Info($"安装 Bundles2 补丁：{psi.FileName} {psi.Arguments}");
-        using var process = Process.Start(psi);
-        if (process == null)
+                using var zip = ZipFile.OpenRead(zipPath);
+                return BundleIndex.Replace(
+                    index,
+                    zip.Entries,
+                    (fileRecord, path) =>
+                    {
+                        var bundlePath = fileRecord.BundleRecord?.Path ?? "<unknown>";
+                        AppLogger.Instance.Info($"  Bundles2 替换：{path} -> size={fileRecord.Size} bundle={bundlePath}");
+                        return false;
+                    },
+                    saveIndex: true);
+            }, cancellationToken);
+
+            AppLogger.Instance.Info($"Bundles2 补丁安装完成：替换/新增 {replaced} 个文件，index={indexBin}");
+            result.Success = true;
+            result.InstalledPath = indexBin;
+        }
+        catch (OperationCanceledException)
         {
-            result.ErrorMessage = "无法启动 PatchBundle3 进程";
-            return result;
+            throw;
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Instance.Error(ex, "Bundles2 补丁安装失败");
+            result.ErrorMessage = $"Bundles2 补丁安装失败：{ex.Message}";
         }
 
-        var output = await process.StandardOutput.ReadToEndAsync(cancellationToken);
-        var error = await process.StandardError.ReadToEndAsync(cancellationToken);
-        await process.WaitForExitAsync(cancellationToken);
-
-        LogProcessOutput(output, error);
-
-        if (process.ExitCode != 0)
-        {
-            result.ErrorMessage = $"Bundles2 补丁安装失败：{error}";
-            return result;
-        }
-
-        result.Success = true;
-        result.InstalledPath = indexBin;
-        AppLogger.Instance.Info($"Bundles2 补丁安装完成：{indexBin}");
         return result;
     }
 
@@ -678,14 +684,13 @@ public class PatchInstaller
     }
 
     /// <summary>
-    /// GGPK 模式：调用 GGPKExtractor.exe 从 Content.ggpk 提取指定虚拟路径的文件到临时目录。
-    /// GGPKExtractor 参数：&lt;Content.ggpk&gt; &lt;输出目录&gt;，提取后保持内部路径结构。
-    /// 提取后校验文件 LastWriteTime，确保确实被刷新（参考 poe2_price-main update_price_patch.ps1:1717-1720）。
+    /// GGPK 模式：通过内置 BundledGGPK 从 Content.ggpk 提取指定虚拟路径的文件到临时目录。
+    /// 只读取需要的单个文件，不会提取整个 GGPK。
+    /// 输出为扁平化文件名（'/' → '_'），放在 outputDir/data/ 下，与旧格式兼容。
     /// </summary>
     private async Task<ExtractionResult> ExtractFromGgpkAsync(
         string gameDirectory,
         string virtualPath,
-        string ggpkExtractor,
         CancellationToken cancellationToken)
     {
         var result = new ExtractionResult();
@@ -698,63 +703,43 @@ public class PatchInstaller
 
         var outputDir = Path.Combine(_exportService.OutputDirectory, "extracted_ggpk");
         Directory.CreateDirectory(outputDir);
-        // GGPKExtractor 实际输出为扁平化文件名：把虚拟路径中的 '/' 替换为 '_'，
-        // 所有 datc64 放在 outputDir/data/ 下。参考 poe2_price-main 的
-        // $LatestDir/data/$($LanguagePath -replace '/','_')。
+        // 扁平化文件名：把虚拟路径中的 '/' 替换为 '_'，放在 outputDir/data/ 下。
+        // 与 ItemNameTranslator.FindDatc64Path 的查找逻辑保持一致。
         var flattenedName = virtualPath.Replace('/', '_');
         result.FilePath = Path.Combine(outputDir, "data", flattenedName);
 
-        // 若已提取且文件存在，先删除避免覆盖冲突。
-        if (File.Exists(result.FilePath))
+        // 内置实现：直接通过 BundledGGPK 打开 GGPK，从 bundle 索引中提取指定虚拟路径的文件。
+        // parsePathsInIndex: false + 手动 ParsePaths：Steam/Epic 版本的 _.index.bin
+        // 常有 5 个左右文件 path hash 不匹配，构造器传 true 会抛异常。
+        try
         {
-            try { File.Delete(result.FilePath); }
-            catch { /* 忽略删除失败，GGPKExtractor 会覆盖 */ }
+            await Task.Run(() =>
+            {
+                using var ggpk = new BundledGGPK(contentGgpk, parsePathsInIndex: false);
+                var failed = ggpk.Index.ParsePaths();
+                if (failed > 0)
+                {
+                    AppLogger.Instance.Warn($"GGPK 索引解析：{failed} 个文件路径解析失败（已忽略）");
+                }
+
+                if (!ggpk.Index.TryGetFile(virtualPath, out var fileRecord) || fileRecord == null)
+                {
+                    throw new InvalidOperationException($"未在 GGPK 中找到文件：{virtualPath}");
+                }
+
+                var data = fileRecord.Read().ToArray();
+                var dir = Path.GetDirectoryName(result.FilePath);
+                if (!string.IsNullOrEmpty(dir))
+                {
+                    Directory.CreateDirectory(dir);
+                }
+                File.WriteAllBytes(result.FilePath, data);
+                AppLogger.Instance.Info($"GGPK 提取成功：{virtualPath} -> {result.FilePath} ({data.Length} bytes)");
+            }, cancellationToken);
         }
-
-        var psi = new ProcessStartInfo
+        catch (Exception ex)
         {
-            FileName = ggpkExtractor,
-            Arguments = $"\"{contentGgpk}\" \"{outputDir}\"",
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            CreateNoWindow = true,
-        };
-
-        // 记录提取开始时间，稍后校验文件确实被刷新，避免误用旧缓存。
-        var extractStartedAt = DateTime.Now.AddSeconds(-2);
-
-        AppLogger.Instance.Info($"提取 GGPK 文件：{psi.FileName} {psi.Arguments}");
-        using var process = Process.Start(psi);
-        if (process == null)
-        {
-            result.ErrorMessage = "无法启动 GGPKExtractor 进程";
-            return result;
-        }
-
-        var output = await process.StandardOutput.ReadToEndAsync(cancellationToken);
-        var error = await process.StandardError.ReadToEndAsync(cancellationToken);
-        await process.WaitForExitAsync(cancellationToken);
-
-        LogProcessOutput(output, error);
-
-        if (process.ExitCode != 0)
-        {
-            result.ErrorMessage = $"GGPKExtractor 提取失败（退出码 {process.ExitCode}）：{error}";
-            return result;
-        }
-
-        if (!File.Exists(result.FilePath))
-        {
-            result.ErrorMessage = $"提取后文件不存在：{result.FilePath}，虚拟路径：{virtualPath}";
-            return result;
-        }
-
-        // 校验文件确实被刷新（参考 poe2_price-main update_price_patch.ps1:1717-1720）。
-        var fileInfo = new FileInfo(result.FilePath);
-        if (fileInfo.LastWriteTime < extractStartedAt)
-        {
-            result.ErrorMessage = $"提取后文件未被刷新（LastWriteTime={fileInfo.LastWriteTime}），可能 GGPKExtractor 未覆盖旧文件。虚拟路径：{virtualPath}";
+            result.ErrorMessage = $"GGPK 提取失败：{ex.Message}";
             return result;
         }
 
@@ -765,7 +750,7 @@ public class PatchInstaller
     /// <summary>
     /// 将提取的原始 datc64 打包成 GGPK 还原 zip。
     /// zip 内条目名为游戏内虚拟路径（如 data/balance/baseitemtypes.datc64），
-    /// PatchBundledGGPK3 还原时按此路径写回 Content.ggpk。
+    /// 还原时通过 Index.Replace 按此路径写回 Content.ggpk。
     /// </summary>
     private static void CreateGgpkRestoreZip(string zipPath, string sourceDat, string virtualPath)
     {
@@ -785,13 +770,12 @@ public class PatchInstaller
     }
 
     /// <summary>
-    /// 调用 PatchBundledGGPK3 将还原 zip 中的干净 datc64 条目写回 Content.ggpk。
-    /// 替代旧的 100GB 完整文件复制还原方式。
+    /// 用 BundledGGPK + LibBundle3.Index.Replace 将还原 zip 中的干净 datc64 条目写回 Content.ggpk。
+    /// 仅写补丁 delta，不复制整个 100GB+ 文件。
     /// </summary>
     private async Task<InstallResult> RestoreGgpkFromZipAsync(
         string gameDirectory,
         string restoreZip,
-        ToolPaths tools,
         GameModeInfo modeInfo,
         CancellationToken cancellationToken)
     {
@@ -807,40 +791,48 @@ public class PatchInstaller
             return result;
         }
 
-        var psi = new ProcessStartInfo
+        // 与 InstallToGgpkAsync 相同的机制：BundledGGPK + Index.Replace。
+        // 区别仅在于 zip 内容：install 写入补丁后的 datc64，restore 写入原始干净 datc64。
+        AppLogger.Instance.Info($"从还原包还原 GGPK（内置）：ggpk={ggpkPath}, zip={restoreZip}");
+        try
         {
-            FileName = "dotnet",
-            Arguments = $"\"{tools.PatchBundledGgpk}\" \"{ggpkPath}\" \"{restoreZip}\"",
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            CreateNoWindow = true,
-        };
+            int replaced = await Task.Run(() =>
+            {
+                using var ggpk = new BundledGGPK(ggpkPath, parsePathsInIndex: false);
+                var failedPaths = ggpk.Index.ParsePaths();
+                if (failedPaths > 0)
+                {
+                    AppLogger.Instance.Warn($"GGPK 索引解析：{failedPaths} 个文件路径解析失败（已忽略）");
+                }
 
-        AppLogger.Instance.Info($"从还原包还原 GGPK：{psi.FileName} {psi.Arguments}");
-        using var process = Process.Start(psi);
-        if (process == null)
+                using var zip = ZipFile.OpenRead(restoreZip);
+                return BundleIndex.Replace(
+                    ggpk.Index,
+                    zip.Entries,
+                    (fileRecord, path) =>
+                    {
+                        var bundlePath = fileRecord.BundleRecord?.Path ?? "<unknown>";
+                        AppLogger.Instance.Info($"  GGPK 还原：{path} -> size={fileRecord.Size} bundle={bundlePath}");
+                        return false;
+                    },
+                    saveIndex: true);
+            }, cancellationToken);
+
+            AppLogger.Instance.Info($"GGPK 还原完成：替换/新增 {replaced} 个文件，ggpk={ggpkPath}");
+            result.Success = true;
+            result.InstalledPath = ggpkPath;
+            result.GameMode = modeInfo.DisplayName;
+        }
+        catch (OperationCanceledException)
         {
-            result.ErrorMessage = "无法启动 dotnet 进程（PatchBundledGGPK3）";
-            return result;
+            throw;
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Instance.Error(ex, "GGPK 还原失败");
+            result.ErrorMessage = $"GGPK 还原失败：{ex.Message}";
         }
 
-        var output = await process.StandardOutput.ReadToEndAsync(cancellationToken);
-        var error = await process.StandardError.ReadToEndAsync(cancellationToken);
-        await process.WaitForExitAsync(cancellationToken);
-
-        LogProcessOutput(output, error);
-
-        if (process.ExitCode != 0)
-        {
-            result.ErrorMessage = $"GGPK 还原失败（退出码 {process.ExitCode}）：{error}";
-            return result;
-        }
-
-        result.Success = true;
-        result.InstalledPath = ggpkPath;
-        result.GameMode = modeInfo.DisplayName;
-        AppLogger.Instance.Info($"GGPK 还原完成：{ggpkPath}");
         return result;
     }
 
@@ -931,12 +923,6 @@ public class PatchInstaller
         GameModeInfo modeInfo,
         CancellationToken cancellationToken = default)
     {
-        if (!TryResolveToolPaths(out var tools, out var toolError))
-        {
-            AppLogger.Instance.Warn($"翻译表提取跳过：{toolError}");
-            return false;
-        }
-
         var enVirtualPath = "data/balance/baseitemtypes.datc64";
         var langVirtualPath = modeInfo.BaseItemsPath;
 
@@ -944,12 +930,12 @@ public class PatchInstaller
         var needEn = enVirtualPath != langVirtualPath;
 
         // Bundles2 模式下 BundleExtractorService 已直接输出到保留虚拟路径结构的位置。
-        // GGPK 模式由 GGPKExtractor 保持路径结构，无需移动。
+        // GGPK 模式由内置 BundledGGPK 提取，输出扁平化文件名，无需移动。
         if (needEn)
         {
             var enResult = modeInfo.Mode == GameMode.Bundles2
                 ? await ExtractFromBundles2Async(gameDirectory, enVirtualPath, cancellationToken)
-                : await ExtractFromGgpkAsync(gameDirectory, enVirtualPath, tools.GgpkExtractor, cancellationToken);
+                : await ExtractFromGgpkAsync(gameDirectory, enVirtualPath, cancellationToken);
             if (!enResult.Success)
             {
                 AppLogger.Instance.Warn($"英文版 datc64 提取失败：{enResult.ErrorMessage}");
@@ -969,7 +955,7 @@ public class PatchInstaller
         {
             var langResult = modeInfo.Mode == GameMode.Bundles2
                 ? await ExtractFromBundles2Async(gameDirectory, langVirtualPath, cancellationToken)
-                : await ExtractFromGgpkAsync(gameDirectory, langVirtualPath, tools.GgpkExtractor, cancellationToken);
+                : await ExtractFromGgpkAsync(gameDirectory, langVirtualPath, cancellationToken);
             if (!langResult.Success)
             {
                 AppLogger.Instance.Warn($"目标语言 datc64 提取失败：{langResult.ErrorMessage}");
@@ -978,31 +964,6 @@ public class PatchInstaller
         }
 
         AppLogger.Instance.Info($"翻译表 datc64 提取完成：英文={(needEn ? "已提取" : "同语言")}，目标语言=已就绪");
-        return true;
-    }
-
-    private static bool TryResolveToolPaths(out ToolPaths tools, out string error)
-    {
-        tools = new ToolPaths();
-        error = "";
-
-        tools.PatchBundle3 = ResolveToolPath("tools", "PatchTools", "PatchBundle3.exe");
-        if (!File.Exists(tools.PatchBundle3))
-        {
-            error = $"未找到 PatchBundle3.exe：{tools.PatchBundle3}";
-            return false;
-        }
-
-        tools.PatchBundledGgpk = ResolveToolPath("tools", "PatchTools", "PatchBundledGGPK3.dll");
-        if (!File.Exists(tools.PatchBundledGgpk))
-        {
-            error = $"未找到 PatchBundledGGPK3.dll：{tools.PatchBundledGgpk}";
-            return false;
-        }
-
-        // GGPKExtractor 为国际服 GGPK 模式专用，国服不需要，此处仅解析路径不强制检查。
-        tools.GgpkExtractor = ResolveToolPath("tools", "GGPKExtractor", "GGPKExtractor.exe");
-
         return true;
     }
 
@@ -1035,19 +996,6 @@ public class PatchInstaller
         return bundledPath;
     }
 
-    private static string ResolveToolPath(params string[] parts)
-    {
-        var outputPath = Path.Combine(new[] { AppContext.BaseDirectory }.Concat(parts).ToArray());
-        if (File.Exists(outputPath))
-        {
-            return outputPath;
-        }
-
-        var segments = new List<string> { AppContext.BaseDirectory, "..", "..", ".." };
-        segments.AddRange(parts);
-        return Path.GetFullPath(Path.Combine(segments.ToArray()));
-    }
-
     private static void LogProcessOutput(string output, string error)
     {
         if (!string.IsNullOrWhiteSpace(output))
@@ -1058,14 +1006,6 @@ public class PatchInstaller
         {
             AppLogger.Instance.Warn($"子进程错误输出：{error}");
         }
-    }
-
-    private class ToolPaths
-    {
-        public string PatchBundle3 { get; set; } = "";
-        public string PatchBundledGgpk { get; set; } = "";
-        /// <summary>GGPKExtractor.exe 路径，国际服 GGPK 模式下必需，国服可缺省。</summary>
-        public string GgpkExtractor { get; set; } = "";
     }
 
     private class ExtractionResult

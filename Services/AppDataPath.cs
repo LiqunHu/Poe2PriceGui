@@ -56,14 +56,14 @@ public static class AppDataPath
 
     /// <summary>
     /// 泥人补丁 GGPK 模式备份 zip（与 Bundles2 模式的 smoother.bak 区分）。
-    /// SmootherGgpkBackupStore 调用 SmootherPatchBundledGGPK3 --backup 产生。
+    /// SmootherGgpkBackupStore.Backup 从 Content.ggpk 抽出 _.index.bin 打包产生。
     /// </summary>
     public static string SmootherGgpkBackup => Path.Combine(Root, "smoother_ggpk.zip");
 
     static AppDataPath()
     {
         var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        Root = Path.Combine(localAppData, "Poe2PriceGui");
+        Root = Path.Combine(localAppData, "Poe2PriceGuiData");
         Cache = Path.Combine(Root, "cache");
         Data = Path.Combine(Root, "data");
         Logs = Path.Combine(Root, "logs");
