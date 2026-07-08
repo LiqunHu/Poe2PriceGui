@@ -554,24 +554,67 @@ public class PoecurrencyPriceService : IPriceService
             }
         }
 
+        // if (raw.HasError)
+        // {
+        //     if (avg > 0)
+        //     {
+        //         return (avg, $"{GeometricMeanSource(raw.BuyAverage, raw.SellAverage)}_error_fallback");
+        //     }
+
+        //     // 今日均价为 0 时，回退到昨日均价（比 prev_buy1 更稳定，prev_buy1 可能就是触发异常的错误数据）。
+        //     var avgYesterday = GeometricMean(raw.BuyAverageYesterday, raw.SellAverageYesterday);
+        //     if (avgYesterday > 0)
+        //     {
+        //         return (avgYesterday, $"{GeometricMeanSource(raw.BuyAverageYesterday, raw.SellAverageYesterday)}_yesterday_error_fallback");
+        //     }
+
+        //     if (raw.PreviousBuy1 > 0)
+        //     {
+        //         return (raw.PreviousBuy1, "prev_buy1_error_fallback");
+        //     }
+        // }
+
         if (raw.HasError)
         {
+            // 1) 优先看 latest，如果 latest 本身没那么离谱，用它。
+            var latestSpread = (raw.LatestBuy1 > 0 && raw.LatestSell1 > 0)
+                ? SpreadRatio(raw.LatestBuy1, raw.LatestSell1)
+                : 0;
+            if (latestSpread > 0 && latestSpread <= 10)
+            {
+                var latest = ChoosePairPrice(raw.LatestBuy1, raw.LatestSell1, "latest_buy1", "latest_sell1");
+                if (latest.price > 0)
+                    return (latest.price, $"{latest.source}_error_fallback");
+            }
+
+            // 2) 均价两侧差距过大（>100 倍）时，认为有一侧被 OCR 污染，取较小/较安全的一侧。
+            var avgSpread = (raw.BuyAverage > 0 && raw.SellAverage > 0)
+                ? SpreadRatio(raw.BuyAverage, raw.SellAverage)
+                : 0;
+            if (avgSpread > 100)
+            {
+                var safer = raw.BuyAverage > 0 && raw.SellAverage > 0
+                    ? Math.Min(raw.BuyAverage, raw.SellAverage)
+                    : Math.Max(raw.BuyAverage, raw.SellAverage);
+                if (safer > 0)
+                    return (safer, "safer_avg_error_fallback");
+            }
+
+            // 3) 如果均价还能用，回退到几何均值。
             if (avg > 0)
             {
                 return (avg, $"{GeometricMeanSource(raw.BuyAverage, raw.SellAverage)}_error_fallback");
             }
 
-            // 今日均价为 0 时，回退到昨日均价（比 prev_buy1 更稳定，prev_buy1 可能就是触发异常的错误数据）。
-            var avgYesterday = GeometricMean(raw.BuyAverageYesterday, raw.SellAverageYesterday);
-            if (avgYesterday > 0)
-            {
-                return (avgYesterday, $"{GeometricMeanSource(raw.BuyAverageYesterday, raw.SellAverageYesterday)}_yesterday_error_fallback");
-            }
+            // 4) 今日均价不可用，优先昨日 sell 均价（通常比 buy 稳定，且不容易被 OCR 放大）。
+            if (raw.SellAverageYesterday > 0)
+                return (raw.SellAverageYesterday, "sell_avg_yesterday_error_fallback");
+
+            if (raw.BuyAverageYesterday > 0)
+                return (raw.BuyAverageYesterday, "buy_avg_yesterday_error_fallback");
 
             if (raw.PreviousBuy1 > 0)
-            {
                 return (raw.PreviousBuy1, "prev_buy1_error_fallback");
-            }
         }
 
         var latestWithRef = ChoosePairPriceWithReference(
