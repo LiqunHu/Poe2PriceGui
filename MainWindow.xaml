@@ -268,6 +268,8 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
                     <TextBlock Grid.Row="0" Text="工具箱" FontSize="20" FontWeight="Bold" Margin="0,0,0,20"/>
@@ -535,34 +537,18 @@
                                     Command="{Binding ExportStatsCacheCommand}"
                                     Padding="15,5" Margin="0,0,10,0"
                                     ToolTip="拉取 POE2 交易 API 的 stats 数据并导出为 JSON 文件，便于排查词缀匹配问题。需先配置 POESESSID。"/>
-                            <TextBlock Text="输出：data/stats_cache_debug.json"
-                                       VerticalAlignment="Center"
-                                       Foreground="Gray"
-                                       FontSize="11" Margin="0,0,15,0"/>
                             <Button Content="生成简中翻译表"
                                     Command="{Binding GenerateTranslationsCommand}"
                                     Padding="15,5" Margin="0,0,10,0"
                                     ToolTip="开发者用：从游戏 datc64 提取英文+简中物品名，构建翻译表保存到 data/translations/。需先配置游戏目录。"/>
-                            <TextBlock Text="输出：translations_zh-CN.json"
-                                       VerticalAlignment="Center"
-                                       Foreground="Gray"
-                                       FontSize="11" Margin="0,0,15,0"/>
                             <Button Content="生成繁中翻译表"
                                     Command="{Binding GenerateTranslationsTradCommand}"
                                     Padding="15,5" Margin="0,0,10,0"
                                     ToolTip="开发者用：从游戏 datc64 提取英文+繁中物品名，构建翻译表保存到 data/translations/。需先配置游戏目录。"/>
-                            <TextBlock Text="输出：translations_zh-TW.json"
-                                       VerticalAlignment="Center"
-                                       Foreground="Gray"
-                                       FontSize="11" Margin="0,0,15,0"/>
                             <Button Content="🔄 强制切换国际服/国服"
                                     Command="{Binding ForceSwitchServerCommand}"
                                     Padding="15,5" Margin="0,0,10,0"
                                     ToolTip="调试用：无视游戏目录检测结果，强制切换价格数据源。当前模式见首页标题。"/>
-                            <TextBlock Text="{Binding PriceDataSourceLabel, Mode=OneWay}"
-                                       VerticalAlignment="Center"
-                                       Foreground="DodgerBlue"
-                                       FontSize="11"/>
                         </StackPanel>
                     </GroupBox>
 

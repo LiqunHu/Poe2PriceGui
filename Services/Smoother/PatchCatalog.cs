@@ -67,6 +67,58 @@ public static class PatchCatalog
         "metadata/effects/spells/monsters_effects/league_delirium/deliriumobject/",       //恢复弘之镜系列的东西
     };
 
+    ///<summary>
+    /// effects_new 补丁跳过的路径前缀。这些路径下的 .epk 文件不能被修改。
+    /// </summary>
+    public static readonly string[] EffectNewProtectedPrefixes = {
+        //Viper Azmeri 相关特效：混沌矛充能、死亡溶解、浮现、待机、精灵出现（熊、猫、灵长类）、受害者血液等。Viper Azmeri 是 Act 3 第四章 的一个 Boss 或特殊怪物，这些是其技能和状态的特效。
+        "metadata/effects/spells/monsters_effects/act3_four/viperazmeri/",
+        
+        //裂隙（Breach）联赛
+        "metadata/effects/spells/monsters_effects/breach/fire/hellscapepaleelite1/",
+        //"metadata/effects/spells/monsters_effects/breach/fire/hellscapepaleelite2/",
+        //"metadata/effects/spells/monsters_effects/breach/lightning/demonicspikethrower/",
+        //"metadata/effects/spells/monsters_effects/breach/lightning/lightning_souleater/",
+        
+        //深渊
+        "metadata/effects/spells/monsters_effects/league_abyss/general_effects/kurgals_gasp/",
+        "metadata/effects/spells/monsters_effects/league_abyss/kulemak/",
+        "metadata/effects/spells/monsters_effects/league_abyss/paleelite/",
+      
+        //苦难（Affliction）联赛 装饰物（doodads）的淡入/淡出特效。
+        //"metadata/effects/spells/monsters_effects/league_affliction/affliction_mods/",
+        
+        //Azmeri 联赛（可能为新赛季内容）特效：涉及 voodoo_king_boss（巫毒王）的大量技能（死亡标记、青蛙膨胀、传送、缓慢衰减、地面符文等）、crazedcannibalpicts_female（疯狂食人女）的武器挥动、fallenstag（堕落雄鹿）的眼睛发光、pictfemalestaff（女巫法杖）的蓄力施法、screecherminiboss（尖叫者小Boss）的传送，以及多种资源类特效（电荷层、引导光、怪物消散等）
+        "metadata/effects/spells/monsters_effects/league_azmeri/monster_fx/vodoo_king_boss/",
+        "metadata/effects/spells/monsters_effects/league_azmeri/monsters/crazedcannibalpicts_female/",
+        "metadata/effects/spells/monsters_effects/league_azmeri/monsters/fallenstag/",
+        "metadata/effects/spells/monsters_effects/league_azmeri/monsters/pictfemalestaff/",
+        "metadata/effects/spells/monsters_effects/league_azmeri/monsters/pictmaleaxedagger/",
+        "metadata/effects/spells/monsters_effects/league_azmeri/monsters/screecherminiboss/",
+        "metadata/effects/spells/monsters_effects/league_azmeri/resources/charges/",
+        "metadata/effects/spells/monsters_effects/league_azmeri/resources/guiding_light/",
+        "metadata/effects/spells/monsters_effects/league_azmeri/resources/monster_dust/",        
+
+        //祭祀（Ritual）联赛 特效：包括 aoifeviridi（艾菲·维里迪）的消失/出现、demonrhoa（恶魔恐鸟）眼睛发光、funguszombietreehollow（真菌僵尸树）蓄力、生命祭祀的血池、各种 omen（预兆）激活、多种 ritual_rune（祭祀符文）类型（混沌、冰、火、闪电、物理、瓦尔等）的淡入淡出，以及林地祭祀的激活、聚集、准备等状态。
+        "metadata/effects/spells/monsters_effects/league_ritual/aoifeviridi_disappearing/",
+        "metadata/effects/spells/monsters_effects/league_ritual/demonfaction/demonrhoa/",
+        "metadata/effects/spells/monsters_effects/league_ritual/druidic_faction/funguszombietreehollow/",
+        "metadata/effects/spells/monsters_effects/league_ritual/life_ritual/",
+        "metadata/effects/spells/monsters_effects/league_ritual/omens/",
+        "metadata/effects/spells/monsters_effects/league_ritual/ritual_rune/",
+        "metadata/effects/spells/monsters_effects/league_ritual/ritual_vaal/",
+        "metadata/effects/spells/monsters_effects/league_ritual/woods/",
+
+        //怪物词缀 相关：主要是 tormented_spirits（被附身的幽灵）及其变体（fox_spirit、primate_spirit、spirit_animals、touched）的升级特效（普通→魔法→稀有→传奇，以及 primal/sacred/vivid/wild 不同元素的死亡/激活特效）。这些是怪物被特定词缀影响时的视觉表现。
+        "metadata/effects/spells/monsters_effects/monster_mods/tormented_spirits/fox_spirit/",
+        "metadata/effects/spells/monsters_effects/monster_mods/tormented_spirits/possession/",
+        "metadata/effects/spells/monsters_effects/monster_mods/tormented_spirits/primate_spirit/",
+        "metadata/effects/spells/monsters_effects/monster_mods/tormented_spirits/spirit_animals/",
+        "metadata/effects/spells/monsters_effects/monster_mods/tormented_spirits/spirit_of_the_serpent/",
+        "metadata/effects/spells/monsters_effects/monster_mods/tormented_spirits/touched/",
+    };
+
+
     /// <summary>
     /// 启动场景保护路径前缀。这些路径下的文件不能被修改。
     /// </summary>
@@ -77,6 +129,23 @@ public static class PatchCatalog
         "metadata/doodads/characterselection",
         "metadata/materials/characterselection",
         "metadata/effects/characterselection",
+    };
+
+    /// <summary>
+    /// 测试补丁覆盖的 9 个 metadata 二级子目录前缀。
+    /// 来源：tinybundle_analysis.tsv 中所有路径的 2 级目录前缀分布。
+    /// </summary>
+    public static readonly string[] TestTargetPrefixes =
+    {
+        "metadata/effects/",
+        "metadata/monsters/",
+        "metadata/terrain/",
+        "metadata/items/",
+        "metadata/particles/",
+        "metadata/critters/",
+        "metadata/characters/",
+        "metadata/shrines/",
+        "metadata/miscellaneousobjects/",
     };
 
     #endregion
@@ -101,7 +170,9 @@ public static class PatchCatalog
         new PatchInfo { Id = PatchId.SkillSounds, Name = "skill-sounds", DisplayName = "技能音效", Description = "静音技能特效音效（清空 SoundEvents/SoundParams）。" },
         new PatchInfo { Id = PatchId.MonsterSounds, Name = "monster-sounds", DisplayName = "怪物音效", Description = "静音怪物音效（清空 SoundEvents/SoundParams）。" },
         new PatchInfo { Id = PatchId.MtxSoft, Name = "mtx-soft", DisplayName = "微交易软化", Description = "清空微交易特效/粒子文件。" },
+        new PatchInfo { Id = PatchId.Effects_New, Name = "effects-new", DisplayName = "特效(新)", Description = "剥离非必要的客户端特效块（新）。" },
         new PatchInfo { Id = PatchId.Blanket, Name = "blanket", DisplayName = "地毯式", Description = "激进地毯式补丁：清空 metadata/ 下所有 .epk 并简化所有 .ao。" },
+        new PatchInfo { Id = PatchId.Test, Name = "test", DisplayName = "特效(精准)", Description = "精准清理实际覆盖的 9 个 metadata 子目录选择 .epk/.ao。" },
     };
 
     public static IReadOnlyList<PresetInfo> AllPresets { get; } = new[]
@@ -252,6 +323,11 @@ public static class PatchCatalog
                 // 地毯式：覆盖整个 metadata/ 下的 .epk 和 .ao（但保护启动场景）。
                 return StartsWithPathCi(path, "metadata/")
                     && (EndsWithPathCi(path, ".epk") || EndsWithPathCi(path, ".ao"));
+            case PatchId.Effects_New:
+                return StartsWithPathCi(path, "metadata/effects/spells/monsters_effects")
+                    && EndsWithPathCi(path, ".epk");
+            case PatchId.Test:
+                return IsTestTarget(path);
             default:
                 return false;
         }
@@ -307,6 +383,11 @@ public static class PatchCatalog
                 // 地毯式：与 PatchTargetsPath 一致，覆盖整个 metadata/ 下的 .epk 和 .ao。
                 return StartsWithPathCi(path, "metadata/")
                     && (EndsWithPathCi(path, ".epk") || EndsWithPathCi(path, ".ao"));
+            case PatchId.Effects_New:
+               return StartsWithPathCi(path, "metadata/effects/spells/monsters_effects")
+                    && EndsWithPathCi(path, ".epk");
+            case PatchId.Test:
+                return IsTestTarget(path);
             default:
                 return false;
         }
@@ -371,6 +452,17 @@ public static class PatchCatalog
         return normalized.Contains("characterselection")
             || normalized.Contains("char_selection")
             || Array.Exists(StartupSceneProtectedPrefixes, p => normalized.StartsWith(p, StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// 测试补丁路径匹配：仅匹配 TestTargetPaths.Set 中的精确路径（与 TinyBundle TSV 完全一致）。
+    /// 不做启动场景保护排除，以便与 TinyBundle TSV（含 characterselection 路径）精确对比。
+    /// 路径比较不区分大小写；输入路径中的反斜杠会被规范化为正斜杠。
+    /// </summary>
+    public static bool IsTestTarget(string path)
+    {
+        var normalized = path.Replace('\\', '/');
+        return TestTargetPaths.Set.Contains(normalized);
     }
 
     public static string NormalizePath(string path)

@@ -24,8 +24,12 @@ public enum PatchId
     SkillSounds,
     MonsterSounds,
     MtxSoft,
+
+    Effects_New,
     /// <summary>地毯式补丁：清空全部 .epk + 简化全部 .ao，覆盖整个 metadata/ 目录。</summary>
     Blanket,
+    /// <summary>测试补丁：按 TinyBundle 实际覆盖的 9 个 metadata 子目录选择 .epk/.ao 文件，用于与 TinyBundle TSV 对比验证。</summary>
+    Test,
 }
 
 /// <summary>

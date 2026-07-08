@@ -127,6 +127,12 @@ internal static class PatchTransforms
                 return MtxSoft(path, bytes);
             case PatchId.Blanket:
                 return Blanket(path, bytes);
+            case PatchId.Test:
+                // 测试模式：复用 Blanket 变换（.epk 清空 + .ao 清空 Lights/BaseAnimationEvents）。
+                // 路径选择由 PatchCatalog.IsTestTarget 控制（9 个 metadata 子目录）。
+                return Blanket(path, bytes);
+            case PatchId.Effects_New:
+                return Effects_New(path, bytes);
             default:
                 return bytes;
         }
@@ -380,6 +386,15 @@ internal static class PatchTransforms
                 return bytes;
             }
         }
+
+        foreach (var prefix in PatchCatalog.EffectNewProtectedPrefixes)
+        {
+            if (normalized.StartsWith(prefix, StringComparison.Ordinal))
+            {
+                return bytes;
+            }
+        }
+
         var text = DecodeUtf16(bytes);
         return EncodeUtf16Bom(TextBlockParser.StripClientBlocks(text, EffectKeepBlocks));
     }
@@ -408,6 +423,15 @@ internal static class PatchTransforms
                 return bytes;
             }
         }
+
+        foreach (var prefix in PatchCatalog.EffectNewProtectedPrefixes)
+        {
+            if (normalized.StartsWith(prefix, StringComparison.Ordinal))
+            {
+                return bytes;
+            }
+        }
+
         var text = DecodeUtf16Lossless(bytes);
         if (text == null)
         {
@@ -446,6 +470,53 @@ internal static class PatchTransforms
 
     #endregion
 
+    #region Effects_New
+    //Effects_New
+    private static byte[] Effects_New(string path, byte[] bytes)
+    {
+        //受保护的不修改
+        var normalized = PatchCatalog.NormalizePath(path);
+        foreach (var prefix in PatchCatalog.EffectProtectedPrefixes)
+        {
+            if (normalized.StartsWith(prefix, StringComparison.Ordinal))
+            {
+                return bytes;
+            }
+        }
+
+        foreach (var prefix in PatchCatalog.EffectNewProtectedPrefixes)
+        {
+            if (normalized.StartsWith(prefix, StringComparison.Ordinal))
+            {
+                return bytes;
+            }
+        }
+
+        // .epk → 清空为 BOM（空字符串）。已经是 2 字节的跳过避免重复写入。
+        if (PatchCatalog.EndsWithPathCi(path, ".epk"))
+        {
+            if (bytes.Length <= 2) return bytes;
+            return EncodeUtf16Bom("");
+        }
+
+        // .ao → 清空 Lights + BaseAnimationEvents 块（场景灯光 + 动画事件）
+        var text = DecodeUtf16Lossless(bytes);
+        if (text == null)
+        {
+            return bytes;
+        }
+        var transformed = TextBlockParser.EmptyNamedBlocks(text, BlanketEmptyBlocks);
+        // 只有在 EmptyNamedBlocks 实际修改了文本时才重新编码，
+        // 避免对无目标块的 .ao 文件因 BOM 重编码产生无意义字节变更。
+        if (string.Equals(text, transformed, StringComparison.Ordinal))
+        {
+            return bytes;
+        }
+        return EncodeUtf16Bom(transformed);
+    }
+
+    #endregion
+
     #region Blanket
 
     /// <summary>
@@ -470,6 +541,14 @@ internal static class PatchTransforms
         //受保护的不修改
         var normalized = PatchCatalog.NormalizePath(path);
         foreach (var prefix in PatchCatalog.EffectProtectedPrefixes)
+        {
+            if (normalized.StartsWith(prefix, StringComparison.Ordinal))
+            {
+                return bytes;
+            }
+        }
+
+        foreach (var prefix in PatchCatalog.EffectNewProtectedPrefixes)
         {
             if (normalized.StartsWith(prefix, StringComparison.Ordinal))
             {

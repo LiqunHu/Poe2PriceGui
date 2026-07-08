@@ -77,6 +77,8 @@ public class MainViewModel : INotifyPropertyChanged
     private string _priceDataSourceLabel = "poecurrency.top (国服)";
     /// <summary>国际服物品名翻译器（英文名→游戏语言名）。</summary>
     private ItemNameTranslator? _itemNameTranslator;
+    /// <summary>翻译器加载任务，确保价格刷新前翻译表已就绪。</summary>
+    private Task? _translationLoadTask;
 
     public MainViewModel()
     {
@@ -1232,15 +1234,12 @@ public class MainViewModel : INotifyPropertyChanged
         }
 
         // 国服和国际服都需要翻译器：
-        // - 国际服：把 poe2scout 返回的英文名替换为游戏语言名。
+        // - 国际服：把 poe2scout 返回的英文名替换为繁体中文。
         // - 国服：合并国际服补充数据时，把英文名翻译为中文。
         // 翻译表来源：从已提取的 datc64 双文件构建（英文+目标语言），缓存到本地。
         _itemNameTranslator = new ItemNameTranslator();
-        var langCode = _isChinaServer ? "zh-CN" :
-            (!string.IsNullOrWhiteSpace(GameDirectory)
-                ? GameModeDetector.Detect(GameDirectory).LanguageCode
-                : Poe2LanguageDetector.GetDefaultLanguageCode(isChina: false));
-        _ = Task.Run(async () =>
+        var langCode = _isChinaServer ? "zh-CN" : Poe2LanguageDetector.GetDefaultLanguageCode(isChina: false);
+        _translationLoadTask = Task.Run(async () =>
         {
             if (!await _itemNameTranslator.LoadCacheAsync(langCode))
             {
@@ -1970,6 +1969,12 @@ public class MainViewModel : INotifyPropertyChanged
                     var intlPrices = await intlTask;
                     AppLogger.Instance.Info($"国服获取 {cnPrices.Count} 条，国际服获取 {intlPrices.Count} 条");
 
+                    // 确保翻译器已加载完成再使用（从缓存或已提取 datc64 构建）。
+                    if (_translationLoadTask != null)
+                    {
+                        await _translationLoadTask;
+                    }
+
                     // 翻译国际服英文名为中文，翻译表随程序打包，未命中翻译的物品跳过。
                     if (_itemNameTranslator is { HasTranslations: true })
                     {
@@ -2046,6 +2051,12 @@ public class MainViewModel : INotifyPropertyChanged
             var intlPricesList = await pricesTask;
             var changedCountIntl = 0;
             AppLogger.Instance.Info($"从网络获取价格 {intlPricesList.Count} 条");
+
+            // 确保翻译器已加载完成再使用（从缓存或已提取 datc64 构建）。
+            if (_translationLoadTask != null)
+            {
+                await _translationLoadTask;
+            }
 
             // 国际服：把英文物品名翻译为游戏语言名（如简中）。
             // 翻译在价格对比之前进行，保证旧数据（已翻译）和新数据 key 一致。
