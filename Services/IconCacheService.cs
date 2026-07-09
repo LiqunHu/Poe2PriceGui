@@ -80,35 +80,43 @@ public class IconCacheService
     /// </summary>
     public async Task LoadMappingAsync(CancellationToken cancellationToken = default)
     {
-        using var response = await _httpClient.GetAsync(IconApiUrl, cancellationToken);
-        response.EnsureSuccessStatusCode();
-
-        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-        using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
-
-        var urls = new Dictionary<string, string>();
-        var locals = new Dictionary<string, string>();
-
-        foreach (var element in document.RootElement.EnumerateArray())
+        try
         {
-            var itemName = GetString(element, "item_name");
-            var iconUrl = GetString(element, "item_icon");
-            var iconLocal = GetString(element, "item_icon_local");
+            using var response = await _httpClient.GetAsync(IconApiUrl, cancellationToken);
+            response.EnsureSuccessStatusCode();
 
-            if (string.IsNullOrWhiteSpace(itemName) || string.IsNullOrWhiteSpace(iconUrl))
+            await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+            using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
+
+            var urls = new Dictionary<string, string>();
+            var locals = new Dictionary<string, string>();
+
+            foreach (var element in document.RootElement.EnumerateArray())
             {
-                continue;
+                var itemName = GetString(element, "item_name");
+                var iconUrl = GetString(element, "item_icon");
+                var iconLocal = GetString(element, "item_icon_local");
+
+                if (string.IsNullOrWhiteSpace(itemName) || string.IsNullOrWhiteSpace(iconUrl))
+                {
+                    continue;
+                }
+
+                urls[itemName] = iconUrl;
+                if (!string.IsNullOrWhiteSpace(iconLocal))
+                {
+                    locals[itemName] = iconLocal;
+                }
             }
 
-            urls[itemName] = iconUrl;
-            if (!string.IsNullOrWhiteSpace(iconLocal))
-            {
-                locals[itemName] = iconLocal;
-            }
+            _iconUrls = urls;
+            _iconLocalPaths = locals;
+            AppLogger.Instance.Info($"图标映射加载成功，条目数={_iconUrls.Count}");
         }
-
-        _iconUrls = urls;
-        _iconLocalPaths = locals;
+        catch (Exception ex)
+        {
+            AppLogger.Instance.Error(ex, "图标映射加载失败");
+        }
     }
 
     public bool HasIcon(string itemName)

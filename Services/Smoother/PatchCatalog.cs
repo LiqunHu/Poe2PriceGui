@@ -81,33 +81,36 @@ public static class PatchCatalog
         //"metadata/effects/spells/monsters_effects/breach/lightning/lightning_souleater/",
         
         //深渊
-        "metadata/effects/spells/monsters_effects/league_abyss/general_effects/kurgals_gasp/",
-        "metadata/effects/spells/monsters_effects/league_abyss/kulemak/",
-        "metadata/effects/spells/monsters_effects/league_abyss/paleelite/",
+        //"metadata/effects/spells/monsters_effects/league_abyss/general_effects/kurgals_gasp/",
+        //"metadata/effects/spells/monsters_effects/league_abyss/kulemak/",
+        //"metadata/effects/spells/monsters_effects/league_abyss/paleelite/",
+        "metadata/effects/spells/monsters_effects/league_abyss/",
       
         //苦难（Affliction）联赛 装饰物（doodads）的淡入/淡出特效。
         //"metadata/effects/spells/monsters_effects/league_affliction/affliction_mods/",
         
         //Azmeri 联赛（可能为新赛季内容）特效：涉及 voodoo_king_boss（巫毒王）的大量技能（死亡标记、青蛙膨胀、传送、缓慢衰减、地面符文等）、crazedcannibalpicts_female（疯狂食人女）的武器挥动、fallenstag（堕落雄鹿）的眼睛发光、pictfemalestaff（女巫法杖）的蓄力施法、screecherminiboss（尖叫者小Boss）的传送，以及多种资源类特效（电荷层、引导光、怪物消散等）
-        "metadata/effects/spells/monsters_effects/league_azmeri/monster_fx/vodoo_king_boss/",
-        "metadata/effects/spells/monsters_effects/league_azmeri/monsters/crazedcannibalpicts_female/",
-        "metadata/effects/spells/monsters_effects/league_azmeri/monsters/fallenstag/",
-        "metadata/effects/spells/monsters_effects/league_azmeri/monsters/pictfemalestaff/",
-        "metadata/effects/spells/monsters_effects/league_azmeri/monsters/pictmaleaxedagger/",
-        "metadata/effects/spells/monsters_effects/league_azmeri/monsters/screecherminiboss/",
-        "metadata/effects/spells/monsters_effects/league_azmeri/resources/charges/",
-        "metadata/effects/spells/monsters_effects/league_azmeri/resources/guiding_light/",
-        "metadata/effects/spells/monsters_effects/league_azmeri/resources/monster_dust/",        
+        // "metadata/effects/spells/monsters_effects/league_azmeri/monster_fx/vodoo_king_boss/",
+        // "metadata/effects/spells/monsters_effects/league_azmeri/monsters/crazedcannibalpicts_female/",
+        // "metadata/effects/spells/monsters_effects/league_azmeri/monsters/fallenstag/",
+        // "metadata/effects/spells/monsters_effects/league_azmeri/monsters/pictfemalestaff/",
+        // "metadata/effects/spells/monsters_effects/league_azmeri/monsters/pictmaleaxedagger/",
+        // "metadata/effects/spells/monsters_effects/league_azmeri/monsters/screecherminiboss/",
+        // "metadata/effects/spells/monsters_effects/league_azmeri/resources/charges/",
+        // "metadata/effects/spells/monsters_effects/league_azmeri/resources/guiding_light/",
+        // "metadata/effects/spells/monsters_effects/league_azmeri/resources/monster_dust/",        
+        "metadata/effects/spells/monsters_effects/league_azmeri/",
 
         //祭祀（Ritual）联赛 特效：包括 aoifeviridi（艾菲·维里迪）的消失/出现、demonrhoa（恶魔恐鸟）眼睛发光、funguszombietreehollow（真菌僵尸树）蓄力、生命祭祀的血池、各种 omen（预兆）激活、多种 ritual_rune（祭祀符文）类型（混沌、冰、火、闪电、物理、瓦尔等）的淡入淡出，以及林地祭祀的激活、聚集、准备等状态。
-        "metadata/effects/spells/monsters_effects/league_ritual/aoifeviridi_disappearing/",
-        "metadata/effects/spells/monsters_effects/league_ritual/demonfaction/demonrhoa/",
-        "metadata/effects/spells/monsters_effects/league_ritual/druidic_faction/funguszombietreehollow/",
-        "metadata/effects/spells/monsters_effects/league_ritual/life_ritual/",
-        "metadata/effects/spells/monsters_effects/league_ritual/omens/",
-        "metadata/effects/spells/monsters_effects/league_ritual/ritual_rune/",
-        "metadata/effects/spells/monsters_effects/league_ritual/ritual_vaal/",
-        "metadata/effects/spells/monsters_effects/league_ritual/woods/",
+        // "metadata/effects/spells/monsters_effects/league_ritual/aoifeviridi_disappearing/",
+        // "metadata/effects/spells/monsters_effects/league_ritual/demonfaction/demonrhoa/",
+        // "metadata/effects/spells/monsters_effects/league_ritual/druidic_faction/funguszombietreehollow/",
+        // "metadata/effects/spells/monsters_effects/league_ritual/life_ritual/",
+        // "metadata/effects/spells/monsters_effects/league_ritual/omens/",
+        // "metadata/effects/spells/monsters_effects/league_ritual/ritual_rune/",
+        // "metadata/effects/spells/monsters_effects/league_ritual/ritual_vaal/",
+        // "metadata/effects/spells/monsters_effects/league_ritual/woods/",
+        "metadata/effects/spells/monsters_effects/league_ritual/",
 
         //怪物词缀 相关：主要是 tormented_spirits（被附身的幽灵）及其变体（fox_spirit、primate_spirit、spirit_animals、touched）的升级特效（普通→魔法→稀有→传奇，以及 primal/sacred/vivid/wild 不同元素的死亡/激活特效）。这些是怪物被特定词缀影响时的视觉表现。
         "metadata/effects/spells/monsters_effects/monster_mods/tormented_spirits/fox_spirit/",
@@ -165,14 +168,16 @@ public static class PatchCatalog
         new PatchInfo { Id = PatchId.Light, Name = "light", DisplayName = "光照", Description = "禁用选定的环境光照系统。" },
         new PatchInfo { Id = PatchId.Delirium, Name = "delirium", DisplayName = "谵妄", Description = "禁用谵妄/苦难环境效果。" },
         new PatchInfo { Id = PatchId.Particles, Name = "particles", DisplayName = "粒子", Description = "清空粒子效果文件。" },
-        new PatchInfo { Id = PatchId.Effects, Name = "effects", DisplayName = "特效", Description = "剥离非必要的客户端特效块。" },
         new PatchInfo { Id = PatchId.DisableSounds, Name = "disable-sounds", DisplayName = "静音", Description = "清空 SoundEvents/SoundParams 块实现静音。" },
         new PatchInfo { Id = PatchId.SkillSounds, Name = "skill-sounds", DisplayName = "技能音效", Description = "静音技能特效音效（清空 SoundEvents/SoundParams）。" },
         new PatchInfo { Id = PatchId.MonsterSounds, Name = "monster-sounds", DisplayName = "怪物音效", Description = "静音怪物音效（清空 SoundEvents/SoundParams）。" },
-        new PatchInfo { Id = PatchId.MtxSoft, Name = "mtx-soft", DisplayName = "微交易软化", Description = "清空微交易特效/粒子文件。" },
-        new PatchInfo { Id = PatchId.Effects_New, Name = "effects-new", DisplayName = "特效(新)", Description = "剥离非必要的客户端特效块（新）。" },
+        new PatchInfo { Id = PatchId.MtxSoft, Name = "mtx-soft", DisplayName = "微交易软化", Description = "清空微交易特效/粒子文件(可能影响部分角色人物技能)。" },
         new PatchInfo { Id = PatchId.Blanket, Name = "blanket", DisplayName = "地毯式", Description = "激进地毯式补丁：清空 metadata/ 下所有 .epk 并简化所有 .ao。" },
-        new PatchInfo { Id = PatchId.Test, Name = "test", DisplayName = "特效(精准)", Description = "精准清理实际覆盖的 9 个 metadata 子目录选择 .epk/.ao。" },
+        
+        new PatchInfo { Id = PatchId.Effects, Name = "effects", DisplayName = "特效", Description = "剥离较多客户端特效(人物怪物均有)。" },
+        new PatchInfo { Id = PatchId.Effects_New, Name = "effects-new", DisplayName = "特效(怪物)", Description = "剥离较多客户端特效(主要怪物)。" },
+        new PatchInfo { Id = PatchId.Test, Name = "test", DisplayName = "特效(精准)", Description = "精准清理特效文件(人物怪物均有,比默认少)。" },
+        new PatchInfo { Id = PatchId.EffectNone, Name = "effect-none", DisplayName = "不处理特效", Description = "不清理任何特效文件。" },
     };
 
     public static IReadOnlyList<PresetInfo> AllPresets { get; } = new[]

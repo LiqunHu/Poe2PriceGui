@@ -14,9 +14,13 @@ public partial class MainWindow : Window
 
     public MainWindow()
     {
+        AppTrace("InitializeComponent 前");
         InitializeComponent();
+        AppTrace("InitializeComponent 后 / MainViewModel 构造前");
         var viewModel = new MainViewModel();
+        AppTrace("MainViewModel 构造后");
         DataContext = viewModel;
+        AppTrace("DataContext 设置后");
 
         _globalHotkeyService = new GlobalHotkeyService(this, hotkeyId: 1);
         _globalHotkeyService.HotkeyPressed += async (_, _) => await viewModel.RunPriceCheckerAsync();
@@ -24,6 +28,29 @@ public partial class MainWindow : Window
 
         // 窗口句柄准备好后尝试注册一次热键。
         SourceInitialized += (_, _) => UpdateHotkeyRegistration(viewModel);
+        AppTrace("MainWindow 构造完成");
+    }
+
+    /// <summary>
+    /// 启动追踪：写到 startup.log，帮助定位闪退点。
+    /// </summary>
+    private static void AppTrace(string step)
+    {
+        try
+        {
+            var logDir = System.IO.Path.Combine(
+                System.Environment.GetFolderPath(System.Environment.SpecialFolder.LocalApplicationData),
+                "Poe2PriceGuiData", "logs");
+            System.IO.Directory.CreateDirectory(logDir);
+            System.IO.File.AppendAllText(
+                System.IO.Path.Combine(logDir, "startup.log"),
+                $"[{System.DateTime.Now:HH:mm:ss.fff}] [MainWindow] {step}\r\n",
+                System.Text.Encoding.UTF8);
+        }
+        catch
+        {
+            // 追踪日志失败不影响启动。
+        }
     }
 
     private void UpdateHotkeyRegistration(MainViewModel viewModel)

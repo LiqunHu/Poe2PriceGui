@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:models="clr-namespace:Poe2PriceGui.Models"
+        xmlns:converters="clr-namespace:Poe2PriceGui.Converters"
         mc:Ignorable="d"
         Title="POE2 查价助手" Height="700" Width="1200"
         WindowStartupLocation="CenterScreen"
@@ -11,6 +12,7 @@
 
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        <converters:InverseBoolToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter"/>
         <DataTemplate DataType="{x:Type models:ToastNotification}">
             <Border CornerRadius="8"
                     Background="{Binding Background}"
@@ -338,7 +340,7 @@
                                 <TextBlock Text="{Binding SmootherCameraZoom, StringFormat=F1}" VerticalAlignment="Center" Margin="6,0,0,0" FontSize="12" Foreground="#FF4A90D9"/>
                             </StackPanel>
 
-                            <!-- 补丁 checkbox 网格 -->
+                            <!-- 补丁选择网格：普通补丁用 CheckBox，单选组用 RadioButton -->
                             <TextBlock Text="补丁列表（勾选要应用的补丁）：" FontSize="12" Foreground="Gray" Margin="0,0,0,5"/>
                             <ItemsControl ItemsSource="{Binding SmootherPatchItems}" Margin="0,0,0,10">
                                 <ItemsControl.ItemsPanel>
@@ -348,28 +350,56 @@
                                 </ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <CheckBox Margin="0,3" Padding="2,0"
-                                                  IsChecked="{Binding IsChecked, Mode=TwoWay}">
-                                            <CheckBox.Content>
-                                                <StackPanel Orientation="Vertical">
-                                                    <TextBlock FontSize="12" FontWeight="Bold">
-                                                        <TextBlock.Style>
-                                                            <Style TargetType="TextBlock">
-                                                                <Setter Property="Text" Value="{Binding Info.DisplayName}"/>
-                                                                <Setter Property="Foreground" Value="Black"/>
-                                                                <Style.Triggers>
-                                                                    <DataTrigger Binding="{Binding Info.IsDangerous}" Value="True">
-                                                                        <Setter Property="Text" Value="{Binding Info.DisplayName, StringFormat={}{0}(危)}"/>
-                                                                        <Setter Property="Foreground" Value="Red"/>
-                                                                    </DataTrigger>
-                                                                </Style.Triggers>
-                                                            </Style>
-                                                        </TextBlock.Style>
-                                                    </TextBlock>
-                                                    <TextBlock Text="{Binding Info.Description}" FontSize="10" Foreground="Gray" TextWrapping="Wrap" MaxWidth="220"/>
-                                                </StackPanel>
-                                            </CheckBox.Content>
-                                        </CheckBox>
+                                        <Grid>
+                                            <CheckBox Margin="0,3" Padding="2,0"
+                                                      Visibility="{Binding IsRadio, Converter={StaticResource InverseBooleanToVisibilityConverter}}"
+                                                      IsChecked="{Binding IsChecked, Mode=TwoWay}">
+                                                <CheckBox.Content>
+                                                    <StackPanel Orientation="Vertical">
+                                                        <TextBlock FontSize="12" FontWeight="Bold">
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock">
+                                                                    <Setter Property="Text" Value="{Binding Info.DisplayName}"/>
+                                                                    <Setter Property="Foreground" Value="Black"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding Info.IsDangerous}" Value="True">
+                                                                            <Setter Property="Text" Value="{Binding Info.DisplayName, StringFormat={}{0}(危)}"/>
+                                                                            <Setter Property="Foreground" Value="Red"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
+                                                        </TextBlock>
+                                                        <TextBlock Text="{Binding Info.Description}" FontSize="10" Foreground="Gray" TextWrapping="Wrap" MaxWidth="220"/>
+                                                    </StackPanel>
+                                                </CheckBox.Content>
+                                            </CheckBox>
+
+                                            <RadioButton Margin="0,3" Padding="2,0"
+                                                         GroupName="{Binding GroupName}"
+                                                         Visibility="{Binding IsRadio, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                                         IsChecked="{Binding IsChecked, Mode=TwoWay}">
+                                                <RadioButton.Content>
+                                                    <StackPanel Orientation="Vertical">
+                                                        <TextBlock FontSize="12" FontWeight="Bold">
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock">
+                                                                    <Setter Property="Text" Value="{Binding Info.DisplayName}"/>
+                                                                    <Setter Property="Foreground" Value="Black"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding Info.IsDangerous}" Value="True">
+                                                                            <Setter Property="Text" Value="{Binding Info.DisplayName, StringFormat={}{0}(危)}"/>
+                                                                            <Setter Property="Foreground" Value="Red"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
+                                                        </TextBlock>
+                                                        <TextBlock Text="{Binding Info.Description}" FontSize="10" Foreground="Gray" TextWrapping="Wrap" MaxWidth="220"/>
+                                                    </StackPanel>
+                                                </RadioButton.Content>
+                                            </RadioButton>
+                                        </Grid>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>

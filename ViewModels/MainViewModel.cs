@@ -82,10 +82,16 @@ public class MainViewModel : INotifyPropertyChanged
 
     public MainViewModel()
     {
-        _httpClient = new HttpClient();
+        var handler = new HttpClientHandler
+        {
+            ServerCertificateCustomValidationCallback = (_, _, _, _) => true
+        };
+        _httpClient = new HttpClient(handler);
         _httpClient.DefaultRequestHeaders.Add("User-Agent", "Poe2PriceGui/1.0");
+        VmTrace("HttpClient 构造后");
         _settingsService = new SettingsService();
         _settings = _settingsService.Load();
+        VmTrace("Settings 加载后");
         _priceCheckerEnabled = _settings.PriceCheckerEnabled;
         _priceCheckerHotkey = _settings.PriceCheckerHotkey;
         _priceCheckerPoeSessionId = _settings.PriceCheckerPoeSessionId;
@@ -96,8 +102,11 @@ public class MainViewModel : INotifyPropertyChanged
         _intlFallbackEnabled = _settings.IntlFallbackEnabled;
 
         // 先根据已保存的游戏目录检测区服，再创建对应的价格/交易服务。
+        VmTrace("RefreshDetectedGameMode 前");
         RefreshDetectedGameMode();
+        VmTrace("RebuildPriceAndTradeServices 前");
         RebuildPriceAndTradeServices();
+        VmTrace("RebuildPriceAndTradeServices 后");
 
         // 异步获取赛季列表，校正当前赛季名（不阻塞构造函数）。
         _ = Task.Run(async () => await ValidateLeagueAsync());
@@ -108,6 +117,7 @@ public class MainViewModel : INotifyPropertyChanged
         _patchExportService = new PatchExportService();
         _patchInstaller = new PatchInstaller(_patchExportService);
         _updateService = new UpdateService();
+        VmTrace("Services 构造后");
         RefreshLastRefreshTimeDisplay();
 
         RefreshCommand = new RelayCommand(async () => await RefreshPricesAsync(), () => !IsBusy);
@@ -153,6 +163,29 @@ public class MainViewModel : INotifyPropertyChanged
 
         // 启动时优先加载本地数据。
         _ = LoadLocalPricesAsync();
+        VmTrace("MainViewModel 构造完成");
+    }
+
+    /// <summary>
+    /// 启动追踪：写到 startup.log，帮助定位闪退点。
+    /// </summary>
+    private static void VmTrace(string step)
+    {
+        try
+        {
+            var logDir = System.IO.Path.Combine(
+                System.Environment.GetFolderPath(System.Environment.SpecialFolder.LocalApplicationData),
+                "Poe2PriceGuiData", "logs");
+            System.IO.Directory.CreateDirectory(logDir);
+            System.IO.File.AppendAllText(
+                System.IO.Path.Combine(logDir, "startup.log"),
+                $"[{System.DateTime.Now:HH:mm:ss.fff}] [ViewModel] {step}\r\n",
+                System.Text.Encoding.UTF8);
+        }
+        catch
+        {
+            // 追踪日志失败不影响启动。
+        }
     }
 
     /// <summary>原始价格列表。</summary>
@@ -1495,7 +1528,36 @@ public class MainViewModel : INotifyPropertyChanged
         foreach (var patch in SmootherAllPatches)
         {
             var isChecked = saved.Contains(patch.Name, StringComparer.OrdinalIgnoreCase);
-            SmootherPatchItems.Add(new PatchSelectionItem(patch, isChecked));
+            var groupName = patch.Id switch
+            {
+                PatchId.Effects or PatchId.Effects_New or PatchId.Test or PatchId.EffectNone => "effects",
+                _ => null,
+            };
+            var item = new PatchSelectionItem(patch, isChecked, groupName);
+            item.PropertyChanged += OnSmootherPatchItemPropertyChanged;
+            SmootherPatchItems.Add(item);
+        }
+
+        // 确保单选组内至多只有一个被勾选（settings 里可能同时存在多个）。
+        EnsureSingleRadioSelection();
+    }
+
+    /// <summary>
+    /// 确保同一单选组内只有一个补丁被选中。如果多个被选中，保留第一个。
+    /// </summary>
+    private void EnsureSingleRadioSelection()
+    {
+        var groups = SmootherPatchItems
+            .Where(item => item.IsRadio && item.IsChecked)
+            .GroupBy(item => item.GroupName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        foreach (var group in groups)
+        {
+            foreach (var item in group.Skip(1))
+            {
+                item.IsChecked = false;
+            }
         }
     }
 
@@ -1510,6 +1572,28 @@ public class MainViewModel : INotifyPropertyChanged
             .ToList();
         _settings.SmootherSelectedPatches = list;
         _settingsService.Save(_settings);
+    }
+
+    /// <summary>
+    /// 处理单选组互斥：同一 GroupName 中只能有一个被选中。
+    /// </summary>
+    private void OnSmootherPatchItemPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(PatchSelectionItem.IsChecked) || sender is not PatchSelectionItem changed || !changed.IsChecked || !changed.IsRadio)
+        {
+            return;
+        }
+
+        foreach (var item in SmootherPatchItems)
+        {
+            if (item != changed && item.IsRadio &&
+                item.GroupName.Equals(changed.GroupName, StringComparison.OrdinalIgnoreCase) &&
+                item.IsChecked)
+            {
+                item.IsChecked = false;
+            }
+        }
+        SaveSmootherPatchChecked();
     }
 
     /// <summary>
@@ -1531,11 +1615,12 @@ public class MainViewModel : INotifyPropertyChanged
         return selected.ToArray();
     }
 
-    /// <summary>"全选"按钮：勾选所有补丁。</summary>
+    /// <summary>"全选"按钮：勾选所有补丁。单选组只保留第一个。</summary>
     private void SmootherSelectAll()
     {
         foreach (var item in SmootherPatchItems)
             item.IsChecked = true;
+        EnsureSingleRadioSelection();
         SaveSmootherPatchChecked();
     }
 
@@ -1563,6 +1648,7 @@ public class MainViewModel : INotifyPropertyChanged
         {
             item.IsChecked = preset.Patches.Contains(item.Info.Id);
         }
+        EnsureSingleRadioSelection();
         SaveSmootherPatchChecked();
         _toastService.ShowInfo($"已应用预设：{preset.DisplayName}");
     }

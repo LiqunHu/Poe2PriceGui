@@ -30,6 +30,7 @@ public enum PatchId
     Blanket,
     /// <summary>测试补丁：按 TinyBundle 实际覆盖的 9 个 metadata 子目录选择 .epk/.ao 文件，用于与 TinyBundle TSV 对比验证。</summary>
     Test,
+    EffectNone,
 }
 
 /// <summary>
@@ -49,6 +50,7 @@ public sealed class PatchInfo
 
 /// <summary>
 /// UI 绑定用：补丁元数据 + 勾选状态。实现 INotifyPropertyChanged 以支持双向绑定。
+/// 支持单选组模式（用于 effects 互斥选择）。
 /// </summary>
 public sealed class PatchSelectionItem : INotifyPropertyChanged
 {
@@ -56,10 +58,17 @@ public sealed class PatchSelectionItem : INotifyPropertyChanged
 
     public PatchInfo Info { get; }
 
-    public PatchSelectionItem(PatchInfo info, bool isChecked = false)
+    /// <summary>该补丁是否属于单选组。同一 GroupName 下只有一个能被勾选。</summary>
+    public bool IsRadio => !string.IsNullOrEmpty(GroupName);
+
+    /// <summary>单选组名。相同 GroupName 的补丁在 UI 上显示为 RadioButton 并互斥。</summary>
+    public string GroupName { get; }
+
+    public PatchSelectionItem(PatchInfo info, bool isChecked = false, string? groupName = null)
     {
         Info = info;
         _isChecked = isChecked;
+        GroupName = groupName ?? "";
     }
 
     /// <summary>当前是否被勾选。设置时触发 PropertyChanged 以驱动 UI 双向绑定。</summary>
