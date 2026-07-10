@@ -72,7 +72,7 @@ public static class PatchCatalog
     /// </summary>
     public static readonly string[] EffectNewProtectedPrefixes = {
         //Viper Azmeri 相关特效：混沌矛充能、死亡溶解、浮现、待机、精灵出现（熊、猫、灵长类）、受害者血液等。Viper Azmeri 是 Act 3 第四章 的一个 Boss 或特殊怪物，这些是其技能和状态的特效。
-        "metadata/effects/spells/monsters_effects/act3_four/viperazmeri/",
+        "metadata/effects/spells/monsters_effects/act3_four/",
         
         //裂隙（Breach）联赛
         "metadata/effects/spells/monsters_effects/breach/fire/hellscapepaleelite1/",
@@ -119,6 +119,10 @@ public static class PatchCatalog
         "metadata/effects/spells/monsters_effects/monster_mods/tormented_spirits/spirit_animals/",
         "metadata/effects/spells/monsters_effects/monster_mods/tormented_spirits/spirit_of_the_serpent/",
         "metadata/effects/spells/monsters_effects/monster_mods/tormented_spirits/touched/",
+
+        //地面特效(火焰爆炸)
+        "metadata/effects/spells/absolution_blast/",
+        "metadata/effects/spells/fire_flame_blast/",
     };
 
 
@@ -174,10 +178,10 @@ public static class PatchCatalog
         new PatchInfo { Id = PatchId.MtxSoft, Name = "mtx-soft", DisplayName = "微交易软化", Description = "清空微交易特效/粒子文件(可能影响部分角色人物技能)。" },
         new PatchInfo { Id = PatchId.Blanket, Name = "blanket", DisplayName = "地毯式", Description = "激进地毯式补丁：清空 metadata/ 下所有 .epk 并简化所有 .ao。" },
         
-        new PatchInfo { Id = PatchId.Effects, Name = "effects", DisplayName = "特效", Description = "剥离较多客户端特效(人物怪物均有)。" },
-        new PatchInfo { Id = PatchId.Effects_New, Name = "effects-new", DisplayName = "特效(怪物)", Description = "剥离较多客户端特效(主要怪物)。" },
-        new PatchInfo { Id = PatchId.Test, Name = "test", DisplayName = "特效(精准)", Description = "精准清理特效文件(人物怪物均有,比默认少)。" },
-        new PatchInfo { Id = PatchId.EffectNone, Name = "effect-none", DisplayName = "不处理特效", Description = "不清理任何特效文件。" },
+        new PatchInfo { Id = PatchId.Effects, Name = "effects", DisplayName = "特效", Description = "剥离较多客户端特效(人物怪物均有)。", GroupName = "effects" },
+        new PatchInfo { Id = PatchId.Effects_New, Name = "effects-new", DisplayName = "特效(怪物)", Description = "剥离较多客户端特效(主要怪物)。" , GroupName = "effects" },
+        new PatchInfo { Id = PatchId.Test, Name = "test", DisplayName = "特效(精准)", Description = "精准清理特效文件(人物怪物均有,比默认少)。" , GroupName = "effects" },
+        new PatchInfo { Id = PatchId.EffectNone, Name = "effect-none", DisplayName = "不处理特效", Description = "不清理任何特效文件。" , GroupName = "effects" },
     };
 
     public static IReadOnlyList<PresetInfo> AllPresets { get; } = new[]
@@ -460,14 +464,20 @@ public static class PatchCatalog
     }
 
     /// <summary>
-    /// 测试补丁路径匹配：仅匹配 TestTargetPaths.Set 中的精确路径（与 TinyBundle TSV 完全一致）。
-    /// 不做启动场景保护排除，以便与 TinyBundle TSV（含 characterselection 路径）精确对比。
+    /// 测试补丁路径匹配：匹配 TestTargetPaths.Set 中的目录前缀。
+    /// 只要文件路径落在任一前缀目录下即视为目标，不再精确到单个文件。
+    /// 不做启动场景保护排除，以便与 TinyBundle TSV（含 characterselection 路径）对比。
     /// 路径比较不区分大小写；输入路径中的反斜杠会被规范化为正斜杠。
     /// </summary>
     public static bool IsTestTarget(string path)
     {
         var normalized = path.Replace('\\', '/');
-        return TestTargetPaths.Set.Contains(normalized);
+        foreach (var prefix in TestTargetPaths.Set)
+        {
+            if (normalized.StartsWith(prefix, System.StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+        return false;
     }
 
     public static string NormalizePath(string path)

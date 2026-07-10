@@ -472,6 +472,11 @@ internal static class PatchTransforms
     //Effects_New
     private static byte[] Effects_New(string path, byte[] bytes)
     {
+        if (PatchCatalog.IsStartupSceneProtected(path))
+        {
+            return bytes;
+        }
+
         //受保护的不修改
         var normalized = PatchCatalog.NormalizePath(path);
         foreach (var prefix in PatchCatalog.EffectProtectedPrefixes)

@@ -46,6 +46,9 @@ public sealed class PatchInfo
     public string Description { get; init; } = "";
     /// <summary>是否为高风险补丁（UI 显示红色 + "(危)" 后缀）。这类补丁可能触发封号或崩溃风险。</summary>
     public bool IsDangerous { get; init; }
+
+    ///<summary>组，用于 UI 单选框展示。</summary>
+    public string GroupName { get; init; } = "";
 }
 
 /// <summary>

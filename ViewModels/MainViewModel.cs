@@ -1528,12 +1528,12 @@ public class MainViewModel : INotifyPropertyChanged
         foreach (var patch in SmootherAllPatches)
         {
             var isChecked = saved.Contains(patch.Name, StringComparer.OrdinalIgnoreCase);
-            var groupName = patch.Id switch
-            {
-                PatchId.Effects or PatchId.Effects_New or PatchId.Test or PatchId.EffectNone => "effects",
-                _ => null,
-            };
-            var item = new PatchSelectionItem(patch, isChecked, groupName);
+            // var groupName = patch.Id switch
+            // {
+            //     PatchId.Effects or PatchId.Effects_New or PatchId.Test or PatchId.EffectNone => "effects",
+            //     _ => null,
+            // };
+            var item = new PatchSelectionItem(patch, isChecked, patch.GroupName);
             item.PropertyChanged += OnSmootherPatchItemPropertyChanged;
             SmootherPatchItems.Add(item);
         }
