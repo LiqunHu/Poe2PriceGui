@@ -67,6 +67,17 @@ public class MainViewModel : INotifyPropertyChanged
     private ListCollectionView _filteredPrices = new(new ObservableCollection<PoecurrencyItem>());
     private PriceOverlayWindow? _currentOverlay;
 
+    /// <summary>技能特效补丁文件列表（修改用）。</summary>
+    private ObservableCollection<string> _skillPatchFiles = [];
+    /// <summary>技能特效还原文件列表。</summary>
+    private ObservableCollection<string> _skillRestoreFiles = [];
+    /// <summary>当前选中的技能特效补丁。</summary>
+    private string _selectedSkillPatch = "";
+    /// <summary>当前选中的技能特效还原文件。</summary>
+    private string _selectedSkillRestore = "";
+    /// <summary>技能特效补丁操作状态提示。</summary>
+    private string _skillPatchStatus = "";
+
     /// <summary>当前价格服务（国服/国际服切换）。</summary>
     private IPriceService _priceService = null!;
     /// <summary>交易搜索服务（国服/国际服切换）。</summary>
@@ -150,6 +161,16 @@ public class MainViewModel : INotifyPropertyChanged
         SmootherSelectNoneCommand = new RelayCommand(SmootherSelectNone, () => !IsBusy);
         SmootherApplyPresetCommand = new RelayCommand<string>(SmootherApplyPreset, _ => !IsBusy);
 
+        // 技能特效补丁命令
+        ApplySkillPatchCommand = new RelayCommand(async () => await ApplySkillPatchAsync(isRestore: false), () => !IsBusy && !string.IsNullOrWhiteSpace(SelectedSkillPatch));
+        ApplySkillRestoreCommand = new RelayCommand(async () => await ApplySkillPatchAsync(isRestore: true), () => !IsBusy && !string.IsNullOrWhiteSpace(SelectedSkillRestore));
+        OpenSkillPatchDirectoryCommand = new RelayCommand(OpenSkillPatchDirectory);
+        OpenSkillRestoreDirectoryCommand = new RelayCommand(OpenSkillRestoreDirectory);
+
+        // 设置-目录命令
+        OpenAppDataDirectoryCommand = new RelayCommand(OpenAppDataDirectory);
+        OpenProgramDataDirectoryCommand = new RelayCommand(OpenProgramDataDirectory);
+
         // 生成翻译表命令（开发者用：从游戏 datc64 构建英文名→中文名映射表）
         GenerateTranslationsCommand = new RelayCommand(async () => await GenerateTranslationsAsync("zh-CN"), () => !IsBusy && !string.IsNullOrWhiteSpace(GameDirectory));
         GenerateTranslationsTradCommand = new RelayCommand(async () => await GenerateTranslationsAsync("zh-TW"), () => !IsBusy && !string.IsNullOrWhiteSpace(GameDirectory));
@@ -160,6 +181,9 @@ public class MainViewModel : INotifyPropertyChanged
         InitSmootherPatchChecked();
         // 同步读取已保存的 zoom 值。
         _smootherCameraZoom = _settings.SmootherCameraZoom > 0 ? _settings.SmootherCameraZoom : 2.4;
+
+        // 加载技能特效补丁文件列表（程序目录 data + AppDataPath 对应目录）。
+        LoadSkillPatchFiles();
 
         // 启动时优先加载本地数据。
         _ = LoadLocalPricesAsync();
@@ -297,6 +321,10 @@ public class MainViewModel : INotifyPropertyChanged
     public ICommand CheckForUpdateCommand { get; }
     public ICommand ForceSwitchServerCommand { get; }
 
+    // 设置-目录命令
+    public ICommand OpenAppDataDirectoryCommand { get; }
+    public ICommand OpenProgramDataDirectoryCommand { get; }
+
     // 泥人补丁命令
     public ICommand SmootherApplyCommand { get; }
     public ICommand SmootherPreviewCommand { get; }
@@ -305,6 +333,12 @@ public class MainViewModel : INotifyPropertyChanged
     public ICommand SmootherSelectAllCommand { get; }
     public ICommand SmootherSelectNoneCommand { get; }
     public RelayCommand<string> SmootherApplyPresetCommand { get; }
+
+    // 技能特效补丁命令
+    public ICommand ApplySkillPatchCommand { get; }
+    public ICommand ApplySkillRestoreCommand { get; }
+    public ICommand OpenSkillPatchDirectoryCommand { get; }
+    public ICommand OpenSkillRestoreDirectoryCommand { get; }
 
     /// <summary>生成翻译表命令（开发者用）：从游戏 datc64 构建英文名→中文名映射表并保存到 data/translations/。</summary>
     public ICommand GenerateTranslationsCommand { get; }
@@ -554,6 +588,45 @@ public class MainViewModel : INotifyPropertyChanged
                 }
             }
         }
+    }
+
+    /// <summary>技能特效补丁文件列表（修改用）。</summary>
+    public ObservableCollection<string> SkillPatchFiles => _skillPatchFiles;
+
+    /// <summary>技能特效还原文件列表。</summary>
+    public ObservableCollection<string> SkillRestoreFiles => _skillRestoreFiles;
+
+    /// <summary>当前选中的技能特效补丁。</summary>
+    public string SelectedSkillPatch
+    {
+        get => _selectedSkillPatch;
+        set
+        {
+            if (SetProperty(ref _selectedSkillPatch, value))
+            {
+                (ApplySkillPatchCommand as RelayCommand)?.RaiseCanExecuteChanged();
+            }
+        }
+    }
+
+    /// <summary>当前选中的技能特效还原文件。</summary>
+    public string SelectedSkillRestore
+    {
+        get => _selectedSkillRestore;
+        set
+        {
+            if (SetProperty(ref _selectedSkillRestore, value))
+            {
+                (ApplySkillRestoreCommand as RelayCommand)?.RaiseCanExecuteChanged();
+            }
+        }
+    }
+
+    /// <summary>技能特效补丁操作状态提示。</summary>
+    public string SkillPatchStatus
+    {
+        get => _skillPatchStatus;
+        set => SetProperty(ref _skillPatchStatus, value);
     }
 
     private bool _intlFallbackEnabled;
@@ -1932,6 +2005,157 @@ public class MainViewModel : INotifyPropertyChanged
         finally
         {
             IsBusy = false;
+        }
+    }
+
+    #endregion
+
+    #region 技能特效补丁
+
+    /// <summary>
+    /// 从程序目录 data/patcheffect、data/orginpatcheffect 以及 AppDataPath.Data 下对应目录
+    /// 加载 zip 补丁文件列表。优先程序目录，再 AppData，按文件名排序；同名文件程序目录优先。
+    /// </summary>
+    private void LoadSkillPatchFiles()
+    {
+        LoadSkillPatchFilesCore(_skillPatchFiles, "patcheffect");
+        LoadSkillPatchFilesCore(_skillRestoreFiles, "orginpatcheffect");
+
+        SelectedSkillPatch = _skillPatchFiles.FirstOrDefault() ?? "";
+        SelectedSkillRestore = _skillRestoreFiles.FirstOrDefault() ?? "";
+
+        (ApplySkillPatchCommand as RelayCommand)?.RaiseCanExecuteChanged();
+        (ApplySkillRestoreCommand as RelayCommand)?.RaiseCanExecuteChanged();
+    }
+
+    private static void LoadSkillPatchFilesCore(ObservableCollection<string> collection, string subDirName)
+    {
+        collection.Clear();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var appDataDir = subDirName switch
+        {
+            "patcheffect" => AppDataPath.SkillPatchEffect,
+            "orginpatcheffect" => AppDataPath.SkillRestoreEffect,
+            _ => Path.Combine(AppDataPath.Data, subDirName)
+        };
+        var dirs = new[]
+        {
+            Path.Combine(AppContext.BaseDirectory, "data", subDirName),
+            appDataDir
+        };
+
+        foreach (var dir in dirs)
+        {
+            if (!Directory.Exists(dir))
+                continue;
+
+            foreach (var file in Directory.GetFiles(dir, "*.zip").OrderBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase))
+            {
+                var name = Path.GetFileName(file);
+                if (seen.Add(name))
+                    collection.Add(file);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 应用选中的技能特效补丁或还原文件到游戏目录。
+    /// </summary>
+    private async Task ApplySkillPatchAsync(bool isRestore)
+    {
+        var zipPath = isRestore ? SelectedSkillRestore : SelectedSkillPatch;
+        if (string.IsNullOrWhiteSpace(zipPath) || !File.Exists(zipPath))
+        {
+            _toastService.ShowError("请选择有效的补丁文件");
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(GameDirectory) || !Directory.Exists(GameDirectory))
+        {
+            _toastService.ShowError("请先在设置页配置有效的游戏目录");
+            return;
+        }
+
+        var actionName = isRestore ? "还原" : "应用";
+        var fileName = Path.GetFileName(zipPath);
+
+        // 用户确认。
+        var confirm = MessageBox.Show(
+            $"确定要{actionName}技能特效补丁吗？\n\n文件：{fileName}\n游戏目录：{GameDirectory}\n\n请确保游戏已关闭。",
+            $"确认{actionName}",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+        if (confirm != MessageBoxResult.Yes)
+            return;
+
+        IsBusy = true;
+        SkillPatchStatus = $"正在{actionName} {fileName}...";
+
+        try
+        {
+            var result = await _patchInstaller.ApplyEffectPatchZipAsync(GameDirectory, zipPath);
+            if (result.Success)
+            {
+                _toastService.ShowSuccess($"{actionName}完成：{fileName}");
+                AppLogger.Instance.Info($"技能特效补丁{actionName}成功：{fileName}，模式：{result.GameMode}，路径：{result.InstalledPath}");
+            }
+            else
+            {
+                _toastService.ShowError($"{actionName}失败：{result.ErrorMessage}");
+                AppLogger.Instance.Warn($"技能特效补丁{actionName}失败：{fileName}，原因：{result.ErrorMessage}");
+            }
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Instance.Error(ex, $"技能特效补丁{actionName}异常");
+            _toastService.ShowError($"{actionName}异常：{ex.Message}");
+        }
+        finally
+        {
+            IsBusy = false;
+            SkillPatchStatus = "";
+        }
+    }
+
+    private void OpenSkillPatchDirectory()
+    {
+        Directory.CreateDirectory(AppDataPath.SkillPatchEffect);
+        OpenDirectoryInExplorer(AppDataPath.SkillPatchEffect);
+    }
+
+    private void OpenSkillRestoreDirectory()
+    {
+        Directory.CreateDirectory(AppDataPath.SkillRestoreEffect);
+        OpenDirectoryInExplorer(AppDataPath.SkillRestoreEffect);
+    }
+
+    #endregion
+
+    #region 设置-目录
+
+    private void OpenAppDataDirectory()
+    {
+        Directory.CreateDirectory(AppDataPath.Root);
+        OpenDirectoryInExplorer(AppDataPath.Root);
+    }
+
+    private void OpenProgramDataDirectory()
+    {
+        var dir = Path.Combine(AppContext.BaseDirectory, "Data");
+        Directory.CreateDirectory(dir);
+        OpenDirectoryInExplorer(dir);
+    }
+
+    private static void OpenDirectoryInExplorer(string path)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo("explorer.exe", path) { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Instance.Error(ex, $"打开目录失败：{path}");
+            MessageBox.Show($"打开目录失败：{ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 

@@ -36,6 +36,12 @@ public static class AppDataPath
     /// <summary>运行时数据：%LOCALAPPDATA%\Poe2PriceGui\data\（含 prices.json 等）。</summary>
     public static string Data { get; }
 
+    /// <summary>技能特效修改补丁目录：%LOCALAPPDATA%\Poe2PriceGui\data\patcheffect\。</summary>
+    public static string SkillPatchEffect => Path.Combine(Data, "patcheffect");
+
+    /// <summary>技能特效还原补丁目录：%LOCALAPPDATA%\Poe2PriceGui\data\orginpatcheffect\。</summary>
+    public static string SkillRestoreEffect => Path.Combine(Data, "orginpatcheffect");
+
     /// <summary>价格快照完整路径。</summary>
     public static string PricesJson => Path.Combine(Data, "prices.json");
 
@@ -84,6 +90,8 @@ public static class AppDataPath
         Directory.CreateDirectory(TranslationsRuntime);
         Directory.CreateDirectory(Logs);
         Directory.CreateDirectory(Output);
+        Directory.CreateDirectory(SkillPatchEffect);
+        Directory.CreateDirectory(SkillRestoreEffect);
     }
 
     private static void MigrateFile(string srcPath, string destPath)

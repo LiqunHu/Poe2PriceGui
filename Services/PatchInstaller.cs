@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Runtime;
 using System.Text.RegularExpressions;
 using LibBundle3;
 using LibBundledGGPK3;
@@ -19,6 +20,26 @@ public class PatchInstaller
     public PatchInstaller(PatchExportService exportService)
     {
         _exportService = exportService;
+    }
+
+    /// <summary>
+    /// 补丁操作会产生大量临时大对象（LOH），默认 GC 不会立即回收，
+    /// 导致任务管理器中看到的内存占用持续增长。操作完成后主动触发一次
+    /// Full GC 并压缩大对象堆，把已释放的内存还给系统。
+    /// </summary>
+    private static void CollectAfterPatch()
+    {
+        try
+        {
+            GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
+            GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+            GC.WaitForPendingFinalizers();
+            GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+        }
+        catch
+        {
+            // 回收失败不应影响补丁安装结果。
+        }
     }
 
     /// <summary>
@@ -617,24 +638,31 @@ public class PatchInstaller
             {
                 var bundles2Dir = Path.Combine(gameDirectory, "Bundles2");
                 var factory = new DriveBundleFactory(bundles2Dir);
-                using var index = new BundleIndex(indexBin, false, factory);
-                var failedPaths = index.ParsePaths();
-                if (failedPaths > 0)
+                try
                 {
-                    AppLogger.Instance.Warn($"Bundles2 索引解析：{failedPaths} 个文件路径解析失败（已忽略）");
-                }
-
-                using var zip = ZipFile.OpenRead(zipPath);
-                return BundleIndex.Replace(
-                    index,
-                    zip.Entries,
-                    (fileRecord, path) =>
+                    using var index = new BundleIndex(indexBin, false, factory);
+                    var failedPaths = index.ParsePaths();
+                    if (failedPaths > 0)
                     {
-                        var bundlePath = fileRecord.BundleRecord?.Path ?? "<unknown>";
-                        AppLogger.Instance.Info($"  Bundles2 替换：{path} -> size={fileRecord.Size} bundle={bundlePath}");
-                        return false;
-                    },
-                    saveIndex: true);
+                        AppLogger.Instance.Warn($"Bundles2 索引解析：{failedPaths} 个文件路径解析失败（已忽略）");
+                    }
+
+                    using var zip = ZipFile.OpenRead(zipPath);
+                    return BundleIndex.Replace(
+                        index,
+                        zip.Entries,
+                        (fileRecord, path) =>
+                        {
+                            var bundlePath = fileRecord.BundleRecord?.Path ?? "<unknown>";
+                            AppLogger.Instance.Info($"  Bundles2 替换：{path} -> size={fileRecord.Size} bundle={bundlePath}");
+                            return false;
+                        },
+                        saveIndex: true);
+                }
+                finally
+                {
+                    (factory as IDisposable)?.Dispose();
+                }
             }, cancellationToken);
 
             AppLogger.Instance.Info($"Bundles2 补丁安装完成：替换/新增 {replaced} 个文件，index={indexBin}");
@@ -831,6 +859,160 @@ public class PatchInstaller
         {
             AppLogger.Instance.Error(ex, "GGPK 还原失败");
             result.ErrorMessage = $"GGPK 还原失败：{ex.Message}";
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// 将外部特效/技能 zip 补丁应用到游戏目录。
+    /// 不创建价格补丁的备份，适合技能特效等独立补丁。
+    /// 根据游戏模式自动选择 GGPK 或 Bundles2 写入方式。
+    /// </summary>
+    public async Task<InstallResult> ApplyEffectPatchZipAsync(
+        string gameDirectory,
+        string zipPath,
+        CancellationToken cancellationToken = default)
+    {
+        var result = new InstallResult();
+
+        if (string.IsNullOrWhiteSpace(gameDirectory) || !Directory.Exists(gameDirectory))
+        {
+            result.ErrorMessage = "游戏目录无效或未设置";
+            return result;
+        }
+
+        if (!File.Exists(zipPath))
+        {
+            result.ErrorMessage = $"补丁文件不存在：{zipPath}";
+            return result;
+        }
+
+        var modeInfo = GameModeDetector.Detect(gameDirectory);
+        if (!modeInfo.IsValid)
+        {
+            result.ErrorMessage = modeInfo.ErrorMessage;
+            return result;
+        }
+
+        result.GameMode = modeInfo.DisplayName;
+
+        if (modeInfo.Mode == GameMode.GGPK)
+        {
+            var ggpkResult = await InstallEffectZipToGgpkAsync(gameDirectory, zipPath, cancellationToken);
+            CollectAfterPatch();
+            return ggpkResult;
+        }
+
+        var bundles2Result = await InstallEffectZipToBundles2Async(gameDirectory, zipPath, cancellationToken);
+        CollectAfterPatch();
+        return bundles2Result;
+    }
+
+    private async Task<InstallResult> InstallEffectZipToGgpkAsync(
+        string gameDirectory,
+        string zipPath,
+        CancellationToken cancellationToken)
+    {
+        var ggpkPath = Path.Combine(gameDirectory, "Content.ggpk");
+        var result = new InstallResult();
+
+        AppLogger.Instance.Info($"应用特效补丁到 GGPK（内置）：ggpk={ggpkPath}, zip={zipPath}");
+        try
+        {
+            int replaced = await Task.Run(() =>
+            {
+                using var ggpk = new BundledGGPK(ggpkPath, parsePathsInIndex: false);
+                var failedPaths = ggpk.Index.ParsePaths();
+                if (failedPaths > 0)
+                {
+                    AppLogger.Instance.Warn($"GGPK 索引解析：{failedPaths} 个文件路径解析失败（已忽略）");
+                }
+
+                using var zip = ZipFile.OpenRead(zipPath);
+                return BundleIndex.Replace(
+                    ggpk.Index,
+                    zip.Entries,
+                    (fileRecord, path) =>
+                    {
+                        var bundlePath = fileRecord.BundleRecord?.Path ?? "<unknown>";
+                        AppLogger.Instance.Info($"  GGPK 替换：{path} -> size={fileRecord.Size} bundle={bundlePath}");
+                        return false;
+                    },
+                    saveIndex: true);
+            }, cancellationToken);
+
+            AppLogger.Instance.Info($"特效补丁应用完成：替换/新增 {replaced} 个文件，ggpk={ggpkPath}");
+            result.Success = true;
+            result.InstalledPath = ggpkPath;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Instance.Error(ex, "特效补丁应用到 GGPK 失败");
+            result.ErrorMessage = $"特效补丁应用到 GGPK 失败：{ex.Message}";
+        }
+
+        return result;
+    }
+
+    private async Task<InstallResult> InstallEffectZipToBundles2Async(
+        string gameDirectory,
+        string zipPath,
+        CancellationToken cancellationToken)
+    {
+        var indexBin = Path.Combine(gameDirectory, "Bundles2", "_.index.bin");
+        var result = new InstallResult();
+
+        AppLogger.Instance.Info($"应用特效补丁到 Bundles2（内置）：index={indexBin}, zip={zipPath}");
+        try
+        {
+            int replaced = await Task.Run(() =>
+            {
+                var bundles2Dir = Path.Combine(gameDirectory, "Bundles2");
+                var factory = new DriveBundleFactory(bundles2Dir);
+                try
+                {
+                    using var index = new BundleIndex(indexBin, false, factory);
+                    var failedPaths = index.ParsePaths();
+                    if (failedPaths > 0)
+                    {
+                        AppLogger.Instance.Warn($"Bundles2 索引解析：{failedPaths} 个文件路径解析失败（已忽略）");
+                    }
+
+                    using var zip = ZipFile.OpenRead(zipPath);
+                    return BundleIndex.Replace(
+                        index,
+                        zip.Entries,
+                        (fileRecord, path) =>
+                        {
+                            var bundlePath = fileRecord.BundleRecord?.Path ?? "<unknown>";
+                            AppLogger.Instance.Info($"  Bundles2 替换：{path} -> size={fileRecord.Size} bundle={bundlePath}");
+                            return false;
+                        },
+                        saveIndex: true);
+                }
+                finally
+                {
+                    (factory as IDisposable)?.Dispose();
+                }
+            }, cancellationToken);
+
+            AppLogger.Instance.Info($"特效补丁应用完成：替换/新增 {replaced} 个文件，index={indexBin}");
+            result.Success = true;
+            result.InstalledPath = indexBin;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Instance.Error(ex, "特效补丁应用到 Bundles2 失败");
+            result.ErrorMessage = $"特效补丁应用到 Bundles2 失败：{ex.Message}";
         }
 
         return result;

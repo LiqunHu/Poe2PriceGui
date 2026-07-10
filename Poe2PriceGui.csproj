@@ -117,6 +117,16 @@
     </Content>
   </ItemGroup>
 
+  <!-- 技能特效补丁/还原包随程序一起复制到输出目录 -->
+  <ItemGroup>
+    <Content Include="data\patcheffect\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="data\orginpatcheffect\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
   <!-- Velopack: 将 App.xaml 从 ApplicationDefinition 改为 Page，以便使用自定义 Main 方法 -->
   <ItemGroup>
     <ApplicationDefinition Remove="App.xaml" />

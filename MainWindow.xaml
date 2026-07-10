@@ -13,6 +13,7 @@
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         <converters:InverseBoolToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter"/>
+        <converters:FileNameWithoutExtensionConverter x:Key="FileNameWithoutExtensionConverter"/>
         <DataTemplate DataType="{x:Type models:ToastNotification}">
             <Border CornerRadius="8"
                     Background="{Binding Background}"
@@ -272,6 +273,7 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
                     <TextBlock Grid.Row="0" Text="工具箱" FontSize="20" FontWeight="Bold" Margin="0,0,0,20"/>
@@ -434,6 +436,69 @@
                             </StackPanel>
                         </StackPanel>
                     </GroupBox>
+
+                </Grid>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- 技能管理页 -->
+            <TabItem Header="技能管理" Tag="⚔️">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <Grid Margin="14" Background="White">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Text="技能管理" FontSize="20" FontWeight="Bold" Margin="0,0,0,20"/>
+
+                    <GroupBox Grid.Row="1" Header="技能特效补丁" Margin="0,15,0,0">
+                        <StackPanel Orientation="Vertical" Margin="10">
+                            <TextBlock Text="⚠️ 重要提示： 会修改游戏文件，存在封号风险。请先关闭游戏再运行。" TextWrapping="Wrap" Foreground="#DC143C" Margin="0,0,0,10"/>
+                            <TextBlock Text="从 data/patcheffect 读取修改补丁，从 data/orginpatcheffect 读取还原补丁；也可把 zip 放到 AppData 的同名目录下加载。" TextWrapping="Wrap" Foreground="Gray" Margin="0,0,0,10"/>
+
+                            <!-- 修改区域 -->
+                            <TextBlock Text="修改（应用特效补丁）：" FontWeight="Bold" Margin="0,0,0,5"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                <ComboBox x:Name="SkillPatchCombo"
+                                          ItemsSource="{Binding SkillPatchFiles}"
+                                          SelectedItem="{Binding SelectedSkillPatch}"
+                                          MinWidth="320"
+                                          VerticalContentAlignment="Center"
+                                          Margin="0,0,10,0">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Converter={StaticResource FileNameWithoutExtensionConverter}}"/>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                                <Button Content="应用" Command="{Binding ApplySkillPatchCommand}" Padding="15,5" Margin="0,0,10,0"/>
+                                <Button Content="打开目录" Command="{Binding OpenSkillPatchDirectoryCommand}" Padding="10,5"/>
+                            </StackPanel>
+
+                            <!-- 还原区域 -->
+                            <TextBlock Text="还原（恢复原始特效）：" FontWeight="Bold" Margin="0,10,0,5"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                <ComboBox x:Name="SkillRestoreCombo"
+                                          ItemsSource="{Binding SkillRestoreFiles}"
+                                          SelectedItem="{Binding SelectedSkillRestore}"
+                                          MinWidth="320"
+                                          VerticalContentAlignment="Center"
+                                          Margin="0,0,10,0">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Converter={StaticResource FileNameWithoutExtensionConverter}}"/>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                                <Button Content="应用" Command="{Binding ApplySkillRestoreCommand}" Padding="15,5" Margin="0,0,10,0"/>
+                                <Button Content="打开目录" Command="{Binding OpenSkillRestoreDirectoryCommand}" Padding="10,5"/>
+                            </StackPanel>
+
+                            <TextBlock Text="{Binding SkillPatchStatus}" FontSize="12" Foreground="#FF4A90D9" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </GroupBox>
                 </Grid>
                 </ScrollViewer>
             </TabItem>
@@ -450,11 +515,12 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
                     <TextBlock Grid.Row="0" Text="设置" FontSize="20" FontWeight="Bold" Margin="0,0,0,20"/>
 
-                    <GroupBox Grid.Row="4" Header="缓存管理">
+                    <GroupBox Grid.Row="5" Header="缓存管理">
                         <StackPanel Orientation="Horizontal" Margin="10">
                             <Button Content="清理缓存图片" Command="{Binding CleanCacheCommand}" Padding="15,5" Margin="0,0,10,0"/>
                             <TextBlock Text="{Binding CacheStatusMessage}" VerticalAlignment="Center" Margin="0,0,20,0" Foreground="Gray"/>
@@ -554,14 +620,14 @@
                         </Grid>
                     </GroupBox>
 
-                    <GroupBox Grid.Row="5" Header="日志" Margin="0,15,0,0">
+                    <GroupBox Grid.Row="6" Header="日志" Margin="0,15,0,0">
                         <StackPanel Orientation="Horizontal" Margin="10">
                             <Button Content="打开日志文件" Command="{Binding OpenLogCommand}" Padding="15,5" Margin="0,0,10,0"/>
                             <Button Content="清理日志" Command="{Binding CleanLogCommand}" Padding="15,5"/>
                         </StackPanel>
                     </GroupBox>
 
-                    <GroupBox Grid.Row="6" Header="查价器调试数据" Margin="0,15,0,0">
+                    <GroupBox Grid.Row="7" Header="查价器调试数据" Margin="0,15,0,0">
                         <StackPanel Orientation="Horizontal" Margin="10">
                             <Button Content="导出 stats 缓存"
                                     Command="{Binding ExportStatsCacheCommand}"
@@ -588,6 +654,13 @@
                             <TextBox Text="{Binding CurrencyPriceToken, UpdateSourceTrigger=PropertyChanged}"
                                      VerticalContentAlignment="Center" Margin="0,0,0,5"/>
                             <TextBlock Text="填写 Token 后使用 summary_validate 接口获取数据，数据更稳定可靠。" Foreground="Gray" TextWrapping="Wrap" FontSize="11"/>
+                        </StackPanel>
+                    </GroupBox>
+
+                    <GroupBox Grid.Row="4" Header="目录" Margin="0,15,0,0">
+                        <StackPanel Orientation="Horizontal" Margin="10">
+                            <Button Content="打开 Poe2PriceGuiData 目录" Command="{Binding OpenAppDataDirectoryCommand}" Padding="15,5" Margin="0,0,10,0"/>
+                            <Button Content="打开程序 Data 目录" Command="{Binding OpenProgramDataDirectoryCommand}" Padding="15,5"/>
                         </StackPanel>
                     </GroupBox>
                 </Grid>
