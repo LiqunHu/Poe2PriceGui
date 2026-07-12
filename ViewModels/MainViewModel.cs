@@ -12,6 +12,7 @@ using Poe2PriceGui.Models;
 using Poe2PriceGui.Services;
 using Poe2PriceGui.Services.Smoother;
 using Poe2PriceGui.Windows;
+using Xiletrade.Library.Shared;
 using Xiletrade.Library.Shared.Enum;
 using Xiletrade.Library.ViewModels.Main.Form;
 
@@ -149,6 +150,7 @@ public class MainViewModel : INotifyPropertyChanged
         TestPriceCheckerSpearCommand = new RelayCommand(async () => await TestPriceCheckerAsync("spear"), () => !IsBusy && !string.IsNullOrWhiteSpace(EffectivePoeSessionId));
         TestPriceCheckerCharmCommand = new RelayCommand(async () => await TestPriceCheckerAsync("charm"), () => !IsBusy && !string.IsNullOrWhiteSpace(EffectivePoeSessionId));
         TestPriceCheckerArmourCommand = new RelayCommand(async () => await TestPriceCheckerAsync("armour"), () => !IsBusy && !string.IsNullOrWhiteSpace(EffectivePoeSessionId));
+        TestPriceCheckerIntlCommand = new RelayCommand(async () => await TestPriceCheckerAsync("intl-shoes"), () => !IsBusy && !string.IsNullOrWhiteSpace(EffectivePoeSessionId));
         CheckForUpdateCommand = new RelayCommand(async () => await CheckForUpdateAsync(), () => !IsBusy);
         ForceSwitchServerCommand = new RelayCommand(ForceSwitchServer, () => !IsBusy);
 
@@ -166,6 +168,7 @@ public class MainViewModel : INotifyPropertyChanged
         ApplySkillRestoreCommand = new RelayCommand(async () => await ApplySkillPatchAsync(isRestore: true), () => !IsBusy && !string.IsNullOrWhiteSpace(SelectedSkillRestore));
         OpenSkillPatchDirectoryCommand = new RelayCommand(OpenSkillPatchDirectory);
         OpenSkillRestoreDirectoryCommand = new RelayCommand(OpenSkillRestoreDirectory);
+        RefreshSkillPatchFilesCommand = new RelayCommand(LoadSkillPatchFiles);
 
         // 设置-目录命令
         OpenAppDataDirectoryCommand = new RelayCommand(OpenAppDataDirectory);
@@ -318,6 +321,7 @@ public class MainViewModel : INotifyPropertyChanged
     public ICommand TestPriceCheckerSpearCommand { get; }
     public ICommand TestPriceCheckerCharmCommand { get; }
     public ICommand TestPriceCheckerArmourCommand { get; }
+    public ICommand TestPriceCheckerIntlCommand { get; }
     public ICommand CheckForUpdateCommand { get; }
     public ICommand ForceSwitchServerCommand { get; }
 
@@ -339,6 +343,7 @@ public class MainViewModel : INotifyPropertyChanged
     public ICommand ApplySkillRestoreCommand { get; }
     public ICommand OpenSkillPatchDirectoryCommand { get; }
     public ICommand OpenSkillRestoreDirectoryCommand { get; }
+    public ICommand RefreshSkillPatchFilesCommand { get; }
 
     /// <summary>生成翻译表命令（开发者用）：从游戏 datc64 构建英文名→中文名映射表并保存到 data/translations/。</summary>
     public ICommand GenerateTranslationsCommand { get; }
@@ -499,6 +504,7 @@ public class MainViewModel : INotifyPropertyChanged
         if (TestPriceCheckerSpearCommand is RelayCommand spearCmd) spearCmd.RaiseCanExecuteChanged();
         if (TestPriceCheckerCharmCommand is RelayCommand charmCmd) charmCmd.RaiseCanExecuteChanged();
         if (TestPriceCheckerArmourCommand is RelayCommand armourCmd) armourCmd.RaiseCanExecuteChanged();
+        if (TestPriceCheckerIntlCommand is RelayCommand intlCmd) intlCmd.RaiseCanExecuteChanged();
         OnPropertyChanged(nameof(EffectivePoeSessionId));
         OnPropertyChanged(nameof(IsLoggedIn));
         OnPropertyChanged(nameof(LoginStatusText));
@@ -875,6 +881,34 @@ public class MainViewModel : INotifyPropertyChanged
 --------
 引路石掉落";
             }
+            else if (testItem == "intl-shoes")
+            {
+                testLabel = "惡魔 套靴（国际服）";
+                itemText = @"物品種類: 鞋子
+稀有度: 稀有
+惡魔 套靴
+羽毛便鞋
+--------
+能量護盾: 52 (augmented)
+--------
+需求: 等級 40, 45 智慧
+--------
+物品等級: 50
+--------
+{ 前綴 ""乳白色的"" (階層：3) — 魔力 }
++86 (80-89) 最大魔力
+{ 前綴 ""瞪羚的"" (階層：3) — 速度 }
+增加25%移動速度
+{ 前綴 ""納迦的"" (階層：3) }
+增加 27 (27-32)% 最大能量護盾
+暈眩門檻 +59 (41-63)
+{ 後綴 ""掃蕩之"" (階層：2) — 丟置 }
+增加11 (11-14)%找到的物品稀有度
+{ 後綴 ""海象之"" (階層：4) — 元素,冰冷,抗性 }
++30 (26-30)% 冰冷抗性
+{ 後綴 ""暴風雨之"" (階層：4) — 元素,閃電,抗性 }
++29 (26-30)% 閃電抗性";
+            }
             else
             {
                 testLabel = "猎首";
@@ -904,23 +938,51 @@ public class MainViewModel : INotifyPropertyChanged
 " + "\"骨骼是灵魂的居所，\n血肉是精神和世界交流的窗口，推动一切的力量就在心窝。\n即使有了这些，失去了头脑就没有自我。\"\n——冈姆军师拉维安加\n--------\n引路石掉落";
             }
 
-            EnsurePriceCheckerLanguage();
-            var form = XiletradePriceService.Instance.ParseItem(itemText);
-            AppLogger.Instance.Info($"测试解析结果：Name={form?.ItemName}, BaseType={form?.ItemBaseType}, ByBase={form?.ByBase}");
-            if (form == null)
+            // 国际服测试物品为繁体中文客户端文本，必须临时切换到繁体中文（zh-TW）才能正确解析词缀。
+            var restoreLang = -1;
+            try
             {
-                _toastService.ShowError("测试文本解析失败");
-                return;
+                if (testItem == "intl-shoes")
+                {
+                    var svc = XiletradePriceService.Instance;
+                    restoreLang = svc.CurrentLanguage;
+                    var zhTwIndex = Array.IndexOf(Strings.Culture, "zh-TW");
+                    if (restoreLang != zhTwIndex)
+                    {
+                        svc.SetLanguage(zhTwIndex);
+                        AppLogger.Instance.Info("国际服测试：临时切换解析语言到繁体中文（zh-TW）");
+                    }
+                }
+                else
+                {
+                    EnsurePriceCheckerLanguage();
+                }
+
+                var form = XiletradePriceService.Instance.ParseItem(itemText);
+                AppLogger.Instance.Info($"测试解析结果：Name={form?.ItemName}, BaseType={form?.ItemBaseType}, ByBase={form?.ByBase}, Mods={form?.ModList?.Count ?? 0}");
+                if (form == null)
+                {
+                    _toastService.ShowError("测试文本解析失败");
+                    return;
+                }
+
+                var viewModel = new PriceOverlayViewModel
+                {
+                    Form = form,
+                    SearchCallback = ExecuteOverlaySearchAsync,
+                };
+
+                ShowOverlay(viewModel);
+                _toastService.ShowInfo($"已加载测试物品（{testLabel}），可在叠加层中点击搜索");
             }
-
-            var viewModel = new PriceOverlayViewModel
+            finally
             {
-                Form = form,
-                SearchCallback = ExecuteOverlaySearchAsync,
-            };
-
-            ShowOverlay(viewModel);
-            _toastService.ShowInfo($"已加载测试物品（{testLabel}），可在叠加层中点击搜索");
+                if (restoreLang >= 0 && restoreLang != XiletradePriceService.Instance.CurrentLanguage)
+                {
+                    XiletradePriceService.Instance.SetLanguage(restoreLang);
+                    AppLogger.Instance.Info($"国际服测试：恢复解析语言到索引 {restoreLang}");
+                }
+            }
         }
         catch (Exception ex)
         {
@@ -954,12 +1016,15 @@ public class MainViewModel : INotifyPropertyChanged
             // - 只有 Unique/FoilVariant 物品按名称搜索（同时传 type）
             // - 其他物品（稀有/魔法/普通等）按基底类型搜索，不应按名称搜索
             // 稀有/魔法装备有随机名称，按名称搜索会返回 400 "Unknown item name"。
+            // 国际服交易 API 要求使用英文名称/基底，因此非国服模式优先使用 ItemNameEn/ItemBaseTypeEn。
             var flag = form.ItemFlag;
             var isNamedItem = flag != null && (flag.Unique || flag.FoilVariant)
-                              && !string.IsNullOrWhiteSpace(form.ItemName);
+                              && !string.IsNullOrWhiteSpace(_isChinaServer ? form.ItemName : form.ItemNameEn);
             var searchByType = !isNamedItem;
-            var searchTerm = searchByType ? form.ItemBaseType : form.ItemName;
-            var baseTypeValue = form.ItemBaseType;
+            var searchTerm = searchByType
+                ? (_isChinaServer ? form.ItemBaseType : form.ItemBaseTypeEn)
+                : (_isChinaServer ? form.ItemName : form.ItemNameEn);
+            var baseTypeValue = _isChinaServer ? form.ItemBaseType : form.ItemBaseTypeEn;
 
             if (string.IsNullOrWhiteSpace(searchTerm))
             {
@@ -977,9 +1042,17 @@ public class MainViewModel : INotifyPropertyChanged
             {
                 var mods = form.ModList
                     .Where(m => m.Selected && m.Affix.Count > 0 && !string.IsNullOrEmpty(m.TierKind))
-                    .Select(m => (m.Mod, m.Affix[m.AffixIndex].Type,
-                        string.IsNullOrWhiteSpace(m.Min) ? null : m.Min,
-                        string.IsNullOrWhiteSpace(m.Max) ? null : m.Max))
+                    .Select(m =>
+                    {
+                        var modText = _isChinaServer ? m.Mod : m.ModEn;
+                        if (string.IsNullOrWhiteSpace(modText))
+                        {
+                            modText = m.Mod;
+                        }
+                        return (modText, m.Affix[m.AffixIndex].Type,
+                            string.IsNullOrWhiteSpace(m.Min) ? null : m.Min,
+                            string.IsNullOrWhiteSpace(m.Max) ? null : m.Max);
+                    })
                     .ToList();
                 if (mods.Count > 0)
                 {
@@ -1649,23 +1722,29 @@ public class MainViewModel : INotifyPropertyChanged
 
     /// <summary>
     /// 处理单选组互斥：同一 GroupName 中只能有一个被选中。
+    /// 任何勾选状态变化都会持久化到 settings。
     /// </summary>
     private void OnSmootherPatchItemPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName != nameof(PatchSelectionItem.IsChecked) || sender is not PatchSelectionItem changed || !changed.IsChecked || !changed.IsRadio)
+        if (e.PropertyName != nameof(PatchSelectionItem.IsChecked) || sender is not PatchSelectionItem changed)
         {
             return;
         }
 
-        foreach (var item in SmootherPatchItems)
+        // 单选组互斥：同一 GroupName 中已勾选的其他项取消勾选。
+        if (changed.IsChecked && changed.IsRadio)
         {
-            if (item != changed && item.IsRadio &&
-                item.GroupName.Equals(changed.GroupName, StringComparison.OrdinalIgnoreCase) &&
-                item.IsChecked)
+            foreach (var item in SmootherPatchItems)
             {
-                item.IsChecked = false;
+                if (item != changed && item.IsRadio &&
+                    item.GroupName.Equals(changed.GroupName, StringComparison.OrdinalIgnoreCase) &&
+                    item.IsChecked)
+                {
+                    item.IsChecked = false;
+                }
             }
         }
+
         SaveSmootherPatchChecked();
     }
 

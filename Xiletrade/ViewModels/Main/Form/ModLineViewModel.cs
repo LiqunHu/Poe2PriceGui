@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+﻿﻿﻿﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System;
 using System.Linq;
@@ -37,6 +37,9 @@ public sealed partial class ModLineViewModel : ViewModelBase
 
     [ObservableProperty]
     private string mod;
+
+    [ObservableProperty]
+    private string modEn;
 
     [ObservableProperty]
     private string modTooltip;
@@ -170,6 +173,21 @@ public sealed partial class ModLineViewModel : ViewModelBase
         level = modLine.Level;
         mod = modLine.Mod.Replace(Strings.LF, " ");
         modTooltip = modLine.Mod;
+
+        // Precompute English affix text: international trade API stats data is in English.
+        if (affix.Count > 0 && modLine.AffixIndex >= 0 && modLine.AffixIndex < affix.Count)
+        {
+            var firstAffix = affix[0];
+            var enEntry = item.Lang is not Lang.English
+                ? dm.FilterEn.GetFilterDataEntry(firstAffix.ID)
+                : null;
+            modEn = (enEntry?.Text ?? modLine.Mod).Replace(Strings.LF, " ");
+        }
+        else
+        {
+            modEn = mod;
+        }
+
         tagVisible = tagTip?.Count > 0;
         current = modLine.Current;
         tierKind = modLine.TierKind;

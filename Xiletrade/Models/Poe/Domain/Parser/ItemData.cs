@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using Xiletrade.Library.Models.Application.Configuration.DTO.Extension;
@@ -810,6 +811,8 @@ internal sealed class ItemData
         ModDescription pendingDesc = null;
         var data = dataMemory.Span;
 
+        Trace.WriteLine($"[GetModsFromData] data.Length={data.Length}");
+
         for (int i = 0; i < data.Length; i++)
         {
             if (string.IsNullOrWhiteSpace(data[i]))
@@ -817,35 +820,47 @@ internal sealed class ItemData
                 continue;
             }
 
+            Trace.WriteLine($"[GetModsFromData] i={i}, line=[{data[i]}]");
+
             var desc = new ModDescription(_dm, data[i]);
             if (desc.IsParsed)
             {
+                Trace.WriteLine($"[GetModsFromData] i={i}, desc.IsParsed=true (词缀标题行), pendingDesc set");
                 pendingDesc = desc;
                 continue;
             }
 
             // pendingDesc can be used for more than one mod
             var affix = new AffixFlag(data[i], pendingDesc);
-            if (options.Update(affix.ParsedData) 
-                || FindContinuePoint(flag, affix.ParsedData, lMods.Count < NB_MAX_MODS))
+            var optUpdate = options.Update(affix.ParsedData);
+            var findContinue = FindContinuePoint(flag, affix.ParsedData, lMods.Count < NB_MAX_MODS);
+            Trace.WriteLine($"[GetModsFromData] i={i}, affix.ParsedData=[{affix.ParsedData}], options.Update={optUpdate}, FindContinuePoint={findContinue}");
+            if (optUpdate || findContinue)
             {
+                Trace.WriteLine($"[GetModsFromData] i={i}, skipped by options.Update or FindContinuePoint");
                 continue;
             }
 
             var modifier = new ItemModifier(_dm, this, affix, GetNextMod(data, i));
+            Trace.WriteLine($"[GetModsFromData] i={i}, modifier.Parsed=[{modifier.Parsed}], IsBreakpointMod={modifier.IsBreakpointMod}");
             if (modifier.IsBreakpointMod)
             {
+                Trace.WriteLine($"[GetModsFromData] i={i}, break (IsBreakpointMod)");
                 break;
             }
 
             var modFilter = new ModFilter(_dm, modifier, this);
+            Trace.WriteLine($"[GetModsFromData] i={i}, modFilter.IsFetched={modFilter.IsFetched}, Entrie.ID=[{modFilter.Entrie.ID}], Entrie.Text=[{modFilter.Entrie.Text}]");
             if (!modFilter.IsFetched)
             {
+                Trace.WriteLine($"[GetModsFromData] i={i}, skipped (!IsFetched)");
                 continue;
             }
 
             lMods.Add(new(_dm, this, modFilter));
+            Trace.WriteLine($"[GetModsFromData] i={i}, added to lMods, count={lMods.Count}");
         }
+        Trace.WriteLine($"[GetModsFromData] done, lMods.Count={lMods.Count}");
         return lMods.HandleDuplicates();
     }
 

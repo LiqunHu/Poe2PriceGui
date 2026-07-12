@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.IO;
 using System.Text;
@@ -54,11 +54,11 @@ public sealed class DataManagerService
     /// <summary>
     /// Initialize all data settings and shutdown application if an error is encountered.
     /// </summary>
-    internal void TryInit(int forceGameVersion = 0)
+    internal void TryInit(int forceGameVersion = 0, int languageOverride = -1)
     {
         try
         {
-            Initialize(forceGameVersion);
+            Initialize(forceGameVersion, languageOverride);
         }
         catch (Exception ex) 
         {
@@ -110,7 +110,7 @@ public sealed class DataManagerService
         League = Json.Deserialize<LeagueData>(streamLeagues);
     }
 
-    private void Initialize(int forceGameVersion)
+    private void Initialize(int forceGameVersion, int languageOverride = -1)
     {
         try
         {
@@ -123,6 +123,12 @@ public sealed class DataManagerService
                 Json.ResetCache();
             }
             InitConfig(forceGameVersion);
+
+            // languageOverride 在 InitConfig 之后应用，防止 InitConfig 从配置文件重载时覆盖外部设置的语言。
+            if (languageOverride >= 0)
+            {
+                Config.Options.Language = languageOverride;
+            }
 
             string basePath = Path.GetFullPath("Data\\");
             string lang = $"Lang\\{Strings.Culture[Config.Options.Language]}\\";            

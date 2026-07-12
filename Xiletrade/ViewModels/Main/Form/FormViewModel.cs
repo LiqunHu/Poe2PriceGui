@@ -32,11 +32,17 @@ public sealed partial class FormViewModel(bool useBulk) : ViewModelBase
     private string itemName = string.Empty;
 
     [ObservableProperty]
+    private string itemNameEn = string.Empty;
+
+    [ObservableProperty]
     private string itemNameColor = string.Empty;
 
     [ObservableProperty]
     private string itemBaseType = useBulk ? Resources.Resources.Main247_CustomSearch + " / "
         + Resources.Resources.Main032_cbTotalExchange : string.Empty;
+
+    [ObservableProperty]
+    private string itemBaseTypeEn = string.Empty;
 
     [ObservableProperty]
     private string itemBaseTypeColor = useBulk ? Strings.Color.Moccasin : string.Empty;
@@ -248,7 +254,9 @@ public sealed partial class FormViewModel(bool useBulk) : ViewModelBase
         var poe2SkillWeapon = item.IsPoe2 && (flag.Wand || flag.Stave || flag.Sceptre);
         byBase = item.State.SpecialBase || _dm.Config.Options.SearchByType || flag.ByBase || poe2SkillWeapon;
         itemName = item.Name;
+        itemNameEn = item.NameEn;
         itemBaseType = item.Type;
+        itemBaseTypeEn = item.TypeEn;
 
         itemNameColor = flag.Magic ? Strings.Color.DeepSkyBlue :
             flag.Rare ? Strings.Color.Gold :

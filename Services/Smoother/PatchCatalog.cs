@@ -123,6 +123,13 @@ public static class PatchCatalog
         //地面特效(火焰爆炸)
         "metadata/effects/spells/absolution_blast/",
         "metadata/effects/spells/fire_flame_blast/",
+
+        //异界地图标记图标（地图选择界面上的 pins）：联赛标记、塔标记、城堡标记等。
+        //清空后会导致异界地图上选择地图的标志消失。
+        "metadata/terrain/worldmaps/",                  //直接保护worldmap整个目录 
+        //"metadata/terrain/worldmaps/maps/doodads/pins/",
+        //异界地图附件（如恢弘之境的烟雾云）。
+        //"metadata/terrain/worldmaps/maps/doodads/atlasattachments/",
     };
 
 

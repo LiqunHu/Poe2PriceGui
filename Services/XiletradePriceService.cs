@@ -97,9 +97,8 @@ public sealed class XiletradePriceService
         if (langIndex < 0 || langIndex >= Strings.Culture.Length)
             return;
 
-        // 更新配置中的语言索引并重新初始化（重新加载 Lang\<culture>\ 下的数据文件）
-        _dataManager.Config.Options.Language = langIndex;
-        _dataManager.TryInit(2);
+        // 使用 languageOverride 参数确保 InitConfig 从文件重载 Config 后不会覆盖目标语言。
+        _dataManager.TryInit(2, langIndex);
         ApplyCulture(langIndex);
     }
 
@@ -131,11 +130,53 @@ public sealed class XiletradePriceService
 
         var infoDesc = new InfoDescription(clipboardText.AsSpan());
         if (!infoDesc.IsPoeItem)
+        {
+            System.Diagnostics.Debug.WriteLine("[ParseItem] IsPoeItem=false");
             return null;
+        }
 
-        var item = new ItemData(_dataManager, infoDesc);
-        var form = new FormViewModel(_serviceProvider, item, infoDesc, showMinMax);
-        return form;
+        // 添加 TraceListener 将 Xiletrade.Library 内部的 Trace.WriteLine 输出转发到 AppLogger
+        var traceListener = new AppLoggerTraceListener();
+        System.Diagnostics.Trace.Listeners.Add(traceListener);
+        try
+        {
+            var item = new ItemData(_dataManager, infoDesc);
+
+            // 调试日志：追踪解析过程
+            AppLogger.Instance.Info($"[ParseItem] Lang={_dataManager.Config.Options.Language}, GameVersion={_dataManager.Config.Options.GameVersion}");
+            AppLogger.Instance.Info($"[ParseItem] Item sections={infoDesc.Item.Length}");
+            for (int i = 0; i < infoDesc.Item.Length; i++)
+            {
+                var section = infoDesc.Item[i];
+                var preview = section.Length > 120 ? section[..120] + "..." : section;
+                AppLogger.Instance.Info($"[ParseItem] Section[{i}]: [{preview.Replace("\r", "\\r").Replace("\n", "\\n")}]");
+            }
+            AppLogger.Instance.Info($"[ParseItem] Flag.Parseable={item.Flag.Parseable}, Flag.Rare={item.Flag.Rare}, Flag.Boots={item.Flag.Boots}");
+            AppLogger.Instance.Info($"[ParseItem] ModList count={item.ModList?.Count ?? -1}");
+            AppLogger.Instance.Info($"[ParseItem] Filter.Result count={_dataManager.Filter?.Result?.Length ?? -1}");
+            if (_dataManager.Filter?.Result != null)
+            {
+                foreach (var fr in _dataManager.Filter.Result)
+                {
+                    AppLogger.Instance.Info($"[ParseItem] Filter label={fr.Label}, entries={fr.Entries?.Length ?? 0}");
+                }
+            }
+            AppLogger.Instance.Info($"[ParseItem] FilterEn.Result count={_dataManager.FilterEn?.Result?.Length ?? -1}");
+
+            var form = new FormViewModel(_serviceProvider, item, infoDesc, showMinMax);
+            return form;
+        }
+        finally
+        {
+            System.Diagnostics.Trace.Listeners.Remove(traceListener);
+        }
+    }
+
+    /// <summary>将 System.Diagnostics.Trace 输出转发到 AppLogger 的监听器。</summary>
+    private sealed class AppLoggerTraceListener : System.Diagnostics.TraceListener
+    {
+        public override void Write(string message) => AppLogger.Instance.Info(message);
+        public override void WriteLine(string message) => AppLogger.Instance.Info(message);
     }
 
     // ── 存根实现：仅在 DataManagerService.TryInit 出错时被调用 ──

@@ -474,7 +474,11 @@
                                     </ComboBox.ItemTemplate>
                                 </ComboBox>
                                 <Button Content="应用" Command="{Binding ApplySkillPatchCommand}" Padding="15,5" Margin="0,0,10,0"/>
-                                <Button Content="打开目录" Command="{Binding OpenSkillPatchDirectoryCommand}" Padding="10,5"/>
+                                <Button Content="打开目录" Command="{Binding OpenSkillPatchDirectoryCommand}" Padding="10,5" Margin="0,0,6,0"/>
+                                <Button Command="{Binding RefreshSkillPatchFilesCommand}" ToolTip="刷新文件列表" Padding="6,5" VerticalContentAlignment="Center">
+                                    <Path Width="14" Height="14" Stretch="Uniform" Fill="#FF333333"
+                                          Data="M17.65 6.35A7.958 7.958 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+                                </Button>
                             </StackPanel>
 
                             <!-- 还原区域 -->
@@ -493,7 +497,11 @@
                                     </ComboBox.ItemTemplate>
                                 </ComboBox>
                                 <Button Content="应用" Command="{Binding ApplySkillRestoreCommand}" Padding="15,5" Margin="0,0,10,0"/>
-                                <Button Content="打开目录" Command="{Binding OpenSkillRestoreDirectoryCommand}" Padding="10,5"/>
+                                <Button Content="打开目录" Command="{Binding OpenSkillRestoreDirectoryCommand}" Padding="10,5" Margin="0,0,6,0"/>
+                                <Button Command="{Binding RefreshSkillPatchFilesCommand}" ToolTip="刷新文件列表" Padding="6,5" VerticalContentAlignment="Center">
+                                    <Path Width="14" Height="14" Stretch="Uniform" Fill="#FF333333"
+                                          Data="M17.65 6.35A7.958 7.958 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+                                </Button>
                             </StackPanel>
 
                             <TextBlock Text="{Binding SkillPatchStatus}" FontSize="12" Foreground="#FF4A90D9" TextWrapping="Wrap"/>
@@ -616,6 +624,10 @@
                                         Command="{Binding TestPriceCheckerArmourCommand}"
                                         Padding="10,5" Margin="0,0,6,0"
                                         ToolTip="使用内置的祸害魔甲（滑击背心）文本模拟查价流程，测试稀有护甲的品质/前缀/后缀/打造词缀解析与搜索是否正常"/>
+                                <Button Content="惡魔 套靴（国际服）"
+                                        Command="{Binding TestPriceCheckerIntlCommand}"
+                                        Padding="10,5" Margin="0,0,6,0"
+                                        ToolTip="使用内置的繁体中文鞋子文本模拟国际服查价流程，测试繁中词缀解析与英文搜索条件是否正确"/>
                             </WrapPanel>
                         </Grid>
                     </GroupBox>
