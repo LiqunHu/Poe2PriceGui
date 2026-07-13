@@ -684,7 +684,117 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     )
     build.add_argument("--report", type=Path, default=Path("price_patch.report.json"))
 
+    clean = sub.add_parser(
+        "clean",
+        help="strip all existing price suffixes and output a clean-layer patch zip",
+    )
+    clean.add_argument("--source", type=Path, default=DEFAULT_SOURCE)
+    clean.add_argument("--output-zip", type=Path, default=Path("clean_price_layer.zip"))
+    clean.add_argument("--patched-dat", type=Path)
+    clean.add_argument("--game-path", default=DEFAULT_GAME_PATH)
+    clean.add_argument("--separator", default="=")
+    clean.add_argument("--report", type=Path, default=Path("clean_price_layer.report.json"))
+
     return parser.parse_args(argv)
+
+
+def clean_patch(
+    source: Path,
+    output_zip: Path,
+    patched_dat: Path | None,
+    game_path: str,
+    separator: str,
+    report: Path | None,
+) -> None:
+    """Strip all existing price suffixes from item names and output a clean-layer patch zip.
+
+    This is used to build a semantically clean migration baseline when the game
+    is already patched but no clean restore package exists. The clean layer
+    removes only price markers owned by this tool, preserving other patches.
+    """
+    data = source.read_bytes()
+    entries = scan_base_item_names(data)
+    # build_replacements with empty price_rows and keep_existing_price=True
+    # will iterate all entries and strip price suffixes (see lines 421-442)
+    replacements, warnings = build_replacements(
+        entries=entries,
+        price_rows=[],
+        separator=separator,
+        keep_existing_price=True,
+        mode="append",
+        patch_same_name_duplicates=True,
+    )
+
+    if not replacements:
+        info = {
+            "source": str(source),
+            "output_zip": str(output_zip),
+            "game_path": game_path.replace("\\", "/"),
+            "mode": "clean",
+            "source_size": len(data),
+            "patched_size": len(data),
+            "size_delta": 0,
+            "cleaned_names": 0,
+            "replacements": [],
+            "warnings": warnings + ["no price suffixes found to clean"],
+            "zip_written": False,
+        }
+        if report:
+            report.parent.mkdir(parents=True, exist_ok=True)
+            report.write_text(
+                json.dumps(info, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+        if patched_dat:
+            patched_dat.parent.mkdir(parents=True, exist_ok=True)
+            patched_dat.write_bytes(data)
+        print("cleaned names: 0")
+        print("zip written: no")
+        return
+
+    patched = apply_replacements_append(data, replacements)
+    output_zip.parent.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(output_zip, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr(game_path.replace("\\", "/"), patched)
+
+    if patched_dat:
+        patched_dat.parent.mkdir(parents=True, exist_ok=True)
+        patched_dat.write_bytes(patched)
+
+    info = {
+        "source": str(source),
+        "output_zip": str(output_zip),
+        "game_path": game_path.replace("\\", "/"),
+        "mode": "clean",
+        "source_size": len(data),
+        "patched_size": len(patched),
+        "size_delta": len(patched) - len(data),
+        "cleaned_names": len(replacements),
+        "replacements": [
+            {
+                "metadata_path": r.metadata_path,
+                "row_index": r.row_index,
+                "old_name": r.old_name,
+                "cleaned_name": r.fitted_name,
+            }
+            for r in replacements
+        ],
+        "warnings": warnings,
+        "zip_written": True,
+    }
+    if report:
+        report.parent.mkdir(parents=True, exist_ok=True)
+        report.write_text(
+            json.dumps(info, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+
+    print(f"cleaned names: {len(replacements)}")
+    print(f"dat size: {len(data)} -> {len(patched)}")
+    print(f"mode: clean")
+    print(f"written: {output_zip}")
+    if warnings:
+        print("warnings:")
+        for warning in warnings:
+            print(f"  - {warning}")
 
 
 def main(argv: list[str]) -> int:
@@ -702,6 +812,15 @@ def main(argv: list[str]) -> int:
             keep_existing_price=args.keep_existing_price,
             mode=args.mode,
             patch_same_name_duplicates=not args.no_patch_same_name_duplicates,
+            report=args.report,
+        )
+    elif args.cmd == "clean":
+        clean_patch(
+            source=args.source,
+            output_zip=args.output_zip,
+            patched_dat=args.patched_dat,
+            game_path=args.game_path,
+            separator=args.separator,
             report=args.report,
         )
     return 0

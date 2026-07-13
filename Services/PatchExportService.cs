@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Text.Encodings.Web;
@@ -33,15 +32,14 @@ public class PatchExportService
 
     /// <summary>
     /// 导出所有当前显示的价格为 prices.csv，供 poe2_name_price_patch.py 使用。
+    /// 价格文本直接复用 <see cref="PoecurrencyItem.DisplayPrice"/>，确保补丁与查询界面显示完全一致，
+    /// 不再单独计算 globalDivineRatio fallback（曾导致 UI 显示 e、补丁生成 d 的不一致）。
     /// </summary>
     public async Task<int> ExportPricesCsvAsync(IEnumerable<PoecurrencyItem> prices, CancellationToken cancellationToken = default)
     {
         Directory.CreateDirectory(_outputDirectory);
 
         var priceList = prices.ToList();
-        var globalDivineRatio = priceList
-            .FirstOrDefault(p => IsDivineOrbName(p.ItemName))?
-            .PriceExalted ?? 0;
 
         var rows = priceList
             .Where(p => p.PriceExalted >= 1)
@@ -49,7 +47,7 @@ public class PatchExportService
             {
                 MetadataPath = "",
                 Name = p.ItemName,
-                Price = FormatPrice(p, globalDivineRatio),
+                Price = p.DisplayPrice,
                 NewName = "",
             })
             .ToList();
@@ -93,34 +91,6 @@ public class PatchExportService
 
         AppLogger.Instance.Info($"导出 edited_prices.json：{edited.Count} 条，路径：{EditedPricesJsonPath}");
         return edited.Count;
-    }
-
-    private static string FormatPrice(PoecurrencyItem item, decimal globalDivineRatio)
-    {
-        var ratio = item.DivineExaltedRatio > 0 ? item.DivineExaltedRatio : globalDivineRatio;
-
-        decimal value;
-        string unit;
-        if (ratio > 0 && item.PriceExalted >= ratio)
-        {
-            value = item.PriceExalted / ratio;
-            unit = "d";
-        }
-        else
-        {
-            value = item.PriceExalted;
-            unit = "e";
-        }
-
-        // e 单位用整数，d 单位保留最多 4 位小数并去掉末尾无意义的 0。
-        var format = unit == "e" ? "0" : "0.##";
-        var text = value.ToString(format, CultureInfo.InvariantCulture);
-        return $"[{text}{unit}]";
-    }
-
-    private static bool IsDivineOrbName(string name)
-    {
-        return name.Trim().ToLowerInvariant() is "神圣石" or "神圣宝珠" or "divine orb" or "divine";
     }
 
     private static string Escape(string value)

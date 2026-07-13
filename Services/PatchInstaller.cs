@@ -16,10 +16,12 @@ namespace Poe2PriceGui.Services;
 public class PatchInstaller
 {
     private readonly PatchExportService _exportService;
+    private readonly PatchSandboxService _sandboxService;
 
     public PatchInstaller(PatchExportService exportService)
     {
         _exportService = exportService;
+        _sandboxService = new PatchSandboxService();
     }
 
     /// <summary>
@@ -444,7 +446,7 @@ public class PatchInstaller
         progress?.Report("6/6 正在备份并安装补丁...");
         var installResult = modeInfo.Mode == GameMode.GGPK
             ? await InstallToGgpkAsync(gameDirectory, zipPath, cancellationToken)
-            : await InstallToBundles2Async(gameDirectory, zipPath, incrementalUpdate, modeInfo.IsChina, cancellationToken);
+            : await InstallToBundles2Async(gameDirectory, zipPath, incrementalUpdate, modeInfo.IsChina, sourceDat, modeInfo.BaseItemsPath, cancellationToken);
         // 回填导出数量和游戏模式（安装方法创建新 InstallResult，需保留前序信息）。
         installResult.ExportedCount = exportedCount;
         installResult.GameMode = modeInfo.DisplayName;
@@ -513,6 +515,8 @@ public class PatchInstaller
         string zipPath,
         bool incrementalUpdate,
         bool isChina,
+        string sourceDat,
+        string baseItemsPath,
         CancellationToken cancellationToken)
     {
         var indexBin = Path.Combine(gameDirectory, "Bundles2", "_.index.bin");
@@ -536,7 +540,28 @@ public class PatchInstaller
         var existingBackup = FindExistingRestoreZip(backupDir, isChina, isGgpk: false);
         if (incrementalUpdate && existingBackup == null)
         {
-            AppLogger.Instance.Warn($"增量更新模式：{restoreZipName} 不存在，跳过备份创建（首次安装时未创建备份，无法还原到原始状态）");
+            // 干净迁移基线（v0.4.9.3）：增量更新但无安全还原包时，
+            // 在沙盒中剥离所有物价标记后打包为还原包（baseline_kind=semantic-clean-migration），
+            // 而非直接打包已打补丁的脏状态。真实游戏不会被修改。
+            // 参考 New-CleanPhysicalRestoreZipFromPatchedSources。
+            AppLogger.Instance.Warn($"增量更新模式：{restoreZipName} 不存在，正在构建干净迁移基线...");
+            try
+            {
+                await CreateCleanMigrationBaselineAsync(
+                    gameDirectory,
+                    bundles2Dir,
+                    sourceDat,
+                    baseItemsPath,
+                    zipBackupPath,
+                    isChina,
+                    cancellationToken);
+                existingBackup = zipBackupPath;
+                AppLogger.Instance.Info($"已构建干净迁移基线：{zipBackupPath}");
+            }
+            catch (Exception ex)
+            {
+                AppLogger.Instance.Warn($"构建干净迁移基线失败（将继续安装）：{ex.Message}");
+            }
         }
         else if (!incrementalUpdate)
         {
@@ -545,49 +570,13 @@ public class PatchInstaller
                 // 如果旧版备份已存在（新名或旧名），跳过创建
                 if (existingBackup == null)
                 {
-                    using (var archive = ZipFile.Open(zipBackupPath, ZipArchiveMode.Create))
-                    {
-                        // 如果旧版 .original 存在，先将其加入 ZIP
-                        if (File.Exists(oldBackupPath))
-                        {
-                            archive.CreateEntryFromFile(oldBackupPath, "_.index.bin");
-                            AppLogger.Instance.Info($"迁移旧版备份到 ZIP：{oldBackupPath}");
-                        }
-                        else
-                        {
-                            // 首次备份 _.index.bin
-                            archive.CreateEntryFromFile(indexBin, "_.index.bin");
-                        }
+                    // 首次安装：用沙盒服务创建带 v2 manifest 的还原包
+                    _sandboxService.CreateRestoreZipFromCurrentState(bundles2Dir, gameDirectory, zipBackupPath);
 
-                        // 备份其他索引文件
-                        foreach (var name in new[] { "_.index.high.bin", "_.index.low.bin", ".index.dbg" })
-                        {
-                            var srcPath = Path.Combine(bundles2Dir, name);
-                            if (File.Exists(srcPath))
-                            {
-                                archive.CreateEntryFromFile(srcPath, name);
-                                AppLogger.Instance.Info($"备份文件：{name}");
-                            }
-                        }
-
-                        // 备份 LibGGPK3 目录
-                        var libDir = Path.Combine(bundles2Dir, "LibGGPK3");
-                        if (Directory.Exists(libDir))
-                        {
-                            var files = Directory.GetFiles(libDir, "*", SearchOption.AllDirectories);
-                            foreach (var file in files)
-                            {
-                                var relative = file.Substring(bundles2Dir.Length + 1).Replace('\\', '/');
-                                archive.CreateEntryFromFile(file, relative);
-                                AppLogger.Instance.Info($"备份文件：{relative}");
-                            }
-                        }
-                    }
-                    AppLogger.Instance.Info($"创建 Bundles2 完整备份 ZIP：{zipBackupPath}");
-
-                    // 删除旧版 .original 文件（已迁移到 ZIP）
+                    // 如果旧版 .original 存在，已包含在还原包中，删除旧文件
                     if (File.Exists(oldBackupPath))
                     {
+                        AppLogger.Instance.Info($"迁移旧版备份到 ZIP：{oldBackupPath}");
                         File.Delete(oldBackupPath);
                     }
                     // 若旧版 bundles2_backup.zip 存在，迁移后删除
@@ -628,7 +617,47 @@ public class PatchInstaller
             AppLogger.Instance.Info($"增量更新模式：跳过备份创建，使用现有备份：{existingBackup}");
         }
 
-        // 直接用 LibBundle3.Index.Replace 将补丁 zip 中的条目
+        // ===== 沙盒验证（v0.4.9.4：隔离构建、完整校验后原子发布）=====
+        // 1. 写前并发指纹：记录写入前 Bundles2 状态
+        Bundles2Fingerprint? writePrecondition = null;
+        try
+        {
+            writePrecondition = _sandboxService.ComputeBundles2Fingerprint(bundles2Dir);
+            AppLogger.Instance.Info($"写前指纹：{writePrecondition.InventorySha256[..12]}...（{writePrecondition.Files.Count} 个文件）");
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Instance.Warn($"计算写前指纹失败（继续安装）：{ex.Message}");
+        }
+
+        // 2. 沙盒验证：在临时沙盒中应用补丁，成功前不修改真实游戏
+        if (writePrecondition != null)
+        {
+            AppLogger.Instance.Info("沙盒验证：正在临时沙盒中验证补丁...");
+            var sandboxResult = await _sandboxService.ValidatePatchInSandboxAsync(
+                bundles2Dir, zipPath, cancellationToken);
+
+            if (!sandboxResult.Success)
+            {
+                result.ErrorMessage = $"沙盒验证失败，已中止写入真实游戏：{sandboxResult.ErrorMessage}";
+                AppLogger.Instance.Error(new InvalidOperationException(sandboxResult.ErrorMessage), "沙盒验证失败");
+                return result;
+            }
+
+            // 3. 写前指纹复核：沙盒验证期间检测是否有并发修改
+            if (!_sandboxService.ValidateFingerprint(writePrecondition, bundles2Dir))
+            {
+                result.ErrorMessage = "写前指纹复核失败：Bundles2 状态在沙盒验证期间已并发变化，已中止写入";
+                AppLogger.Instance.Error(new InvalidOperationException(result.ErrorMessage), "写前并发检测失败");
+                _sandboxService.CleanupSandbox(sandboxResult.SandboxBundles2Dir);
+                return result;
+            }
+
+            AppLogger.Instance.Info($"沙盒验证通过，开始写入真实游戏（沙盒替换 {sandboxResult.ReplacedCount} 个文件）");
+            _sandboxService.CleanupSandbox(sandboxResult.SandboxBundles2Dir);
+        }
+
+        // 4. 写入真实游戏：直接用 LibBundle3.Index.Replace 将补丁 zip 中的条目
         // 写入 _.index.bin（磁盘文件模式）。saveIndex=true 确保索引立即落盘。
         // LibBundle3 的操作是同步阻塞 IO，放到线程池避免卡死 UI。
         AppLogger.Instance.Info($"安装 Bundles2 补丁（内置）：index={indexBin}, zip={zipPath}");
@@ -666,6 +695,41 @@ public class PatchInstaller
             }, cancellationToken);
 
             AppLogger.Instance.Info($"Bundles2 补丁安装完成：替换/新增 {replaced} 个文件，index={indexBin}");
+
+            // 5. 写后读回校验：确认 Bundles2 状态已变化（写入生效）
+            if (writePrecondition != null)
+            {
+                try
+                {
+                    var postWriteFingerprint = _sandboxService.ComputeBundles2Fingerprint(bundles2Dir);
+                    if (string.Equals(
+                            writePrecondition.InventorySha256,
+                            postWriteFingerprint.InventorySha256,
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        // 写后指纹与写前相同，写入可能未生效
+                        AppLogger.Instance.Warn("写后读回校验：指纹未变化，写入可能未生效（尝试回滚）");
+                        result.ErrorMessage = "写后读回校验失败：Bundles2 状态未变化，写入可能未生效";
+
+                        // 自动回滚：从还原包恢复
+                        if (existingBackup != null && File.Exists(existingBackup))
+                        {
+                            AppLogger.Instance.Warn($"自动回滚：正在从还原包恢复 {existingBackup}...");
+                            await RestoreBundles2FromZipAsync(existingBackup, bundles2Dir, cancellationToken);
+                            AppLogger.Instance.Warn("自动回滚完成");
+                        }
+                        return result;
+                    }
+
+                    AppLogger.Instance.Info($"写后读回校验通过：指纹已变化（{postWriteFingerprint.Files.Count} 个文件）");
+                }
+                catch (Exception ex)
+                {
+                    // 读回校验异常不阻断安装（补丁可能已成功写入）
+                    AppLogger.Instance.Warn($"写后读回校验异常（补丁可能已成功）：{ex.Message}");
+                }
+            }
+
             result.Success = true;
             result.InstalledPath = indexBin;
         }
@@ -676,10 +740,81 @@ public class PatchInstaller
         catch (Exception ex)
         {
             AppLogger.Instance.Error(ex, "Bundles2 补丁安装失败");
+
+            // 自动回滚：写入异常时从还原包恢复
+            if (existingBackup != null && File.Exists(existingBackup))
+            {
+                try
+                {
+                    AppLogger.Instance.Warn($"安装异常，自动回滚：正在从还原包恢复 {existingBackup}...");
+                    await RestoreBundles2FromZipAsync(existingBackup, bundles2Dir, cancellationToken);
+                    AppLogger.Instance.Warn("自动回滚完成");
+                }
+                catch (Exception rollbackEx)
+                {
+                    AppLogger.Instance.Error(rollbackEx, "自动回滚失败");
+                }
+            }
+
             result.ErrorMessage = $"Bundles2 补丁安装失败：{ex.Message}";
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// 从还原 ZIP 恢复 Bundles2 目录：解压所有条目到 Bundles2/ 目录。
+    /// 条目路径以 Bundles2/ 前缀开头，解压时剥离前缀。
+    /// 跳过 manifest.json。用于写后校验失败或安装异常时的自动回滚。
+    /// </summary>
+    private async Task RestoreBundles2FromZipAsync(
+        string restoreZip,
+        string bundles2Dir,
+        CancellationToken cancellationToken)
+    {
+        await Task.Run(() =>
+        {
+            using var archive = ZipFile.OpenRead(restoreZip);
+            var bundles2Full = Path.GetFullPath(bundles2Dir)
+                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                + Path.DirectorySeparatorChar;
+
+            foreach (var entry in archive.Entries)
+            {
+                if (string.IsNullOrEmpty(entry.Name)) continue;
+                if (entry.FullName == "manifest.json") continue;
+                cancellationToken.ThrowIfCancellationRequested();
+
+                // 剥离 Bundles2/ 前缀
+                var relativePath = entry.FullName.Replace('/', Path.DirectorySeparatorChar);
+                const string prefix = "Bundles2" + "\\";
+                if (relativePath.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    relativePath = relativePath.Substring(prefix.Length);
+                }
+                else if (relativePath.StartsWith("Bundles2/", StringComparison.OrdinalIgnoreCase))
+                {
+                    relativePath = relativePath.Substring("Bundles2/".Length);
+                }
+
+                var destPath = Path.Combine(bundles2Dir, relativePath);
+
+                // 安全检查：确保解压路径在 bundles2Dir 之下（防止路径穿越）
+                var destFull = Path.GetFullPath(destPath);
+                if (!destFull.StartsWith(bundles2Full, StringComparison.OrdinalIgnoreCase))
+                {
+                    AppLogger.Instance.Warn($"跳过可疑条目（路径穿越）：{entry.FullName}");
+                    continue;
+                }
+
+                var destDir = Path.GetDirectoryName(destPath);
+                if (!string.IsNullOrEmpty(destDir))
+                {
+                    Directory.CreateDirectory(destDir);
+                }
+                entry.ExtractToFile(destPath, overwrite: true);
+            }
+        }, cancellationToken);
     }
 
     private async Task<ExtractionResult> ExtractFromBundles2Async(
@@ -1094,6 +1229,161 @@ public class PatchInstaller
 
         result.Success = true;
         return result;
+    }
+
+    /// <summary>
+    /// 调用 Python 脚本的 clean 子命令：从已打补丁的 datc64 中剥离所有物价后缀，
+    /// 生成"干净层"补丁 zip。用于增量更新场景下构建语义干净的迁移基线。
+    /// 参考 New-CleanPhysicalRestoreZipFromPatchedSources 调用 Python --patch-scope none --strict-feature-cleanup。
+    /// </summary>
+    private async Task<ScriptResult> RunPythonCleanScriptAsync(
+        string scriptPath,
+        string sourceDat,
+        string outputZip,
+        string? patchedDat,
+        string gamePath,
+        string? reportPath,
+        CancellationToken cancellationToken)
+    {
+        var result = new ScriptResult();
+        var psi = new ProcessStartInfo
+        {
+            FileName = ResolvePythonPath(),
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true,
+        };
+        psi.ArgumentList.Add(scriptPath);
+        psi.ArgumentList.Add("clean");
+        psi.ArgumentList.Add("--source");
+        psi.ArgumentList.Add(sourceDat);
+        psi.ArgumentList.Add("--output-zip");
+        psi.ArgumentList.Add(outputZip);
+        if (!string.IsNullOrEmpty(patchedDat))
+        {
+            psi.ArgumentList.Add("--patched-dat");
+            psi.ArgumentList.Add(patchedDat);
+        }
+        psi.ArgumentList.Add("--game-path");
+        psi.ArgumentList.Add(gamePath);
+        psi.ArgumentList.Add("--separator");
+        psi.ArgumentList.Add("");
+        if (!string.IsNullOrEmpty(reportPath))
+        {
+            psi.ArgumentList.Add("--report");
+            psi.ArgumentList.Add(reportPath);
+        }
+
+        AppLogger.Instance.Info($"生成干净层：{psi.FileName} {string.Join(" ", psi.ArgumentList)}");
+        using var process = Process.Start(psi);
+        if (process == null)
+        {
+            result.ErrorMessage = "无法启动 Python 进程";
+            return result;
+        }
+
+        var output = await process.StandardOutput.ReadToEndAsync(cancellationToken);
+        var error = await process.StandardError.ReadToEndAsync(cancellationToken);
+        await process.WaitForExitAsync(cancellationToken);
+
+        LogProcessOutput(output, error);
+
+        if (process.ExitCode != 0)
+        {
+            result.ErrorMessage = $"清理脚本执行失败：{error}";
+            return result;
+        }
+
+        if (!File.Exists(outputZip))
+        {
+            result.ErrorMessage = $"干净层 zip 未生成：{outputZip}";
+            return result;
+        }
+
+        result.Success = true;
+        return result;
+    }
+
+    /// <summary>
+    /// 干净迁移基线（v0.4.9.3）：当增量更新模式检测到已应用价格补丁但无安全还原包时，
+    /// 在沙盒中剥离所有物价标记后打包为还原包。真实游戏不会被修改。
+    /// 参考 New-CleanPhysicalRestoreZipFromPatchedSources。
+    ///
+    /// 流程：
+    /// 1. 调用 Python clean 子命令，从已打补丁的 datc64 生成"干净层"补丁 zip
+    /// 2. 在沙盒中应用干净层（复用 ValidatePatchInSandboxAsync）
+    /// 3. 从沙盒目录打包还原包，baseline_kind = "semantic-clean-migration"
+    /// 4. 清理沙盒
+    /// </summary>
+    private async Task CreateCleanMigrationBaselineAsync(
+        string gameDirectory,
+        string bundles2Dir,
+        string sourceDat,
+        string baseItemsPath,
+        string outputZip,
+        bool isChina,
+        CancellationToken cancellationToken)
+    {
+        var scriptPath = ResolvePatchScriptPath();
+        var cleanPatchZip = Path.Combine(_exportService.OutputDirectory, "clean_price_layer.zip");
+        var cleanReport = Path.Combine(_exportService.OutputDirectory, "clean_price_layer.report.json");
+        var cleanPatchedDat = Path.Combine(_exportService.OutputDirectory, "baseitemtypes.clean.datc64");
+
+        // 1. 生成干净层补丁 zip
+        AppLogger.Instance.Info("干净迁移基线：正在生成干净层（剥离旧物价标记）...");
+        var cleanResult = await RunPythonCleanScriptAsync(
+            scriptPath,
+            sourceDat,
+            cleanPatchZip,
+            cleanPatchedDat,
+            baseItemsPath,
+            cleanReport,
+            cancellationToken);
+
+        if (!cleanResult.Success)
+        {
+            throw new InvalidOperationException($"生成干净层失败：{cleanResult.ErrorMessage}");
+        }
+
+        // 2. 记录真实游戏的写前指纹（用于后续打包时的并发检测）
+        var migrationWritePrecondition = _sandboxService.ComputeBundles2Fingerprint(bundles2Dir);
+        AppLogger.Instance.Info(
+            $"干净迁移基线：写前指纹 {migrationWritePrecondition.InventorySha256[..12]}..." +
+            $"（{migrationWritePrecondition.Files.Count} 个文件）");
+
+        // 3. 在沙盒中应用干净层（沙盒 = 复制 _.index.bin + LibGGPK3/，应用干净层后得到无物价标记的状态）
+        AppLogger.Instance.Info("干净迁移基线：正在沙盒中应用干净层...");
+        var sandboxResult = await _sandboxService.ValidatePatchInSandboxAsync(
+            bundles2Dir, cleanPatchZip, cancellationToken);
+
+        if (!sandboxResult.Success)
+        {
+            _sandboxService.CleanupSandbox(sandboxResult.SandboxBundles2Dir);
+            throw new InvalidOperationException($"沙盒验证干净层失败：{sandboxResult.ErrorMessage}");
+        }
+
+        try
+        {
+            // 4. 从沙盒目录打包还原包：baseline_kind = semantic-clean-migration
+            //    preconditionCheckDir = 真实游戏 Bundles2 目录（writePrecondition 来自真实游戏，需对真实游戏复核）
+            var installKind = isChina ? "china" : "international";
+            _sandboxService.CreateRestoreZipFromCurrentState(
+                sandboxResult.SandboxBundles2Dir,
+                gameDirectory,
+                outputZip,
+                migrationWritePrecondition,
+                baselineKind: "semantic-clean-migration",
+                installKind: installKind,
+                targetPath: baseItemsPath,
+                preconditionCheckDir: bundles2Dir);
+
+            AppLogger.Instance.Info($"干净迁移基线已创建：{outputZip}（清理 {sandboxResult.ReplacedCount} 个文件）");
+        }
+        finally
+        {
+            _sandboxService.CleanupSandbox(sandboxResult.SandboxBundles2Dir);
+        }
     }
 
     /// <summary>

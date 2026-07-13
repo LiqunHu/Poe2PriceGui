@@ -383,6 +383,9 @@ public class PoecurrencyPriceService : IPriceService
 
         // 先推导神圣石/崇高石换算比例。
         // 国服 poecurrency.top 中 Divine Orb 以 E 标价时，其价格即为 D/E 比例。
+        // 使用 ComputeDivinePrice 计算神圣石价格，与神圣石自身的 PriceExalted 保持一致，
+        // 避免因 ChooseSimplePrice（简化版）与 ComputeDivinePrice（含 error/spread/outlier 处理）
+        // 计算结果不同导致 UI 显示神圣石 618e 但 e:d 比例用了 611，产生 [1.01d] 等异常显示。
         decimal divineExaltedRatio = 0;
         // 同时推导混沌石/崇高石换算比例（C→E），用于以 c 计价的物品换算。
         decimal chaosExaltedRatio = 0;
@@ -392,7 +395,7 @@ public class PoecurrencyPriceService : IPriceService
             {
                 if (IsDivine(raw.Name) && GetUnit(raw) == "e")
                 {
-                    var price = ChooseSimplePrice(raw);
+                    var (price, _) = ComputeDivinePrice(raw);
                     if (price > divineExaltedRatio)
                     {
                         divineExaltedRatio = price;
