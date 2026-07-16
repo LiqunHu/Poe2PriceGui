@@ -24,6 +24,7 @@ public enum PatchId
     SkillSounds,
     MonsterSounds,
     MtxSoft,
+    MonsterHpBar,
 
     Effects_New,
     /// <summary>地毯式补丁：清空全部 .epk + 简化全部 .ao，覆盖整个 metadata/ 目录。</summary>

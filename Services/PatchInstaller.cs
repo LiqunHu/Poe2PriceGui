@@ -29,7 +29,7 @@ public class PatchInstaller
     /// 导致任务管理器中看到的内存占用持续增长。操作完成后主动触发一次
     /// Full GC 并压缩大对象堆，把已释放的内存还给系统。
     /// </summary>
-    private static void CollectAfterPatch()
+    internal static void CollectAfterPatch()
     {
         try
         {
@@ -450,6 +450,7 @@ public class PatchInstaller
         // 回填导出数量和游戏模式（安装方法创建新 InstallResult，需保留前序信息）。
         installResult.ExportedCount = exportedCount;
         installResult.GameMode = modeInfo.DisplayName;
+        CollectAfterPatch();
         return installResult;
     }
 

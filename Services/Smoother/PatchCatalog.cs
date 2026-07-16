@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-
 namespace Poe2PriceGui.Services.Smoother;
 
 /// <summary>
@@ -25,6 +24,17 @@ public static class PatchCatalog
         "metadata/particles/monster_effects/atlasofworldsbosses/chimera",
         "metadata/particles/monster_effects/atlasexiles/orion",
         //"metadata/particles/conditions/",                                              //异常状态粒子（点燃/冰冻/感电/腐蚀等）
+    
+        //v1.0.12 亡语相关粒子保护
+        //亡语光圈粒子（火/冰/电三种属性的光圈）
+        "metadata/particles/monster_effects/aura/elemental_damages/",
+        //吞灵者词缀粒子
+        "metadata/particles/monster_effects/aura/nemesis_mods/",
+        //爆灵术粒子
+        "metadata/particles/detonate_dead_v2/",
+        "metadata/particles/volatile_dead_chaos/",
+        //复仇词缀粒子
+        "metadata/particles/monster_effects/nemesis_mods/",
     };
 
     /// <summary>
@@ -123,13 +133,41 @@ public static class PatchCatalog
         //地面特效(火焰爆炸)
         "metadata/effects/spells/absolution_blast/",
         "metadata/effects/spells/fire_flame_blast/",
-
+       
         //异界地图标记图标（地图选择界面上的 pins）：联赛标记、塔标记、城堡标记等。
         //清空后会导致异界地图上选择地图的标志消失。
         "metadata/terrain/worldmaps/",                  //直接保护worldmap整个目录 
         //"metadata/terrain/worldmaps/maps/doodads/pins/",
         //异界地图附件（如恢弘之境的烟雾云）。
         //"metadata/terrain/worldmaps/maps/doodads/atlasattachments/",
+
+        //v1.0.12 修正亡语路径（v1.0.11的路径写错了，monsters_effects下没有fire/lightning/ice子目录）
+        //怪物词缀亡语爆炸：explode_on_death（火）、shocked_ground（电）、chilled_ground（冰）、glacial_prison（冰牢）、burned_ground（燃烧地面）
+        "metadata/effects/spells/monsters_effects/monster_mods/fire/",
+        "metadata/effects/spells/monsters_effects/monster_mods/lightning/",
+        "metadata/effects/spells/monsters_effects/monster_mods/ice/",
+
+        //Herald of Blood 血之使者（击杀触发血爆）
+        "metadata/effects/spells/reservation_herald_of_blood/",
+        //Herald of Agony 苦痛使者（毒蜘蛛）
+        "metadata/effects/spells/reservation_heraldagony/",
+
+        //Detonate Dead 爆灵术（玩家主动尸爆技能）
+        "metadata/effects/spells/witch_detonate_dead/",
+
+        //亵渎技能（产生尸体）
+        "metadata/effects/spells/desecrate/",
+
+        //怪物词缀亡语爆炸粒子
+        "metadata/particles/detonate_dead_v2/",
+        "metadata/particles/monster_effects/monster_mods/fire/explode_on_death/",
+
+        //soul_eater 吞灵者词缀
+        "metadata/effects/spells/monsters_effects/monster_mods/soul_eater/",
+
+        //亡语光圈（火/冰/电三属性怪头上的光环，对应 .ao/.epk）
+        "metadata/effects/spells/monsters_effects/aura/nemesis_mod/",
+        "metadata/effects/spells/monsters_effects/nemesis_mods/",
     };
 
 
@@ -143,6 +181,18 @@ public static class PatchCatalog
         "metadata/doodads/characterselection",
         "metadata/materials/characterselection",
         "metadata/effects/characterselection",
+    };
+
+    /// <summary>
+    /// MtxSoft 补丁保护路径前缀。匹配这些前缀的 .epk/.pet/.trl 文件不会被清空。
+    /// 用于保护武僧风暴钟(tempestbell)等玩家技能特效。
+    /// </summary>
+    public static readonly string[] MtxProtectedPrefixes =
+    {
+        //武僧风暴钟(tempestbell) — 3个皮肤变体：breach/aurora/djinn
+        "metadata/effects/microtransactions/spells/monk/breach/monk_tempestbell/",
+        "metadata/effects/microtransactions/spells/monk/aurora/monk_tempestbell/",
+        "metadata/effects/microtransactions/spells/monk/djinn/monk_tempestbell/",
     };
 
     /// <summary>
@@ -183,6 +233,7 @@ public static class PatchCatalog
         new PatchInfo { Id = PatchId.SkillSounds, Name = "skill-sounds", DisplayName = "技能音效", Description = "静音技能特效音效（清空 SoundEvents/SoundParams）。" },
         new PatchInfo { Id = PatchId.MonsterSounds, Name = "monster-sounds", DisplayName = "怪物音效", Description = "静音怪物音效（清空 SoundEvents/SoundParams）。" },
         new PatchInfo { Id = PatchId.MtxSoft, Name = "mtx-soft", DisplayName = "微交易软化", Description = "清空微交易特效/粒子文件(可能影响部分角色人物技能)。" },
+        new PatchInfo { Id = PatchId.MonsterHpBar, Name = "monster-hp-bar", DisplayName = "怪物血条", Description = "始终显示怪物血条。" },
         new PatchInfo { Id = PatchId.Blanket, Name = "blanket", DisplayName = "地毯式", Description = "激进地毯式补丁：清空 metadata/ 下所有 .epk 并简化所有 .ao。" },
         
         new PatchInfo { Id = PatchId.Effects, Name = "effects", DisplayName = "特效", Description = "剥离较多客户端特效(人物怪物均有)。", GroupName = "effects" },
@@ -299,6 +350,7 @@ public static class PatchCatalog
                     && (EndsWithPathCi(path, ".ot") || EndsWithPathCi(path, ".otc"));
             case PatchId.Minimap:
             case PatchId.AtlasFog:
+            case PatchId.MonsterHpBar:
                 foreach (var target in ExactPatchTargets(patch))
                 {
                     if (EqPathCi(path, target)) return true;
@@ -364,6 +416,8 @@ public static class PatchCatalog
                     || EndsWithPathCi(path, "minimap_blending_pixel.hlsl");
             case PatchId.AtlasFog:
                 return EqPathCi(path, "metadata/materials/environment/worldmap/worldmap_fogofwar.fxgraph");
+            case PatchId.MonsterHpBar:
+                return EqPathCi(path, "metadata/monsters/monster.ot");
             case PatchId.Fog:
             case PatchId.Rain:
             case PatchId.Clouds:
@@ -425,6 +479,8 @@ public static class PatchCatalog
                 };
             case PatchId.AtlasFog:
                 return new[] { "metadata/materials/environment/worldmap/worldmap_fogofwar.fxgraph" };
+            case PatchId.MonsterHpBar:
+                return new[] { "metadata/monsters/monster.ot" };
             default:
                 return Array.Empty<string>();
         }
@@ -468,6 +524,15 @@ public static class PatchCatalog
         return normalized.Contains("characterselection")
             || normalized.Contains("char_selection")
             || Array.Exists(StartupSceneProtectedPrefixes, p => normalized.StartsWith(p, StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// 检查路径是否在 MtxSoft 保护名单中。匹配的文件不会被 MtxSoft 清空。
+    /// </summary>
+    public static bool IsMtxProtected(string path)
+    {
+        var normalized = NormalizePath(path);
+        return Array.Exists(MtxProtectedPrefixes, p => normalized.StartsWith(p, StringComparison.Ordinal));
     }
 
     /// <summary>

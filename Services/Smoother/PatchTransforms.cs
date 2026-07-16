@@ -125,6 +125,8 @@ internal static class PatchTransforms
                 return StripSounds(path, bytes);
             case PatchId.MtxSoft:
                 return MtxSoft(path, bytes);
+            case PatchId.MonsterHpBar:
+                return MonsterHpBar(bytes);
             case PatchId.Blanket:
                 return Blanket(path, bytes);
             case PatchId.Test:
@@ -455,6 +457,10 @@ internal static class PatchTransforms
         {
             return bytes;
         }
+        if (PatchCatalog.IsMtxProtected(path))
+        {
+            return bytes;
+        }
         if (PatchCatalog.EndsWithPathCi(path, ".epk"))
         {
             return EncodeUtf16Bom("");
@@ -464,6 +470,68 @@ internal static class PatchTransforms
             return EncodeUtf16Bom("0");
         }
         return bytes;
+    }
+
+    #endregion
+
+    #region MonsterHpBar
+
+    /// <summary>
+    /// 始终显示怪物血条。
+    /// 通过共享模板 metadata/monsters/monster.ot 给所有怪物 1 点基础护盾和生命，
+    /// 使引擎在怪物受到伤害前就渲染 HP 条。
+    /// 对应 Rust: monster_hp_bar(bytes)。
+    /// </summary>
+    private static byte[] MonsterHpBar(byte[] bytes)
+    {
+        var text = DecodeUtf16(bytes);
+        if (text.Contains("base_maximum_energy_shield = 1", StringComparison.Ordinal)
+            || text.Contains("base_maximum_life = 1", StringComparison.Ordinal))
+        {
+            return bytes;
+        }
+
+        var lines = text.Split(["\r\n", "\n"], StringSplitOptions.None).ToList();
+        var insertAt = lines
+            .FindIndex(line => line.Contains("item_drop_slots = 1", StringComparison.Ordinal));
+        if (insertAt >= 0)
+        {
+            insertAt++;
+        }
+        else
+        {
+            insertAt = StatsBlockBodyStart(lines);
+        }
+
+        if (insertAt < 0 || insertAt > lines.Count)
+        {
+            return bytes;
+        }
+
+        lines.Insert(insertAt, "\tbase_maximum_life = 1");
+        lines.Insert(insertAt, "\tbase_maximum_energy_shield = 1");
+        return EncodeUtf16Bom(string.Join("\r\n", lines));
+    }
+
+    /// <summary>
+    /// 查找 Stats { ... } 块体中第一个 `{` 之后的行索引。
+    /// 对应 Rust: stats_block_body_start(lines)。
+    /// </summary>
+    private static int StatsBlockBodyStart(List<string> lines)
+    {
+        var stats = lines.FindIndex(line => line.Trim() == "Stats");
+        if (stats < 0 || stats + 1 >= lines.Count)
+        {
+            return -1;
+        }
+        for (var i = stats + 1; i < lines.Count; i++)
+        {
+            if (lines[i].Trim() == "{")
+            {
+                return i + 1;
+            }
+        }
+        return -1;
     }
 
     #endregion

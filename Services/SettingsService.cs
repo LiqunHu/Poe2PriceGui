@@ -94,7 +94,7 @@ public class AppSettings
     public int PriceCheckerLanguage { get; set; } = 9;
 
     /// <summary>通货价格查询 Token，为空时使用公共 summary 接口，非空时使用 summary_validate 接口。</summary>
-    public string CurrencyPriceToken { get; set; } = "789486ce3baf2c4a7e18f4ba0b9aa4ab8edb9da64ca92bca10ca74c094cd8f8d";
+    public string CurrencyPriceToken { get; set; } = "";
 
     /// <summary>国服模式下，是否启用"没有的道具国际服兜底"：用国际服 poe2scout 数据补充国服 poecurrency 未覆盖的物品。默认关闭。</summary>
     public bool IntlFallbackEnabled { get; set; } = false;

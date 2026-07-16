@@ -69,9 +69,21 @@
 
   <!-- Xiletrade 源码由其自身 csproj 编译为类库，不应被主项目重复编译 -->
   <ItemGroup>
+    <Compile Remove="publish\**" />
+    <Compile Remove="Releases\**" />
+    <Compile Remove="scripts\__pycache__\**" />
     <Compile Remove="Xiletrade\**" />
+    <None Remove="publish\**" />
+    <None Remove="Releases\**" />
+    <None Remove="scripts\__pycache__\**" />
     <None Remove="Xiletrade\**" />
+    <EmbeddedResource Remove="publish\**" />
+    <EmbeddedResource Remove="Releases\**" />
+    <EmbeddedResource Remove="scripts\__pycache__\**" />
     <EmbeddedResource Remove="Xiletrade\**" />
+    <Page Remove="publish\**" />
+    <Page Remove="Releases\**" />
+    <Page Remove="scripts\__pycache__\**" />
     <Page Remove="Xiletrade\**" />
   </ItemGroup>
 
@@ -130,6 +142,10 @@
   <!-- Velopack: 将 App.xaml 从 ApplicationDefinition 改为 Page，以便使用自定义 Main 方法 -->
   <ItemGroup>
     <ApplicationDefinition Remove="App.xaml" />
+    <None Remove=".gitignore" />
+    <None Remove="ReadMe.md" />
+    <None Remove="setup.manifest" />
+    <None Remove="Update.md" />
     <Page Include="App.xaml" />
   </ItemGroup>
 

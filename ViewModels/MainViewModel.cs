@@ -64,7 +64,7 @@ public class MainViewModel : INotifyPropertyChanged
         "简体中文 (zh-CN)",
         "日文 (ja-JP)",
     };
-    private string _currencyPriceToken = "789486ce3baf2c4a7e18f4ba0b9aa4ab8edb9da64ca92bca10ca74c094cd8f8d";
+    private string _currencyPriceToken = "";
     private ListCollectionView _filteredPrices = new(new ObservableCollection<PoecurrencyItem>());
     private PriceOverlayWindow? _currentOverlay;
 
@@ -1898,6 +1898,7 @@ public class MainViewModel : INotifyPropertyChanged
 
                 return service.Apply(patches, zoom: SmootherCameraZoom, progress: progress);
             });
+            PatchInstaller.CollectAfterPatch();
             if (report.Success)
             {
                 var msg2 = $"已应用 {patches.Length} 个补丁：修改 {report.ChangedFileCount} 个文件";
