@@ -75,6 +75,9 @@ public static class PatchCatalog
         "metadata/effects/spells/ground_effects_v3/caustic",
         //"metadata/effects/spells/monsters_effects/league_delirium/fog_origin",              //雾的起源
         "metadata/effects/spells/monsters_effects/league_delirium/deliriumobject/",       //恢复弘之镜系列的东西
+
+        //武僧风暴钟(tempestbell)基础特效 — Effects补丁会strip .ao动画块导致钟不显示
+        "metadata/effects/spells/monk_bell/",
     };
 
     ///<summary>

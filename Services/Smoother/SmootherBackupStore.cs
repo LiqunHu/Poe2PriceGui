@@ -13,6 +13,10 @@ namespace Poe2PriceGui.Services.Smoother;
 ///
 /// 备份策略：只备份 Bundles2/_.index.bin（应用补丁前的当前状态）。
 /// 还原策略：覆盖 _.index.bin，并删除 Bundles2/TinyPoe2Smoother/ 目录。
+///
+/// 备份位置：由调用方传入（通常为 AppDataPath.SmootherBackup，
+/// 即 %LOCALAPPDATA%\Poe2PriceGuiData\smoother.bak），
+/// 与程序其他用户数据统一存放。
 /// </summary>
 internal sealed class SmootherBackupStore
 {
@@ -22,12 +26,14 @@ internal sealed class SmootherBackupStore
 
     private readonly string _backupPath;
 
-    public SmootherBackupStore()
+    /// <summary>
+    /// 构造：指定备份文件的完整路径。
+    /// 调用方应传入 AppDataPath.SmootherBackup，确保备份与其他用户数据
+    /// 同在 %LOCALAPPDATA%\Poe2PriceGuiData\ 下。
+    /// </summary>
+    public SmootherBackupStore(string backupPath)
     {
-        // 备份路径：%LOCALAPPDATA%/Poe2PriceGui/smoother.bak
-        var baseDir = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        var dir = Path.Combine(baseDir, "Poe2PriceGui");
-        _backupPath = Path.Combine(dir, "smoother.bak");
+        _backupPath = backupPath;
     }
 
     /// <summary>

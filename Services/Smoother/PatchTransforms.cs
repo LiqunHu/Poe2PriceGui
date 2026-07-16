@@ -43,6 +43,7 @@ internal static class PatchTransforms
         "BoneGroups",
         "AnimatedRender",
         "SkinMesh",
+        "ParticleEffects",
     };
 
     /// <summary>
@@ -379,6 +380,12 @@ internal static class PatchTransforms
         {
             return bytes;
         }
+
+        if (PatchCatalog.IsMtxProtected(path))
+        {
+            return bytes;
+        }
+
         foreach (var prefix in PatchCatalog.EffectProtectedPrefixes)
         {
             if (normalized.StartsWith(prefix, StringComparison.Ordinal))
@@ -544,7 +551,11 @@ internal static class PatchTransforms
         {
             return bytes;
         }
-
+        if (PatchCatalog.IsMtxProtected(path))
+        {
+            return bytes;
+        }
+        
         //受保护的不修改
         var normalized = PatchCatalog.NormalizePath(path);
         foreach (var prefix in PatchCatalog.EffectProtectedPrefixes)
@@ -605,6 +616,10 @@ internal static class PatchTransforms
     private static byte[] Blanket(string path, byte[] bytes)
     {
         if (PatchCatalog.IsStartupSceneProtected(path))
+        {
+            return bytes;
+        }
+        if (PatchCatalog.IsMtxProtected(path))
         {
             return bytes;
         }

@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 
 namespace Poe2PriceGui.Services;
 
@@ -61,6 +62,18 @@ public static class AppDataPath
     public static string SmootherBackup => Path.Combine(Root, "smoother.bak");
 
     /// <summary>
+    /// 旧版泥人补丁备份位置：%LOCALAPPDATA%\Poe2PriceGui\smoother.bak。
+    /// 历史遗留：早期 SmootherBackupStore 构造函数硬编码了这个目录
+    /// （与 AppDataPath.Root = ...\Poe2PriceGuiData 不同），导致备份落在
+    /// 一个独立目录里、用户很难找到。EnsureDirectories 启动时会把这里
+    /// 的旧备份迁移到 SmootherBackup，迁移后删除旧目录。
+    /// </summary>
+    private static string LegacySmootherBackupDir =>
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Poe2PriceGui");
+
+    private static string LegacySmootherBackup => Path.Combine(LegacySmootherBackupDir, "smoother.bak");
+
+    /// <summary>
     /// 泥人补丁 GGPK 模式备份 zip（与 Bundles2 模式的 smoother.bak 区分）。
     /// SmootherGgpkBackupStore.Backup 从 Content.ggpk 抽出 _.index.bin 打包产生。
     /// </summary>
@@ -92,6 +105,44 @@ public static class AppDataPath
         Directory.CreateDirectory(Output);
         Directory.CreateDirectory(SkillPatchEffect);
         Directory.CreateDirectory(SkillRestoreEffect);
+
+        // 迁移历史遗留的泥人补丁备份：早期版本把 smoother.bak 写到了
+        // %LOCALAPPDATA%\Poe2PriceGui\（缺少 Data 后缀），和程序其他用户数据
+        // 所在的 ...\Poe2PriceGuiData\ 不在一起，用户极难找到。把它搬到
+        // AppDataPath.SmootherBackup，与其它数据统一存放。
+        // MigrateSmootherBackup();
+    }
+
+    /// <summary>
+    /// 把旧位置（%LOCALAPPDATA%\Poe2PriceGui\smoother.bak）的泥人补丁备份
+    /// 迁移到新位置（AppDataPath.SmootherBackup）。仅当旧文件存在且新位置
+    /// 尚无备份时迁移，迁移后删除空的旧目录。任何异常都静默忽略，
+    /// 不影响程序启动。
+    /// </summary>
+    private static void MigrateSmootherBackup()
+    {
+        try
+        {
+            if (!File.Exists(LegacySmootherBackup) || File.Exists(SmootherBackup))
+            {
+                return;
+            }
+            File.Copy(LegacySmootherBackup, SmootherBackup, overwrite: false);
+            File.Delete(LegacySmootherBackup);
+
+            // 旧目录若已空（除 smoother.bak 外没有其他文件）则删除，
+            // 避免遗留空目录继续干扰用户；若仍有其它文件则保留。
+            if (Directory.Exists(LegacySmootherBackupDir)
+                && !Directory.EnumerateFileSystemEntries(LegacySmootherBackupDir).Any())
+            {
+                Directory.Delete(LegacySmootherBackupDir);
+            }
+        }
+        catch
+        {
+            // 迁移失败不阻塞启动：最坏情况是旧备份留在旧位置，
+            // 用户在新位置看不到，但 SmootherBackupStore 仍可正常新建备份。
+        }
     }
 
     private static void MigrateFile(string srcPath, string destPath)

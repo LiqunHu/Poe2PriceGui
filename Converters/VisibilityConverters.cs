@@ -93,3 +93,48 @@ public class ColorNameToBrushConverter : IValueConverter
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         => throw new NotSupportedException();
 }
+
+/// <summary>
+/// System.Windows.Media.Color → SolidColorBrush（单向）。
+/// 用于过滤器页面显示 TextColor/BorderColor/BackgroundColor 的色块。
+/// </summary>
+public class ColorToBrushConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        if (value is Color c)
+            return new SolidColorBrush(c);
+        return Brushes.Transparent;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
+/// <summary>
+/// Color ↔ "R G B" 文本（双向），用于过滤器页面编辑颜色。
+/// 例如 Color(255,236,43) ↔ "255 236 43"。
+/// </summary>
+public class ColorToRgbTextConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        if (value is Color c)
+            return $"{c.R} {c.G} {c.B}";
+        return "";
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        if (value is not string s || string.IsNullOrWhiteSpace(s))
+            return Colors.White;
+        var parts = s.Split(new[] { ' ', ',', ';' }, StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length < 3)
+            return Colors.White;
+        if (byte.TryParse(parts[0], out byte r) &&
+            byte.TryParse(parts[1], out byte g) &&
+            byte.TryParse(parts[2], out byte b))
+            return Color.FromRgb(r, g, b);
+        return Colors.White;
+    }
+}

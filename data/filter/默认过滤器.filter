@@ -1,0 +1,2460 @@
+# -------------------------- 全局通货 -------------------------- #
+
+Show # 卡兰德的魔镜
+    Class "Stackable Currency"
+    BaseType "Mirror of Kalandra"
+    SetTextColor 255 236 43
+    SetBorderColor 217 4 31
+    SetBackgroundColor 217 4 31 255
+    SetFontSize 45
+    MinimapIcon 0 Red Star
+    PlayEffect Red
+    CustomAlertSound "剑心音效/卡兰德的魔镜.mp3" 300
+    DisableDropSound
+
+Show # 辛格拉的发辫
+    Class "Stackable Currency"
+    BaseType "Hinekora's Lock"
+    SetTextColor 255 236 43
+    SetBorderColor 217 4 31
+    SetBackgroundColor 217 4 31 255
+    SetFontSize 45
+    MinimapIcon 0 Red Star
+    PlayEffect Red
+    CustomAlertSound "剑心音效/辛格拉的发辫.mp3" 300
+    DisableDropSound
+
+Show # 神圣石
+    Class "Stackable Currency"
+    BaseType "Divine Orb"
+    SetTextColor 255 255 255
+    SetBorderColor 218 8 98
+    SetBackgroundColor 218 8 98 255
+    SetFontSize 45
+    MinimapIcon 0 Pink Star
+    PlayEffect Pink
+    CustomAlertSound "剑心音效/神圣石.mp3" 300
+    DisableDropSound
+
+Show # 破溃宝珠
+    Class "Stackable Currency"
+    BaseType "Fracturing Orb"
+    SetTextColor 255 255 255
+    SetBorderColor 218 8 98
+    SetBackgroundColor 218 8 98 255
+    SetFontSize 44
+    MinimapIcon 0 Pink Star
+    PlayEffect Pink
+    CustomAlertSound "剑心音效/破溃宝珠.mp3" 300
+    DisableDropSound
+
+Show # 机会石
+    Class "Stackable Currency"
+    BaseType "Orb of Chance"
+    SetTextColor 255 255 255
+    SetBorderColor 135 28 226
+    SetBackgroundColor 135 28 226 255
+    SetFontSize 44
+    MinimapIcon 0 Purple Star
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/机会石.mp3" 300
+    DisableDropSound
+
+Show # 剥离石
+    Class "Stackable Currency"
+    BaseType "Orb of Annulment"
+    SetTextColor 255 255 255
+    SetBorderColor 218 8 98
+    SetBackgroundColor 218 8 98 255
+    SetFontSize 45
+    MinimapIcon 0 Pink Star
+    PlayEffect Pink
+    CustomAlertSound "剑心音效/剥离石.mp3" 300
+    DisableDropSound
+
+Show # 瓦尔宝珠
+    Class "Stackable Currency"
+    BaseType "Vaal Orb"
+    SetTextColor 255 255 255
+    SetBorderColor 135 28 226
+    SetBackgroundColor 135 28 226 255
+    SetFontSize 44
+    MinimapIcon 0 Purple Star
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/瓦尔宝珠.mp3" 300
+    DisableDropSound
+
+Hide # 点金石
+    Class "Stackable Currency"
+    BaseType "Orb of Alchemy"
+    SetTextColor 255 255 255
+    SetBorderColor 198 91 57
+    SetBackgroundColor 198 91 57 255
+    SetFontSize 44
+    MinimapIcon 1 Orange Star
+    PlayEffect Orange
+    CustomAlertSound "剑心音效/点金石.mp3" 300
+    DisableDropSound
+
+Show # 完美混沌石
+    Class "Stackable Currency" 
+    BaseType "Perfect Chaos Orb" 
+    SetTextColor 255 255 255
+    SetBorderColor 218 8 98
+    SetBackgroundColor 218 8 98 255
+    SetFontSize 44
+    MinimapIcon 0 Pink Star
+    PlayEffect Pink
+    CustomAlertSound "剑心音效/完美混沌石.mp3" 300
+    DisableDropSound
+
+Show # 高级混沌石
+    Class "Stackable Currency"
+    BaseType "Greater Chaos Orb"
+    SetTextColor 255 255 255
+    SetBorderColor 135 28 226
+    SetBackgroundColor 135 28 226 255
+    SetFontSize 44
+    MinimapIcon 0 Purple Star
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/高级混沌石.mp3" 300
+    DisableDropSound
+
+Show # 混沌石
+    Class "Stackable Currency"
+    BaseType "Chaos Orb"
+    SetTextColor 255 255 255
+    SetBorderColor 135 28 226
+    SetBackgroundColor 135 28 226 255
+    SetFontSize 44
+    MinimapIcon 0 Purple Star
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/混沌石.mp3" 300
+    DisableDropSound
+
+Show # 完美崇高石
+    Class "Stackable Currency"
+    BaseType "Perfect Exalted Orb"
+    SetTextColor 255 255 255
+    SetBorderColor 218 8 98
+    SetBackgroundColor 218 8 98 255
+    SetFontSize 44
+    MinimapIcon 0 Pink Star
+    PlayEffect Pink
+    CustomAlertSound "剑心音效/完美崇高石.mp3" 300
+    DisableDropSound
+
+Show # 高级崇高石
+    Class "Stackable Currency"
+    BaseType "Greater Exalted Orb"
+    SetTextColor 255 255 255
+    SetBorderColor 135 28 226
+    SetBackgroundColor 135 28 226 255
+    SetFontSize 44
+    MinimapIcon 0 Purple Star
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/高级崇高石.mp3" 300
+    DisableDropSound
+
+Show # 崇高石堆叠
+    StackSize >= 3
+    Class "Stackable Currency"
+    BaseType "Exalted Orb"
+    SetTextColor 255 255 255
+    SetBorderColor 198 91 57
+    SetBackgroundColor 198 91 57 255
+    SetFontSize 44
+    MinimapIcon 1 Orange Star
+    PlayEffect Orange
+    CustomAlertSound "剑心音效/崇高石.mp3" 300
+    DisableDropSound
+
+Hide # 崇高石
+    Class "Stackable Currency"
+    BaseType "Exalted Orb"
+    SetTextColor 255 255 255
+    SetBorderColor 198 91 57
+    SetBackgroundColor 198 91 57 255
+    SetFontSize 44
+    MinimapIcon 1 Orange Star
+    PlayEffect Orange
+    CustomAlertSound "剑心音效/崇高石.mp3" 300
+    DisableDropSound
+
+Show # 完美富豪石
+    Class "Stackable Currency"
+    BaseType "Perfect Regal Orb"
+    SetTextColor 255 255 255
+    SetBorderColor 135 28 226
+    SetBackgroundColor 135 28 226 255
+    SetFontSize 44
+    MinimapIcon 0 Purple Star
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/完美富豪石.mp3" 300
+    DisableDropSound
+
+Hide # 高级富豪石
+    Class "Stackable Currency"
+    BaseType "Greater Regal Orb"
+    SetTextColor 255 255 255
+    SetBorderColor 198 91 57
+    SetBackgroundColor 198 91 57 255
+    SetFontSize 44
+    MinimapIcon 1 Orange Star
+    PlayEffect Orange
+    CustomAlertSound "剑心音效/高级富豪石.mp3" 300
+    DisableDropSound
+
+Hide # 富豪石
+    Class "Stackable Currency"
+    BaseType "Regal Orb"
+    SetTextColor 255 255 255
+    SetBorderColor 43 154 111
+    SetBackgroundColor 43 154 111 255
+    SetFontSize 44
+    MinimapIcon 1 Green Star
+    PlayEffect Green
+    CustomAlertSound "剑心音效/富豪石.mp3" 300
+    DisableDropSound
+
+Show # 完美增幅石
+    Class "Stackable Currency"
+    BaseType "Perfect Orb of Augmentation"
+    SetTextColor 255 255 255
+    SetBorderColor 135 28 226
+    SetBackgroundColor 135 28 226 255
+    SetFontSize 44
+    MinimapIcon 0 Purple Star
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/完美增幅石.mp3" 300
+    DisableDropSound
+
+Hide # 高级增幅石
+    Class "Stackable Currency"
+    BaseType "Greater Orb of Augmentation"
+    SetTextColor 255 255 255
+    SetBorderColor 43 154 111
+    SetBackgroundColor 43 154 111 255
+    SetFontSize 44
+    MinimapIcon 1 Green Star
+    PlayEffect Green
+    CustomAlertSound "剑心音效/高级增幅石.mp3" 300
+    DisableDropSound
+
+Hide # 增幅石
+    Class "Stackable Currency"
+    BaseType "Orb of Augmentation"
+    SetTextColor 255 255 255
+    SetBorderColor 43 154 111
+    SetBackgroundColor 43 154 111 255
+    SetFontSize 44
+    MinimapIcon 1 Green Star
+    PlayEffect Green
+    CustomAlertSound "剑心音效/增幅石.mp3" 300
+    DisableDropSound
+
+Show # 完美蜕变石
+    Class "Stackable Currency"
+    BaseType "Perfect Orb of Transmutation"
+    SetTextColor 255 255 255
+    SetBorderColor 135 28 226
+    SetBackgroundColor 135 28 226 255
+    SetFontSize 44
+    MinimapIcon 0 Purple Star
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/完美蜕变石.mp3" 300
+    DisableDropSound
+
+Hide # 高级蜕变石
+    Class "Stackable Currency"
+    BaseType "Greater Orb of Transmutation"
+    SetTextColor 255 255 255
+    SetBorderColor 43 154 111
+    SetBackgroundColor 43 154 111 255
+    SetFontSize 44
+    MinimapIcon 1 Green Star
+    PlayEffect Green
+    CustomAlertSound "剑心音效/高级蜕变石.mp3" 300
+    DisableDropSound
+
+Hide # 蜕变石
+    Class "Stackable Currency"
+    BaseType "Orb of Transmutation"
+    SetTextColor 255 255 255
+    SetBorderColor 43 154 111
+    SetBackgroundColor 43 154 111 255
+    SetFontSize 44
+    MinimapIcon 1 Green Star
+    PlayEffect Green
+    CustomAlertSound "剑心音效/蜕变石.mp3" 300
+    DisableDropSound
+
+Hide # 机会石碎片
+    Class "Stackable Currency"
+    BaseType "Chance Shard"
+    SetTextColor 255 255 255
+    SetBorderColor 198 91 57
+    SetBackgroundColor 198 91 57 255
+    SetFontSize 44
+    MinimapIcon 1 Orange Star
+    PlayEffect Orange
+    CustomAlertSound "剑心音效/机会石碎片.mp3" 300
+    DisableDropSound
+
+Hide # 蜕变、富豪、巧匠石碎片
+    Class "Stackable Currency"
+    BaseType "Transmutation Shard" "Regal Shard" "Artificer's Shard"
+    SetTextColor 255 255 255
+    SetBorderColor 43 154 111
+    SetBackgroundColor 43 154 111 255
+    SetFontSize 44
+    MinimapIcon 1 Green Star
+    PlayEffect Green
+    DisableDropSound
+
+Hide # 知识卷轴(区域等级20)
+    AreaLevel < 20
+    Class "Stackable Currency"
+    BaseType "Scroll of Wisdom"
+    SetTextColor 255 255 255
+    SetBorderColor 43 154 111
+    SetBackgroundColor 43 154 111 255
+    SetFontSize 44
+    DisableDropSound
+
+Hide # 知识卷轴
+    Class "Stackable Currency"
+    BaseType "Scroll of Wisdom"
+    SetTextColor 255 255 255
+    SetBorderColor 43 154 111
+    SetBackgroundColor 43 154 111 255
+    SetFontSize 44
+    DisableDropSound
+
+# -------------------------- 插槽通货 -------------------------- #
+
+Show # 完美工匠石
+    Class "Stackable Currency"
+    BaseType "Perfect Jeweller's Orb"
+    SetTextColor 255 255 255
+    SetBorderColor 135 28 226
+    SetBackgroundColor 135 28 226 255
+    SetFontSize 44
+    MinimapIcon 0 Purple Star
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/完美工匠石.mp3" 300
+    DisableDropSound
+
+Hide # 高等工匠石
+    Class "Stackable Currency" 
+    BaseType "Greater Jeweller's Orb" 
+    SetTextColor 255 255 255
+    SetBorderColor 198 91 57
+    SetBackgroundColor 198 91 57 255
+    SetFontSize 44
+    MinimapIcon 1 Orange Star
+    PlayEffect Orange
+    CustomAlertSound "剑心音效/高等工匠石.mp3" 300
+    DisableDropSound
+
+Hide # 低等工匠石
+    Class "Stackable Currency"
+    BaseType "Lesser Jeweller's Orb"
+    SetTextColor 255 255 255
+    SetBorderColor 43 154 111
+    SetBackgroundColor 43 154 111 255
+    SetFontSize 44
+    MinimapIcon 1 Green Star
+    PlayEffect Green
+    CustomAlertSound "剑心音效/低等工匠石.mp3" 300
+    DisableDropSound
+
+Hide # 巧匠石
+    Class "Stackable Currency"
+    BaseType "Artificer's Orb"
+    SetTextColor 255 255 255
+    SetBorderColor 198 91 57
+    SetBackgroundColor 198 91 57 255
+    SetFontSize 44
+    MinimapIcon 1 Orange Star
+    PlayEffect Orange
+    CustomAlertSound "剑心音效/巧匠石.mp3" 300
+    DisableDropSound
+
+# -------------------------- 品质通货 -------------------------- #
+
+Show # 奥术师的铭刻
+    Class "Stackable Currency"
+    BaseType "Arcanist's Etcher"
+    SetTextColor 255 255 255
+    SetBorderColor 135 28 226
+    SetBackgroundColor 135 28 226 255
+    SetFontSize 44
+    MinimapIcon 0 Purple Star
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/奥术师的铭刻.mp3" 300
+    DisableDropSound
+
+Show # 宝石匠的棱镜
+    Class "Stackable Currency"
+    BaseType "Gemcutter's Prism"
+    SetTextColor 255 255 255
+    SetBorderColor 135 28 226
+    SetBackgroundColor 135 28 226 255
+    SetFontSize 44
+    MinimapIcon 0 Purple Star
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/宝石匠的棱镜.mp3" 300
+    DisableDropSound
+
+Hide # 玻璃弹珠
+    Class "Stackable Currency"
+    BaseType "Glassblower's Bauble"
+    SetTextColor 255 255 255
+    SetBorderColor 198 91 57
+    SetBackgroundColor 198 91 57 255
+    SetFontSize 44
+    MinimapIcon 1 Orange Star
+    PlayEffect Orange
+    CustomAlertSound "剑心音效/玻璃弹珠.mp3" 300
+    DisableDropSound
+
+Hide # 护甲片
+    Class "Stackable Currency"
+    BaseType "Armourer's Scrap"
+    SetTextColor 255 255 255
+    SetBorderColor 198 91 57
+    SetBackgroundColor 198 91 57 255
+    SetFontSize 44
+    MinimapIcon 1 Orange Star
+    PlayEffect Orange
+    CustomAlertSound "剑心音效/护甲片.mp3" 300
+    DisableDropSound
+
+Hide # 磨刀石
+    Class "Stackable Currency"
+    BaseType "Blacksmith's Whetstone"
+    SetTextColor 255 255 255
+    SetBorderColor 198 91 57
+    SetBackgroundColor 198 91 57 255
+    SetFontSize 44
+    MinimapIcon 1 Orange Star
+    PlayEffect Orange
+    CustomAlertSound "剑心音效/磨刀石.mp3" 300
+    DisableDropSound
+
+# -------------------------- 神庙 -------------------------- #
+
+Show # 献祭宝珠
+    Class "Stackable Currency"
+    BaseType "Kopec's Orb of Sacrifice" "Yugul's Orb of Sacrifice" "Kamasa's Orb of Sacrifice" "Yaomac's Orb of Sacrifice"
+    SetTextColor 255 236 43
+    SetBorderColor 217 4 31
+    SetBackgroundColor 217 4 31 255
+    SetFontSize 45
+    MinimapIcon 0 Red Star
+    PlayEffect Red
+    CustomAlertSound "剑心音效/传奇珠宝.mp3" 300
+    DisableDropSound
+
+Show # 瓦尔培育宝珠
+    Class "Stackable Currency"
+    BaseType "Vaal Cultivation Orb" 
+    SetTextColor 255 255 255
+    SetBorderColor 218 8 98
+    SetBackgroundColor 218 8 98 255
+    SetFontSize 44
+    MinimapIcon 0 Pink Star
+    PlayEffect Pink
+    CustomAlertSound "剑心音效/瓦尔培育宝珠.mp3" 300
+    DisableDropSound
+
+Show # 核心失稳装置
+    Class "Stackable Currency"
+    BaseType "Core Destabiliser"
+    SetTextColor 255 255 255
+    SetBorderColor 218 8 98
+    SetBackgroundColor 218 8 98 255
+    SetFontSize 45
+    MinimapIcon 0 Pink Star
+    PlayEffect Pink
+    CustomAlertSound "剑心音效/核心失稳装置.mp3" 300
+    DisableDropSound
+
+Show # 瓦尔催化注能装置
+    Class "Stackable Currency"
+    BaseType "Vaal Catalysing Infuser"
+    SetTextColor 255 236 43
+    SetBorderColor 217 4 31
+    SetBackgroundColor 217 4 31 255
+    SetFontSize 45
+    MinimapIcon 0 Red Star
+    PlayEffect Red
+    CustomAlertSound "剑心音效/瓦尔注能装置.mp3" 300
+    DisableDropSound
+
+Show # 瓦尔护甲注能装置
+    Class "Stackable Currency"
+    BaseType "Vaal Armourer's Infuser"
+    SetTextColor 255 255 255
+    SetBorderColor 218 8 98
+    SetBackgroundColor 218 8 98 255
+    SetFontSize 45
+    MinimapIcon 0 Pink Star
+    PlayEffect Pink
+    CustomAlertSound "剑心音效/瓦尔注能装置.mp3" 300
+    DisableDropSound
+
+Show # 瓦尔铁匠注能装置
+    Class "Stackable Currency"
+    BaseType "Vaal Blacksmith's Infuser"
+    SetTextColor 255 255 255
+    SetBorderColor 135 28 226
+    SetBackgroundColor 135 28 226 255
+    SetFontSize 44
+    MinimapIcon 0 Purple Star
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/瓦尔注能装置.mp3" 300
+    DisableDropSound
+
+Show # 瓦尔秘术注能装置
+    Class "Stackable Currency"
+    BaseType "Vaal Arcanist's Infuser"
+    SetTextColor 255 255 255
+    SetBorderColor 198 91 57
+    SetBackgroundColor 198 91 57 255
+    SetFontSize 44
+    MinimapIcon 1 Orange Star
+    PlayEffect Orange
+    CustomAlertSound "剑心音效/瓦尔注能装置.mp3" 300
+    DisableDropSound
+
+Show # 远古注能装置
+    Class "Stackable Currency"
+    BaseType "Ancient Infuser"
+    SetTextColor 255 255 255
+    SetBorderColor 135 28 226
+    SetBackgroundColor 135 28 226 255
+    SetFontSize 44
+    MinimapIcon 0 Purple Star
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/远古注能装置.mp3" 300
+    DisableDropSound
+
+Show # 建筑师宝珠
+    Class "Stackable Currency"
+    BaseType "Architect's Orb"
+    SetTextColor 255 255 255
+    SetBorderColor 218 8 98
+    SetBackgroundColor 218 8 98 255
+    SetFontSize 45
+    MinimapIcon 0 Pink Star
+    PlayEffect Pink
+    CustomAlertSound "剑心音效/建筑师宝珠.mp3" 300
+    DisableDropSound
+
+Show # 萃取石
+    Class "Stackable Currency"
+    BaseType "Orb of Extraction"
+    SetTextColor 255 255 255
+    SetBorderColor 135 28 226
+    SetBackgroundColor 135 28 226 255
+    SetFontSize 44
+    MinimapIcon 0 Purple Star
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/萃取石.mp3" 300
+    DisableDropSound
+
+Show # 结晶腐化
+    Class "Stackable Currency"
+    BaseType "Crystallised Corruption"
+    SetTextColor 255 255 255
+    SetBorderColor 218 8 98
+    SetBackgroundColor 218 8 98 255
+    SetFontSize 45
+    MinimapIcon 0 Pink Star
+    PlayEffect Pink
+    CustomAlertSound "剑心音效/结晶腐化.mp3" 300
+    DisableDropSound
+
+Hide # 瓦尔虹吸者
+    Class "Incubators" 
+    BaseType "Vaal Siphoner"
+    SetTextColor 255 255 255
+    SetBorderColor 198 91 57
+    SetBackgroundColor 198 91 57 255
+    SetFontSize 44
+    MinimapIcon 1 Orange Star
+    PlayEffect Orange
+    CustomAlertSound "剑心音效/瓦尔虹吸者.mp3" 300
+    DisableDropSound
+
+# -------------------------- 高价传奇 -------------------------- #
+
+Show # 双瓦传奇
+    Rarity Unique
+    TwiceCorrupted True 
+    SetTextColor 244 116 35
+    SetBorderColor 0 0 0
+    SetBackgroundColor 0 0 0 255
+    SetFontSize 40
+    MinimapIcon 1 Brown Diamond
+    PlayEffect Brown
+    CustomAlertSound "剑心音效/双瓦传奇.mp3" 300
+    DisableDropSound
+
+Show # 瓦尔传奇
+    Rarity Unique
+    IsVaalUnique True 
+    SetTextColor 244 116 35
+    SetBorderColor 0 0 0
+    SetBackgroundColor 0 0 0 255
+    SetFontSize 40
+    MinimapIcon 1 Brown Diamond
+    PlayEffect Brown
+    CustomAlertSound "剑心音效/瓦尔传奇.mp3" 300
+    DisableDropSound
+
+Show # 卡兰德之触
+    Mirrored True
+    Rarity Unique
+    BaseType "Ring" 
+    SetTextColor 175 95 28
+    SetBorderColor 255 255 255
+    SetBackgroundColor 255 255 255 255
+    SetFontSize 44
+    MinimapIcon 0 Brown Diamond
+    PlayEffect Brown
+    CustomAlertSound "剑心音效/超级传奇.mp3" 300
+    DisableDropSound
+
+Show # 三孔传奇(高价值)
+    Rarity Unique
+    Sockets 3
+    BaseType "Giant Maul" "Composite Bow" "Heavy Bow" "Fanatic Bow" "Crude Bow" "Permafrost Staff" "Desolate Crossbow" "Long Quarterstaff" "Ashbark Talisman" "Totemic Greatclub" "Crumbling Maul" "Pyrophyte Staff" "Shortbow" "Oak Greathammer" "Armoured Vest" "Altar Robe" "Vaal Cuirass" "Conqueror Plate" "Plated Vestments" "Smuggler Coat" "Marabout Garb" "Shrouded Vest" "Champion Cuirass" "Corvus Mantle" "Silk Robe" "Scale Mail" "Scale Mail" "Gilded Vestments" "Leaden Greathammer"
+    SetTextColor 255 236 43
+    SetBorderColor 217 4 31
+    SetBackgroundColor 217 4 31 255
+    SetFontSize 42
+    MinimapIcon 0 Red Diamond
+    PlayEffect Red
+    CustomAlertSound "剑心音效/三孔传奇.mp3" 300
+    DisableDropSound
+
+Show # 三孔传奇
+    Rarity Unique
+    Sockets 3
+    Class "Body Armours" "Bows" "Crossbows" "Quarterstaves" "Staves" "Two Hand Maces" "Talismans"
+    SetTextColor 244 116 35
+    SetBorderColor 0 0 0
+    SetBackgroundColor 0 0 0 255
+    SetFontSize 40
+    MinimapIcon 1 Brown Diamond
+    PlayEffect Brown
+    CustomAlertSound "剑心音效/三孔传奇.mp3" 300
+    DisableDropSound
+
+Show # 两孔传奇(高价值)
+    Rarity Unique
+    Sockets 2
+    BaseType "Shrine Sceptre" "Pronged Spear" "Siphoning Wand" "Winged Spear" "Torment Club" "Spiked Club" "Barbed Spear" "Helix Spear" "Crucible Tower Shield" "Tribal Mask" "Armoured Cap" "Moulded Mitts" "Cinched Boots" "Fine Bracers" "Magus Tiara" "Gauze Wraps" "Furtive Wraps" "Grand Visage" "Sacred Focus" "Antler Focus" "Rope Cuffs" "Feathered Sandals" "Viper Cap" "Vermeil Circlet" "Martyr Crown" "Hunting Shoes" "Trimmed Greaves" "Spiritbone Crown" "Blacksteel Tower Shield" "Layered Gauntlets" "Heavy Crown" "Sectioned Bracers" "Lattice Sandals"
+    SetTextColor 255 236 43
+    SetBorderColor 217 4 31
+    SetBackgroundColor 217 4 31 255
+    SetFontSize 42
+    MinimapIcon 0 Red Diamond
+    PlayEffect Red
+    CustomAlertSound "剑心音效/两孔传奇.mp3" 300
+    DisableDropSound
+
+Show # 两孔传奇
+    Rarity Unique
+    Sockets 2
+    Class "One Hand Maces" "Sceptres" "Shields" "Spears" "Wands" "Bucklers" "Foci" "Gloves" "Helmet" "Boots"
+    SetTextColor 244 116 35
+    SetBorderColor 0 0 0
+    SetBackgroundColor 0 0 0 255
+    SetFontSize 40
+    MinimapIcon 1 Brown Diamond
+    PlayEffect Brown
+    CustomAlertSound "剑心音效/两孔传奇.mp3" 300
+    DisableDropSound
+
+Show # 限定传奇
+    Rarity Unique
+    BaseType "Ultimate Life Flask" "Silk Robe" "Sacrificial Regalia" "Wide Belt"
+    SetTextColor 175 95 28
+    SetBorderColor 255 255 255
+    SetBackgroundColor 255 255 255 255
+    SetFontSize 45
+    MinimapIcon 0 Brown Diamond
+    PlayEffect Brown
+    CustomAlertSound "剑心音效/超级传奇.mp3" 300
+    DisableDropSound
+
+Show # 超级传奇
+    Rarity Unique
+    BaseType "Incense Relic" "Golden Charm" "Heavy Belt" "Utility Belt" "Sacred Focus" "Tribal Mask" "Shrine Sceptre" "Ornate Gauntlets" "Moulded Mitts" "Two-Stone Ring" "Prismatic Ring" "Stoic Sceptre" "Grand Spear" "Winged Spear" "Garment" "Cinched Boots" "Grand Regalia" "Runic Fork" "Shortsword" "Glass Shank" "Scimitar" "Tethering Bands"
+    SetTextColor 175 95 28
+    SetBorderColor 255 255 255
+    SetBackgroundColor 255 255 255 255
+    SetFontSize 45
+    MinimapIcon 0 Brown Diamond
+    PlayEffect Brown
+    CustomAlertSound "剑心音效/超级传奇.mp3" 300
+    DisableDropSound
+
+Show # 可瓦传奇
+    Rarity Unique
+    BaseType "Bloodstone Amulet" "Stellar Amulet" "Amethyst Ring" "Fine Belt" "Gold Ring" "Lattice Sandals" "Conqueror Plate" "Enlightened Robe" "Champion Cuirass" "Felt Cap" "Reflecting Staff" "Fanatic Bow" "Viper Cap" "Vaal Cuirass" "Heavy Bow" "Armoured Vest" "Armoured Cap" "Ashbark Talisman" "Trarthan Cannon" "Ironhead Spear" "Jade Amulet" "Leaden Greathammer" "Abyssal Signet" "Primed Quiver"
+    SetTextColor 244 116 35
+    SetBorderColor 0 0 0
+    SetBackgroundColor 0 0 0 255
+    SetFontSize 40
+    MinimapIcon 1 Brown Diamond
+    PlayEffect Brown
+    CustomAlertSound "剑心音效/高级传奇.mp3" 300
+    DisableDropSound
+
+Hide # 高级传奇
+    Rarity Unique
+    BaseType "Silver Charm" "Grand Manchettes" "Siphoning Wand" "Sapphire Ring" "Unset Ring" "Intricate Crest Shield" "Array Buckler" "Chain Tiara" "Altar Robe" "Heavy Crown" "Grand Visage" "Embroidered Gloves" "Broadhead Quiver" "Trimmed Greaves" "Vermeil Circlet" "Thawing Charm" "Gargantuan Mana Flask" "Stone Charm" "Amethyst Charm" "Pronged Spear" "Desolate Crossbow" "Utility Wraps" "Fine Bracers" "Gauze Wraps" "Furtive Wraps" "Perching Staff"
+    SetTextColor 244 116 35
+    SetBorderColor 0 0 0
+    SetBackgroundColor 0 0 0 255
+    SetFontSize 40
+    MinimapIcon 1 Brown Diamond
+    PlayEffect Brown
+    CustomAlertSound "剑心音效/高级传奇.mp3" 300
+    DisableDropSound
+
+Show # 传奇珠宝
+    Rarity Unique
+    Class "Jewels"
+    BaseType "Timeless Jewel" "Time-Lost Emerald" "Time-Lost Ruby" "Time-Lost Sapphire" "Diamond" "Ruby" "Sapphire" "Emerald"
+    SetTextColor 255 236 43
+    SetBorderColor 217 4 31
+    SetBackgroundColor 217 4 31 255
+    SetFontSize 45
+    MinimapIcon 0 Red Diamond
+    PlayEffect Red
+    CustomAlertSound "剑心音效/传奇珠宝.mp3" 300
+    DisableDropSound
+
+# -------------------------- 咒符 -------------------------- #
+
+Hide # 传奇咒符
+    Rarity Unique
+    Class "Charms"
+    SetTextColor 244 116 35
+    SetBorderColor 0 0 0
+    SetBackgroundColor 0 0 0 255
+    SetFontSize 40
+    CustomAlertSound "剑心音效/传奇咒符.mp3" 300
+    DisableDropSound
+
+Show # 卓越咒符
+    Corrupted False
+    Quality >= 21
+    Class "Charms"
+    SetTextColor 255 255 255
+    SetBorderColor 180 38 172
+    SetBackgroundColor 180 38 172 255
+    SetFontSize 40
+    MinimapIcon 1 Purple Diamond
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/卓越咒符.mp3" 300
+    DisableDropSound
+
+Hide # 高价咒符
+    Class "Charms"
+    BaseType "Thawing Charm" "Silver Charm" "Golden Charm" "Stone Charm" "Dousing Charm"
+    SetTextColor 253 253 149
+    SetBorderColor 253 253 149
+    SetBackgroundColor 0 0 0 255
+    SetFontSize 40
+    CustomAlertSound "剑心音效/咒符.mp3" 300
+    DisableDropSound
+
+Hide # 品质咒符
+    Quality >= 15
+    Class "Charms"
+    SetTextColor 245 207 151
+    SetBorderColor 245 207 151
+    SetBackgroundColor 0 0 0 255
+    SetFontSize 40
+    DisableDropSound
+
+Hide # 咒符
+    Class "Charms"
+    SetTextColor 253 253 149
+    SetBorderColor 253 253 149
+    SetBackgroundColor 0 0 0 255
+    SetFontSize 40
+    DisableDropSound
+
+# -------------------------- 药剂 -------------------------- #
+
+Hide # 传奇药剂
+    Rarity Unique
+    Class "Flask"
+    SetTextColor 244 116 35
+    SetBorderColor 0 0 0
+    SetBackgroundColor 0 0 0 255
+    SetFontSize 40
+    CustomAlertSound "剑心音效/传奇药剂.mp3" 300
+    DisableDropSound
+
+Show # 卓越药剂
+    Corrupted False
+    Quality >= 25
+    BaseType "Ultimate Life Flask" "Ultimate Mana Flask"
+    SetTextColor 255 255 255
+    SetBorderColor 180 38 172
+    SetBackgroundColor 180 38 172 255
+    SetFontSize 40
+    MinimapIcon 1 Purple Diamond
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/卓越药剂.mp3" 300
+    DisableDropSound
+
+Hide # 品质药剂
+    Quality >= 15
+    Class "Flasks"
+    SetTextColor 245 207 151
+    SetBorderColor 245 207 151
+    SetBackgroundColor 0 0 0 255
+    SetFontSize 40
+    DisableDropSound
+
+Show # 高物等药剂
+    Rarity Normal
+    ItemLevel >= 83
+    BaseType "Ultimate Life Flask" "Ultimate Mana Flask"
+    SetTextColor 253 253 149
+    SetBorderColor 253 253 149
+    SetBackgroundColor 0 0 0 255
+    SetFontSize 40
+    MinimapIcon 1 Yellow Diamond
+    PlayEffect Yellow
+    DisableDropSound
+
+Hide # 生命药剂
+    Class "Life Flasks"
+    BaseType "Ultimate Life Flask"
+    SetTextColor 253 253 149
+    SetBorderColor 253 253 149
+    SetBackgroundColor 0 0 0 255
+    SetFontSize 40
+    DisableDropSound
+
+Hide # 魔力药剂
+    Class "Mana Flasks"
+    BaseType "Ultimate Mana Flask"
+    SetTextColor 253 253 149
+    SetBorderColor 253 253 149
+    SetBackgroundColor 0 0 0 255
+    SetFontSize 40
+    DisableDropSound
+
+Hide # 药剂
+    Class "Flasks"
+    SetTextColor 253 253 149
+    SetBorderColor 253 253 149
+    SetBackgroundColor 0 0 0 255
+    SetFontSize 40
+    DisableDropSound
+
+# -------------------------- 碎片 -------------------------- #
+
+Show # 梦魇拟像
+    Class "Map Fragment"
+    BaseType "Simulacrum"
+    SetTextColor 255 255 255
+    SetBorderColor 218 8 98
+    SetBackgroundColor 218 8 98 255
+    SetFontSize 45
+    MinimapIcon 0 Pink Star
+    PlayEffect Pink
+    CustomAlertSound "剑心音效/梦魇拟像.mp3" 300
+    DisableDropSound
+
+Show # 拟像裂片堆叠
+    StackSize >= 2
+    Class "Stackable Currency" 
+    BaseType "Simulacrum Splinter" 
+    SetTextColor 255 255 255
+    SetBorderColor 135 28 226
+    SetBackgroundColor 135 28 226 255
+    SetFontSize 44
+    MinimapIcon 0 Purple Star
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/拟像裂片.mp3" 300
+    DisableDropSound
+
+Hide # 拟像裂片
+    Class "Stackable Currency" 
+    BaseType "Simulacrum Splinter" 
+    SetTextColor 255 255 255
+    SetBorderColor 135 28 226
+    SetBackgroundColor 135 28 226 255
+    SetFontSize 44
+    MinimapIcon 0 Purple Star
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/拟像裂片.mp3" 300
+    DisableDropSound
+
+Show # 裂隙石
+    Class "Breachstone"
+    BaseType "Breachstone"
+    SetTextColor 255 255 255
+    SetBorderColor 135 28 226
+    SetBackgroundColor 135 28 226 255
+    SetFontSize 44
+    MinimapIcon 0 Purple Star
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/裂隙石.mp3" 300
+    DisableDropSound
+
+Show # 裂隙碎片
+    Class "Stackable Currency"
+    BaseType "Breach Splinter"
+    SetTextColor 255 255 255
+    SetBorderColor 43 154 111
+    SetBackgroundColor 43 154 111 255
+    SetFontSize 44
+    MinimapIcon 1 Green Star
+    PlayEffect Green
+    CustomAlertSound "剑心音效/裂隙碎片.mp3" 300
+    DisableDropSound
+
+# -------------------------- 精华 -------------------------- #
+
+Show # 超级精华
+    Class "Stackable Currency"
+    BaseType "Essence of Hysteria" "Essence of Horror"
+    SetTextColor 255 255 255
+    SetBorderColor 218 8 98
+    SetBackgroundColor 218 8 98 255
+    SetFontSize 44
+    MinimapIcon 0 Pink Star
+    PlayEffect Pink
+    CustomAlertSound "剑心音效/超级精华.mp3" 300
+    DisableDropSound
+
+Show # 稀有精华
+    Class "Stackable Currency"
+    BaseType "Essence of Insanity" "Essence of Delirium" "Essence of the Abyss" "Essence of the Breach" "Perfect Essence of Battle" "Perfect Essence of Haste" "Perfect Essence of Flames" "Perfect Essence of Ice" "Perfect Essence of Electricity" "Perfect Essence of the Infinite" "Perfect Essence of Seeking" "Perfect Essence of Grounding" "Perfect Essence of Alacrity" "Perfect Essence of Opulence"
+    SetTextColor 255 255 255
+    SetBorderColor 135 28 226
+    SetBackgroundColor 135 28 226 255
+    SetFontSize 44
+    MinimapIcon 0 Purple Star
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/稀有精华.mp3" 300
+    DisableDropSound
+
+Hide # 高级精华
+    Class "Stackable Currency"
+    BaseType "Perfect Essence of Sorcery" "Perfect Essence of the Body" "Perfect Essence of the Mind" "Perfect Essence of Enhancement" "Perfect Essence of Abrasion" "Perfect Essence of Ruin" "Perfect Essence of Insulation" "Perfect Essence of Thawing" "Perfect Essence of Command" "Greater Essence of Opulence" "Greater Essence of Ruin" "Greater Essence of the Body" "Greater Essence of the Mind" "Greater Essence of Enhancement" "Greater Essence of Abrasion" "Greater Essence of Flames" "Greater Essence of Ice" "Greater Essence of Electricity" "Greater Essence of Battle" "Greater Essence of Sorcery" "Greater Essence of Haste" "Greater Essence of the Infinite" "Greater Essence of Seeking" "Greater Essence of Insulation" "Greater Essence of Thawing" "Greater Essence of Grounding" "Greater Essence of Alacrity" "Greater Essence of Command"
+    SetTextColor 255 255 255
+    SetBorderColor 198 91 57
+    SetBackgroundColor 198 91 57 255
+    SetFontSize 44
+    MinimapIcon 1 Orange Star
+    PlayEffect Orange
+    CustomAlertSound "剑心音效/高级精华.mp3" 300
+    DisableDropSound
+
+Hide # 精华
+    Class "Stackable Currency"
+    BaseType "Essence of the Body" "Essence of the Mind" "Essence of Enhancement" "Essence of Abrasion" "Essence of Flames" "Essence of Ice" "Essence of Electricity" "Essence of Ruin" "Essence of Battle" "Essence of Sorcery" "Essence of Haste" "Essence of the Infinite" "Essence of Seeking" "Essence of Insulation" "Essence of Thawing" "Essence of Grounding" "Essence of Alacrity" "Essence of Opulence" "Essence of Command"
+    SetTextColor 255 255 255
+    SetBorderColor 43 154 111
+    SetBackgroundColor 43 154 111 255
+    SetFontSize 44
+    MinimapIcon 1 Green Star
+    PlayEffect Green
+    CustomAlertSound "剑心音效/精华.mp3" 300
+    DisableDropSound
+
+# -------------------------- 液化情感 -------------------------- #
+
+Show # 超级液化情感(远古)
+    Class "Stackable Currency"
+    BaseType "Ancient Potent Liquid Contempt"
+    SetTextColor 255 236 43
+    SetBorderColor 217 4 31
+    SetBackgroundColor 217 4 31 255
+    SetFontSize 45
+    MinimapIcon 0 Red Star
+    PlayEffect Red
+    CustomAlertSound "剑心音效/超级液化情感.mp3" 300
+    DisableDropSound
+
+Show # 高级液化情感(远古)
+    Class "Stackable Currency"
+    BaseType "Ancient Potent Liquid Melancholy" "Ancient Concentrated Liquid Isolation" "Ancient Concentrated Liquid Fear" 
+    SetTextColor 255 255 255
+    SetBorderColor 135 28 226
+    SetBackgroundColor 135 28 226 255
+    SetFontSize 44
+    MinimapIcon 0 Purple Star
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/高级液化情感.mp3" 300
+    DisableDropSound
+
+Hide # 液化情感(远古)
+    Class "Stackable Currency"
+    BaseType "Ancient Concentrated Liquid Suffering" "Ancient Liquid Despair" "Ancient Potent Liquid Ferocity"
+    SetTextColor 255 255 255
+    SetBorderColor 198 91 57
+    SetBackgroundColor 198 91 57 255
+    SetFontSize 44
+    MinimapIcon 1 Orange Star
+    PlayEffect Orange
+    CustomAlertSound "剑心音效/液化情感.mp3" 300
+    DisableDropSound
+
+Hide # 液化情感(远古)
+    Class "Stackable Currency"
+    BaseType "Ancient Diluted Liquid Greed" "Ancient Liquid Disgust" "Ancient Liquid Paranoia" "Ancient Diluted Liquid Ire" "Ancient Diluted Liquid Guilt" "Ancient Liquid Envy"
+    SetTextColor 255 255 255
+    SetBorderColor 43 154 111
+    SetBackgroundColor 43 154 111 255
+    SetFontSize 44
+    MinimapIcon 1 Green Star
+    PlayEffect Green
+    CustomAlertSound "剑心音效/液化情感.mp3" 300
+    DisableDropSound
+
+Show # 稀有液化情感
+    Class "Stackable Currency"
+    BaseType "Concentrated Liquid Isolation" "Potent Liquid Ferocity" "Potent Liquid Contempt"
+    SetTextColor 255 255 255
+    SetBorderColor 218 8 98
+    SetBackgroundColor 218 8 98 255
+    SetFontSize 44
+    MinimapIcon 0 Pink Star
+    PlayEffect Pink
+    CustomAlertSound "剑心音效/稀有液化情感.mp3" 300
+    DisableDropSound
+
+Show # 高级液化情感
+    Class "Stackable Currency"
+    BaseType "Concentrated Liquid Suffering" "Concentrated Liquid Fear"
+    SetTextColor 255 255 255
+    SetBorderColor 135 28 226
+    SetBackgroundColor 135 28 226 255
+    SetFontSize 44
+    MinimapIcon 0 Purple Star
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/高级液化情感.mp3" 300
+    DisableDropSound
+
+Hide # 液化情感
+    Class "Stackable Currency"
+    BaseType "Potent Liquid Melancholy" "Liquid Disgust" "Liquid Despair" "Liquid Paranoia" "Liquid Envy"  
+    SetTextColor 255 255 255
+    SetBorderColor 198 91 57
+    SetBackgroundColor 198 91 57 255
+    SetFontSize 44
+    MinimapIcon 1 Orange Star
+    PlayEffect Orange
+    CustomAlertSound "剑心音效/液化情感.mp3" 300
+    DisableDropSound
+
+Hide # 液化情感
+    Class "Stackable Currency"
+    BaseType "Diluted Liquid Greed" "Diluted Liquid Ire" "Diluted Liquid Guilt"  
+    SetTextColor 255 255 255
+    SetBorderColor 43 154 111
+    SetBackgroundColor 43 154 111 255
+    SetFontSize 44
+    MinimapIcon 1 Green Star
+    PlayEffect Green
+    CustomAlertSound "剑心音效/液化情感.mp3" 300
+    DisableDropSound
+
+# -------------------------- 催化剂 -------------------------- #
+
+Show # 超级催化剂(精炼)
+    Class "Stackable Currency"
+    BaseType "Refined Reaver Catalyst" "Refined Sibilant Catalyst"
+    SetTextColor 255 236 43
+    SetBorderColor 217 4 31
+    SetBackgroundColor 217 4 31 255
+    SetFontSize 45
+    MinimapIcon 0 Red Star
+    PlayEffect Red
+    CustomAlertSound "剑心音效/稀有催化剂.mp3" 300
+    DisableDropSound
+
+Show # 稀有催化剂(精炼)
+    Class "Stackable Currency"
+    BaseType "Refined Skittering Catalyst" "Refined Necrotic Catalyst"
+    SetTextColor 255 255 255
+    SetBorderColor 218 8 98
+    SetBackgroundColor 218 8 98 255
+    SetFontSize 44
+    MinimapIcon 0 Pink Star
+    PlayEffect Pink
+    CustomAlertSound "剑心音效/稀有催化剂.mp3" 300
+    DisableDropSound
+
+Show # 高级催化剂(精炼)
+    Class "Stackable Currency"
+    BaseType "Refined Flesh Catalyst" "Refined Neural Catalyst" "Refined Carapace Catalyst" "Refined Xoph's Catalyst" "Refined Tul's Catalyst" "Refined Esh's Catalyst" "Refined Adaptive Catalyst" "Refined Chayula's Catalyst" "Refined Uul-Netol's Catalyst"
+    SetTextColor 255 255 255
+    SetBorderColor 135 28 226
+    SetBackgroundColor 135 28 226 255
+    SetFontSize 44
+    MinimapIcon 0 Purple Star
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/高级催化剂.mp3" 300
+    DisableDropSound
+
+Show # 高级催化剂
+    Class "Stackable Currency"
+    BaseType "Xoph's Catalyst" "Tul's Catalyst" "Esh's Catalyst" "Chayula's Catalyst" "Reaver Catalyst" "Sibilant Catalyst" "Necrotic Catalyst" "Flesh Catalyst" "Neural Catalyst" "Carapace Catalyst" "Uul-Netol's Catalyst" "Skittering Catalyst" "Adaptive Catalyst" 
+    SetTextColor 255 255 255
+    SetBorderColor 135 28 226
+    SetBackgroundColor 135 28 226 255
+    SetFontSize 44
+    MinimapIcon 0 Purple Star
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/高级催化剂.mp3" 300
+    DisableDropSound
+
+# -------------------------- 预兆 -------------------------- #
+
+Show # 超级预兆
+    Class "Omen"
+    BaseType "Aldur's Saga" "Omen of Whittling" "Omen of Sinistral Erasure" "Omen of Dextral Erasure" "Omen of Sinistral Annulment" "Omen of Dextral Annulment" "Omen of Chance" "Omen of Light"
+    SetTextColor 255 236 43
+    SetBorderColor 217 4 31
+    SetBackgroundColor 217 4 31 255
+    SetFontSize 45
+    MinimapIcon 0 Red Star
+    PlayEffect Red
+    CustomAlertSound "剑心音效/超级预兆.mp3" 300
+    DisableDropSound
+
+Show # 稀有预兆
+    Class "Omen"
+    BaseType "Omen of Abyssal Echoes" "Uhtred's Saga" "Omen of Chaotic Quantity" "Omen of Dextral Crystallisation" "Omen of Sinistral Crystallisation" "Omen of the Blackblooded"
+    SetTextColor 255 255 255
+    SetBorderColor 218 8 98
+    SetBackgroundColor 218 8 98 255
+    SetFontSize 44
+    MinimapIcon 0 Pink Star
+    PlayEffect Pink
+    CustomAlertSound "剑心音效/稀有预兆.mp3" 300
+    DisableDropSound
+
+Show # 高级预兆
+    Class "Omen"
+    BaseType "Medved's Saga" "Vorana's Saga" "Omen of Amelioration" "Omen of Secret Compartments" "Omen of the Hunt" "Omen of Reinforcements" "Omen of the Blessed" "Omen of Chaotic Monsters" "Omen of Catalysing Exaltation" "Olroth's Saga" "Omen of Sanctification"
+    SetTextColor 255 255 255
+    SetBorderColor 135 28 226
+    SetBackgroundColor 135 28 226 255
+    SetFontSize 44
+    MinimapIcon 0 Purple Star
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/高级预兆.mp3" 300
+    DisableDropSound
+
+Hide # 预兆
+    Class "Omen"
+    BaseType "Omen of Refreshment" "Omen of Resurgence" "Omen of Greater Exaltation" "Omen of Sinistral Exaltation" "Omen of Dextral Exaltation" "Omen of Answered Prayers" "Omen of Gambling" "Omen of Bartering" "Omen of Chaotic Rarity" "Omen of Chaotic Effectiveness" "Omen of the Ancients" "Omen of the Sovereign" "Omen of the Liege" "Omen of Sinistral Necromancy" "Omen of Dextral Necromancy" "Omen of Putrefaction"
+    SetTextColor 255 255 255
+    SetBorderColor 198 91 57
+    SetBackgroundColor 198 91 57 255
+    SetFontSize 44
+    MinimapIcon 1 Orange Star
+    PlayEffect Orange
+    CustomAlertSound "剑心音效/预兆.mp3" 300
+    DisableDropSound
+
+# -------------------------- 深渊 -------------------------- #
+
+Show # 超级骨骸
+    Class "Stackable Currency"
+    BaseType "Ancient Jawbone" "Ancient Rib" "Ancient Collarbone" "Preserved Cranium"
+    SetTextColor 255 236 43
+    SetBorderColor 217 4 31
+    SetBackgroundColor 217 4 31 255
+    SetFontSize 45
+    MinimapIcon 0 Red Star
+    PlayEffect Red
+    CustomAlertSound "剑心音效/超级骨骸.mp3" 300
+    DisableDropSound
+
+Show # 稀有骨骸
+    Class "Stackable Currency"
+    BaseType "Altered Collarbone"
+    SetTextColor 255 255 255
+    SetBorderColor 218 8 98
+    SetBackgroundColor 218 8 98 255
+    SetFontSize 44
+    MinimapIcon 0 Pink Star
+    PlayEffect Pink
+    CustomAlertSound "剑心音效/稀有骨骸.mp3" 300
+    DisableDropSound
+
+Show # 高级骨骸
+    Class "Stackable Currency"
+    BaseType "Preserved Collarbone" "Preserved Vertebrae" "Gnawed Jawbone"
+    SetTextColor 255 255 255
+    SetBorderColor 135 28 226
+    SetBackgroundColor 135 28 226 255
+    SetFontSize 44
+    MinimapIcon 0 Purple Star
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/高级骨骸.mp3" 300
+    DisableDropSound
+
+Hide # 骨骸
+    Class "Stackable Currency"
+    BaseType "Preserved Jawbone" "Gnawed Rib" "Preserved Rib" "Gnawed Collarbone"
+    SetTextColor 255 255 255
+    SetBorderColor 198 91 57
+    SetBackgroundColor 198 91 57 255
+    SetFontSize 44
+    MinimapIcon 1 Orange Star
+    PlayEffect Orange
+    CustomAlertSound "剑心音效/骨骸.mp3" 300
+    DisableDropSound
+
+# -------------------------- 增幅器 -------------------------- #
+
+Show # 超级符文
+    Class "Augment"
+    BaseType "Aldur's Legacy" "Raven-Touched Shard" "Tecrod's Gaze" "Kurgal's Gaze" "Greater Rune of Leadership" "Emergent Possibility"
+    SetTextColor 255 236 43
+    SetBorderColor 217 4 31
+    SetBackgroundColor 217 4 31 255
+    SetFontSize 45
+    MinimapIcon 0 Red Star
+    PlayEffect Red
+    CustomAlertSound "剑心音效/超级符文.mp3" 300
+    DisableDropSound
+
+Show # 稀有符文
+    Class "Augment"
+    BaseType "Ulaman's Gaze" "Serle's Triumph" "Emergent Vigour" "Astrid's Creativity" "Emergent Instinct"
+    SetTextColor 255 255 255
+    SetBorderColor 218 8 98
+    SetBackgroundColor 218 8 98 255
+    SetFontSize 44
+    MinimapIcon 0 Pink Star
+    PlayEffect Pink
+    CustomAlertSound "剑心音效/稀有符文.mp3" 300
+    DisableDropSound
+
+Show # 高级符文
+    Class "Augment"
+    BaseType "Perfect " "Warding Rune of " "Amanamu's Gaze" "Cadigan's Epiphany" "Kolr's Hunt" "Countess Seske's Rune of Archery" "Hedgewitch Assandra's Rune of Wisdom" "Courtesan Mannan's Rune of Cruelty" "Farrul's Rune of the Chase" "Medved's Tending" "Katla's Gloom" "Craiceann's Rune of Warding" "Saqawal's Rune of Memory" "Farrul's Rune of the Hunt" "Thane Grannell's Rune of Mastery" "The Greatwolf's Rune of Willpower" "Saqawal's Rune of the Sky" "Passion of Aldur" "Breath of Aldur" "Ire of Aldur" "Betrayal of Aldur" "Emergent Protection" "Masterwork Rune" "Uhtred's Sidereus" "Vorana's Carnage" "Thrud's Might" "Rune of Acrobatics" "Rune of Culmination" "Rune of Renown" "Rune of Accumulation" "Rune of Foundations" "Rune of the Prism" "Rune of the Blossom" "Rune of Consistency" "Rune of Reach" "Rune of Vital Flame" "Rune of Confrontation" "Greater Ward Rune" "Greater Charging Rune" "Greater Rune of Tithing" "Greater Rune of Alacrity"
+    SetTextColor 255 255 255
+    SetBorderColor 135 28 226
+    SetBackgroundColor 135 28 226 255
+    SetFontSize 44
+    MinimapIcon 0 Purple Star
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/高级符文.mp3" 300
+    DisableDropSound
+
+Hide # 符文
+    Class "Augment"
+    BaseType "Fenumus' Rune of Agony" "Farrul's Rune of Grace" "Farrul's Rune of Grace" "Saqawal's Rune of Erosion" "Craiceann's Rune of Recovery" "The Greatwolf's Rune of Claws" "Ancient Rune of " "Rune of the Hunt" "Greater Rune of Nobility"
+    SetTextColor 255 255 255
+    SetBorderColor 198 91 57
+    SetBackgroundColor 198 91 57 255
+    SetFontSize 44
+    MinimapIcon 1 Orange Star
+    PlayEffect Orange
+    CustomAlertSound "剑心音效/符文.mp3" 300
+    DisableDropSound
+
+Hide # 低级符文
+    Class "Augment"
+    BaseType "Body Rune" "Desert Rune" "Glacial Rune" "Inspiration Rune" "Iron Rune" "Mind Rune" "Rebirth Rune" "Stone Rune" "Storm Rune" "Vision Rune" "Lesser Desert Rune" "Lesser Glacial Rune" "Lesser Storm Rune" "Lesser Iron Rune" "Lesser Body Rune" "Lesser Mind Rune" "Lesser Rebirth Rune" "Lesser Inspiration Rune" "Lesser Stone Rune" "Lesser Vision Rune" "Greater Desert Rune" "Greater Glacial Rune" "Greater Storm Rune" "Greater Iron Rune" "Greater Body Rune" "Greater Mind Rune" "Greater Rebirth Rune" "Greater Inspiration Rune" "Greater Stone Rune" "Greater Vision Rune" "Robust Rune" "Adept Rune" "Resolve Rune" "Lesser Robust Rune" "Lesser Adept Rune" "Lesser Resolve Rune" "Greater Robust Rune" "Greater Adept Rune" "Greater Resolve Rune" "Thane Myrk's Rune of Summer" "Lesser Ward Rune" "Lesser Charging Rune" "Ward Rune" "Charging Rune" "Fenumus' Rune of Spinning" "Thane Girt's Rune of Wildness" "Fenumus' Rune of Draining" "Lady Hestra's Rune of Winter" "Thane Myrk's Rune of Summer" "Thane Leld's Rune of Spring"
+    SetTextColor 255 255 255
+    SetBorderColor 43 154 111
+    SetBackgroundColor 43 154 111 255
+    SetFontSize 44
+    MinimapIcon 1 Green Star
+    PlayEffect Green
+    CustomAlertSound "剑心音效/符文.mp3" 300
+    DisableDropSound
+
+Show # 超级灵核
+    Class "Augment"
+    BaseType "Jiquani's Thesis" "Soul Core of Quipolatl" "Quipolatl's Thesis" "Guatelitzi's Thesis"
+    SetTextColor 255 236 43
+    SetBorderColor 217 4 31
+    SetBackgroundColor 217 4 31 255
+    SetFontSize 45
+    MinimapIcon 0 Red Star
+    PlayEffect Red
+    CustomAlertSound "剑心音效/超级灵核.mp3" 300
+    DisableDropSound
+
+Show # 稀有灵核
+    Class "Augment"
+    BaseType "Soul Core of Azcapa" "Soul Core of Cholotl" "Soul Core of Zalatl"
+    SetTextColor 255 255 255
+    SetBorderColor 218 8 98
+    SetBackgroundColor 218 8 98 255
+    SetFontSize 44
+    MinimapIcon 0 Pink Star
+    PlayEffect Pink
+    CustomAlertSound "剑心音效/稀有灵核.mp3" 300
+    DisableDropSound
+
+Show # 高级灵核
+    Class "Augment"
+    BaseType "Quipolatl's Soul Core of Flow" "Tzamoto's Soul Core of Ferocity" "Guatelitzi's Soul Core of Endurance" "Citaqualotl's Thesis" "Hayoxi's Soul Core of Heatproofing" "Zalatl's Soul Core of Insulation" "Topotante's Soul Core of Dampening" "Atmohua's Soul Core of Retreat" "Uromoti's Soul Core of Attenuation" "Estazunti's Soul Core of Convalescence" "Tacati's Soul Core of Affliction" "Cholotl's Soul Core of War" "Citaqualotl's Soul Core of Foulness" "Soul Core of Opiloti" "Soul Core of Jiquani" "Soul Core of Puhuarte" "Soul Core of Tzamoto" "Soul Core of Xopec" "Soul Core of Topotante" "Soul Core of Ticaba" "Soul Core of Atmohua" "Soul Core of Zantipi" "Opiloti's Soul Core of Assault" "Xopec's Soul Core of Power" "Xipocado's Soul Core of Dominion" "Soul Core of Tacati" "Soul Core of Citaqualotl"
+    SetTextColor 255 255 255
+    SetBorderColor 135 28 226
+    SetBackgroundColor 135 28 226 255
+    SetFontSize 44
+    MinimapIcon 0 Purple Star
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/高级灵核.mp3" 300
+    DisableDropSound
+
+Hide # 灵核
+    Class "Augment"
+    BaseType "Soul Core of "
+    SetTextColor 255 255 255
+    SetBorderColor 198 91 57
+    SetBackgroundColor 198 91 57 255
+    SetFontSize 44
+    MinimapIcon 1 Orange Star
+    PlayEffect Orange
+    CustomAlertSound "剑心音效/灵核.mp3" 300
+    DisableDropSound
+
+Show # 超级雕像
+    Class "Augment"
+    BaseType "Carved Cunning" "Carved Majesty"
+    SetTextColor 255 236 43
+    SetBorderColor 217 4 31
+    SetBackgroundColor 217 4 31 255
+    SetFontSize 45
+    MinimapIcon 0 Red Star
+    PlayEffect Red
+    CustomAlertSound "剑心音效/超级雕像.mp3" 300
+    DisableDropSound
+
+Show # 稀有雕像
+    Class "Augment"
+    BaseType "Carved Tenacity" "Fox Idol"
+    SetTextColor 255 255 255
+    SetBorderColor 218 8 98
+    SetBackgroundColor 218 8 98 255
+    SetFontSize 44
+    MinimapIcon 0 Pink Star
+    PlayEffect Pink
+    CustomAlertSound "剑心音效/稀有雕像.mp3" 300
+    DisableDropSound
+
+Show # 高级雕像
+    Class "Augment"
+    BaseType "Carved Mischief" "Idol of Egrin" "Idol of Maxarius" "Rabbit Idol" "Idol of Sirrius" "Idol of Thruldana" "Idol of Grold" "Idol of Eeshta" "Idol of Yeena" "Idol of Eramir" "Idol of Oak" "Idol of Alira" "Idol of the Sycophant" "Idol of the Martyr" "Idol of the Pharisee" "Panther Idol" "Hawk Idol" "Idol of Ralakesh"
+    SetTextColor 255 255 255
+    SetBorderColor 135 28 226
+    SetBackgroundColor 135 28 226 255
+    SetFontSize 44
+    MinimapIcon 0 Purple Star
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/高级雕像.mp3" 300
+    DisableDropSound
+
+Hide # 雕像
+    Class "Augment"
+    BaseType "Snake Idol" "Primate Idol" "Bear Idol" "Idol of Greust" "Idol of Kraityn" "Idol of Silk" "Stoat Idol" "Owl Idol" "Cat Idol" "Wolf Idol" "Stag Idol" "Boar Idol" "Ox Idol" " Idol" "Idol of "
+    SetTextColor 255 255 255
+    SetBorderColor 198 91 57
+    SetBackgroundColor 198 91 57 255
+    SetFontSize 44
+    MinimapIcon 1 Orange Star
+    PlayEffect Orange
+    CustomAlertSound "剑心音效/雕像.mp3" 300
+    DisableDropSound
+
+# -------------------------- 先祖秘藏 -------------------------- #
+
+Show # 先祖秘藏日志
+    Class "Expedition Logbook"
+    BaseType "Expedition Logbook"
+    SetTextColor 255 255 255
+    SetBorderColor 213 89 147
+    SetBackgroundColor 213 89 147 255
+    SetFontSize 44
+    MinimapIcon 0 Pink Star
+    PlayEffect Pink
+    CustomAlertSound "剑心音效/先祖秘藏日志.mp3" 300
+    DisableDropSound
+
+Show # 完美溶剂
+    Class "Stackable Currency"
+    BaseType "Perfect Flux"
+    SetTextColor 255 236 43
+    SetBorderColor 217 4 31
+    SetBackgroundColor 217 4 31 255
+    SetFontSize 45
+    MinimapIcon 0 Red Star
+    PlayEffect Red
+    CustomAlertSound "剑心音效/完美溶剂.mp3" 300
+    DisableDropSound
+
+Show # 溶剂
+    Class "Stackable Currency"
+    BaseType "Blazing Flux" "Chilling Flux" "Crackling Flux" "Void Flux"
+    SetTextColor 255 255 255
+    SetBorderColor 135 28 226
+    SetBackgroundColor 135 28 226 255
+    SetFontSize 44
+    MinimapIcon 0 Purple Star
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/溶剂.mp3" 300
+    DisableDropSound
+
+Show # 秘术溶剂(等级20)
+    Class "Stackable Currency"
+    BaseType "Thaumaturgic Flux (Level 20)"
+    SetTextColor 255 255 255
+    SetBorderColor 135 28 226
+    SetBackgroundColor 135 28 226 255
+    SetFontSize 44
+    MinimapIcon 0 Purple Star
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/秘术溶剂.mp3" 300
+    DisableDropSound
+
+Hide # 秘术溶剂
+    Class "Stackable Currency"
+    BaseType "Thaumaturgic Flux"
+    SetTextColor 255 255 255
+    SetBorderColor 198 91 57
+    SetBackgroundColor 198 91 57 255
+    SetFontSize 44
+    MinimapIcon 1 Orange Star
+    PlayEffect Orange
+    CustomAlertSound "剑心音效/秘术溶剂.mp3" 300
+    DisableDropSound
+
+Show # 神秘钥匙
+    Class "Stackable Currency"
+    BaseType "Cryptic Key"
+    SetTextColor 255 255 255
+    SetBorderColor 135 28 226
+    SetBackgroundColor 135 28 226 255
+    SetFontSize 44
+    MinimapIcon 0 Purple Star
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/神秘钥匙.mp3" 300
+    DisableDropSound
+
+Show # 传奇维金
+    Class "Stackable Currency"
+    BaseType "Medved's Crest of the Circle" "Vorana's Crest of the Scythe" "Uhtred's Crest of the Chalice" "Olroth's Crest of the Sun"
+    SetTextColor 255 255 255
+    SetBorderColor 135 28 226
+    SetBackgroundColor 135 28 226 255
+    SetFontSize 44
+    MinimapIcon 0 Purple Star
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/传奇维金.mp3" 300
+    DisableDropSound
+
+Show # 卓越维金
+    Class "Stackable Currency"
+    BaseType "Exceptional Verisium" "Liquid Verisium" "Mutated Verisium" "Corrupted Verisium" "Founders Verisium"
+    SetTextColor 255 255 255
+    SetBorderColor 135 28 226
+    SetBackgroundColor 135 28 226 255
+    SetFontSize 44
+    MinimapIcon 0 Purple Star
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/卓越维金.mp3" 300
+    DisableDropSound
+
+Show # 维金堆叠
+    StackSize >= 1
+    Class "Stackable Currency"
+    BaseType "Verisium"
+    SetTextColor 255 255 255
+    SetBorderColor 198 91 57
+    SetBackgroundColor 198 91 57 255
+    SetFontSize 44
+    MinimapIcon 1 Orange Star
+    PlayEffect Orange
+    DisableDropSound
+
+Hide # 维金
+    Class "Stackable Currency"
+    BaseType "Verisium"
+    SetTextColor 255 255 255
+    SetBorderColor 198 91 57
+    SetBackgroundColor 198 91 57 255
+    SetFontSize 44
+    MinimapIcon 1 Orange Star
+    PlayEffect Orange
+    DisableDropSound
+
+Show # 合金
+    Class "Stackable Currency"
+    BaseType "Cyclonic Alloy" "Expansive Alloy" "Mystic Alloy" "Prismatic Alloy" "Swift Alloy" "Protective Alloy" "The Runefather's Alloy" "Sovereign Alloy" "Adaptive Alloy" "Runic Alloy" "The Runebinder's Alloy" "Celestial Alloy" "Transcendent Alloy"
+    SetTextColor 255 255 255
+    SetBorderColor 135 28 226
+    SetBackgroundColor 135 28 226 255
+    SetFontSize 44
+    MinimapIcon 0 Purple Star
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/合金.mp3" 300
+    DisableDropSound
+
+Show # 星辉矿石
+    Class "Stackable Currency"
+    BaseType "Starlit Ore" "Venerable Starlit Ore" "Revered Starlit Ore" "Veridical Starlit Ore" "Warding Starlit Ore"
+    SetTextColor 255 255 255
+    SetBorderColor 135 28 226
+    SetBackgroundColor 135 28 226 255
+    SetFontSize 44
+    MinimapIcon 0 Purple Star
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/星辉矿石.mp3" 300
+    DisableDropSound
+
+Show # 破损三耀之火
+    Class "Stackable Currency"
+    BaseType "Shattered Triskelion"
+    SetTextColor 255 255 255
+    SetBorderColor 135 28 226
+    SetBackgroundColor 135 28 226 255
+    SetFontSize 44
+    MinimapIcon 0 Purple Star
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/破损三耀之火.mp3" 300
+    DisableDropSound
+
+Show # 孕育赠礼
+    Class "Wombgifts"
+    BaseType "Lavish Wombgift" "Ornate Wombgift" "Banded Wombgift" "Signet Wombgift" "Revelatory Wombgift"
+    SetTextColor 255 255 255
+    SetBorderColor 135 28 226
+    SetBackgroundColor 135 28 226 255
+    SetFontSize 44
+    MinimapIcon 0 Purple Star
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/孕育赠礼.mp3" 300
+    DisableDropSound
+
+# -------------------------- 技能宝石 -------------------------- #
+
+Show # 超级血脉宝石
+    Class "Support Gem"
+    BaseType "Brutus' Brain" "Atalui's Bloodletting" "Dialla's Desire" "Xoph's Pyre" "Esh's Radiance" "Tul's Stillness" "Uul-Netol's Embrace" "Rakiata's Flow" "Rigwald's Ferocity" "Uhtred's Exodus" "Atziri's Communion" "Garukhan's Resolve" "Zerphi's Infamy" "Her Declaration" "Seraph's Heart" "Breachlord's Rift" "Breachlord's Amalgam" "Uhtred's Constellation" "Vorana's Siege" "Olroth's Conviction"
+    SetTextColor 255 236 43
+    SetBorderColor 217 4 31
+    SetBackgroundColor 217 4 31 255
+    SetFontSize 45
+    MinimapIcon 0 Red Star
+    PlayEffect Red
+    CustomAlertSound "剑心音效/超级血脉宝石.mp3" 300
+    DisableDropSound
+
+Show # 稀有血脉宝石
+    Class "Support Gem"
+    BaseType "Tecrod's Revenge" "Uhtred's Omen" "Uhtred's Augury" "Amanamu's Tithe"
+    SetTextColor 255 255 255
+    SetBorderColor 218 8 98
+    SetBackgroundColor 218 8 98 255
+    SetFontSize 45
+    MinimapIcon 0 Pink Star
+    PlayEffect Pink
+    CustomAlertSound "剑心音效/稀有血脉宝石.mp3" 300
+    DisableDropSound
+
+Show # 高级血脉宝石
+    Class "Support Gem"
+    BaseType "Ailith's Chimes" "Doedre's Undoing" "Sione's Temper" "Guatelitzi's Ablation" "Ixchel's Torment" "Atziri's Impatience" "Arbiter's Ignition" "Khatal's Rejuvenation" "Hayoxi's Fulmination" "Uhtred's Rite" "Trickster's Shard" "Tangmazu's Thurible" "Esh's Prowess" "Styrn's Ferocity" "Catha's Brilliance" "Mórrigan's Insight" "Olroth's Hubris"
+    SetTextColor 255 255 255
+    SetBorderColor 135 28 226
+    SetBackgroundColor 135 28 226 255
+    SetFontSize 44
+    MinimapIcon 0 Purple Star
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/高级血脉宝石.mp3" 300
+    DisableDropSound
+
+Hide # 血脉宝石
+    Class "Support Gem"
+    BaseType "Oisín's Oath" "Vilenta's Propulsion" "Einhar's Beastrite" "Ahn's Citadel" "Eonyr's Thunder" "Uruk's Smelting" "Paquate's Pact" "Ratha's Assault" "Arjun's Medal" "Kaom's Madness" "Cirel's Cultivation" "Romira's Requital" "Tawhoa's Tending" "Dominus' Grasp" "Kalisa's Crescendo" "Daresso's Passion" "Atziri's Allure" "Tacati's Ire" "Zarokh's Refrain" "Kurgal's Leash" "Kulemak's Dominion" "Varashta's Blessing" "Arakaali's Lust" "Tasalio's Rhythm" "Xibaqua's Rending" "Morgana's Tempest" "Helbrym's Hide" "Prototype Seventeen" "Arbiter's Reach" "Vruun's Aftermath" "Vruun's Inevitability" "Medved's Felling" "Styrn's Mountain" "Tul's Avalanche" "Bhatair's Vengeance" "Zarokh's Revolt"
+    SetTextColor 247 49 70
+    SetBorderColor 247 49 70
+    SetBackgroundColor 0 0 0 255
+    SetFontSize 44
+    MinimapIcon 1 Red Star
+    PlayEffect Red
+    CustomAlertSound "剑心音效/血脉宝石.mp3" 300
+    DisableDropSound
+
+Show # 技能宝石(等级20)
+    Class "Uncut Skill Gems"
+    BaseType "Uncut Skill Gem (Level 20)"
+    SetTextColor 255 255 255
+    SetBorderColor 218 8 98
+    SetBackgroundColor 218 8 98 255
+    SetFontSize 40
+    MinimapIcon 0 Pink Star
+    PlayEffect Pink
+    CustomAlertSound "剑心音效/技能宝石.mp3" 300
+    DisableDropSound
+
+Hide # 技能宝石(高等级)
+    Class "Uncut Skill Gems"
+    BaseType "Uncut Skill Gem (Level 19)" "Uncut Skill Gem (Level 18)"
+    SetTextColor 181 234 251
+    SetBorderColor 181 234 251
+    SetBackgroundColor 0 0 0 255
+    SetFontSize 40
+    CustomAlertSound "剑心音效/技能宝石.mp3" 300
+    DisableDropSound
+
+Hide # 技能宝石
+    Class "Uncut Skill Gems"
+    BaseType "Uncut Skill Gem"
+    SetTextColor 181 234 251
+    SetBorderColor 181 234 251
+    SetBackgroundColor 0 0 0 255
+    SetFontSize 40
+    CustomAlertSound "剑心音效/技能宝石.mp3" 300
+    DisableDropSound
+
+Show # 精魄宝石(等级20)
+    Class "Uncut Spirit Gems"
+    BaseType "Uncut Spirit Gem (Level 20)"
+    SetTextColor 255 236 43
+    SetBorderColor 217 4 31
+    SetBackgroundColor 217 4 31 255
+    SetFontSize 45
+    MinimapIcon 0 Red Star
+    PlayEffect Red
+    CustomAlertSound "剑心音效/精魄宝石.mp3" 300
+    DisableDropSound
+
+Show # 精魄宝石(等级19)
+    Class "Uncut Spirit Gems"
+    BaseType "Uncut Spirit Gem (Level 19)"
+    SetTextColor 255 255 255
+    SetBorderColor 135 28 226
+    SetBackgroundColor 135 28 226 255
+    SetFontSize 40
+    MinimapIcon 0 Purple Star
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/精魄宝石.mp3" 300
+    DisableDropSound
+
+Show # 精魄宝石
+    Class "Uncut Spirit Gems"
+    BaseType "Uncut Spirit Gem"
+    SetTextColor 181 234 251
+    SetBorderColor 181 234 251
+    SetBackgroundColor 0 0 0 255
+    SetFontSize 40
+    CustomAlertSound "剑心音效/精魄宝石.mp3" 300
+    DisableDropSound
+
+Hide # 辅助宝石
+    Class "Uncut Support Gems"
+    BaseType "Uncut Support Gem"
+    SetTextColor 181 234 251
+    SetBorderColor 181 234 251
+    SetBackgroundColor 0 0 0 255
+    SetFontSize 40
+    CustomAlertSound "剑心音效/辅助宝石.mp3" 300
+    DisableDropSound
+
+Hide # 卡古兰技能石
+    BaseType "Animus Exchange" "Animus Splinters" "Bitter Dead" "Conductive Runes" "Detonate Living" "Eternal March" "Explosive Transmutation" "Fragments of the Past" "Frostflame Nova" "Grim Pillars" "Hollow Shell" "Leylines" "Powered by Verisium" "Refutation" "Remnants of Kalguur" "Repulsion" "Runic Reprieve" "Skyfall" "Triskelion Cascade" "Verisium Manifestations" "Voltaic Barrier" "Wardbound Minions" 
+    SetTextColor 13 221 208
+    SetBorderColor 13 221 208
+    SetBackgroundColor 0 0 0 255
+    SetFontSize 40
+    CustomAlertSound "剑心音效/技能宝石.mp3" 300
+    DisableDropSound
+
+Hide # 卡古兰辅助宝石
+    BaseType "Concussive Runes" "Fist of Kalguur" "Healing Runes" "Runeforged Blades" "Runic Extraction" "Runic Infusion" "Scouring Flame"
+    SetTextColor 13 221 208
+    SetBorderColor 13 221 208
+    SetBackgroundColor 0 0 0 255
+    SetFontSize 40
+    CustomAlertSound "剑心音效/辅助宝石.mp3" 300
+    DisableDropSound
+
+Hide # 技能石
+    Class "Gem"
+    SetTextColor 13 221 208
+    SetBorderColor 13 221 208
+    SetBackgroundColor 0 0 0 255
+    SetFontSize 40
+    DisableDropSound
+
+# -------------------------- 地图 -------------------------- #
+
+Show # 致命贪婪碎片
+    Class "Map Fragments"
+    BaseType "Cowardly Fate" "Deadly Fate" "Victorious Fate"
+    SetTextColor 255 236 43
+    SetBorderColor 217 4 31
+    SetBackgroundColor 217 4 31 255
+    SetFontSize 45
+    MinimapIcon 0 Red Star
+    PlayEffect Red
+    CustomAlertSound "剑心音效/致命贪婪碎片.mp3" 300
+    DisableDropSound
+
+Show # 巅峰危机碎片
+    Class "Pinnacle Keys"
+    BaseType "Ancient Crisis Fragment" "Faded Crisis Fragment" "Weathered Crisis Fragment"
+    SetTextColor 255 255 255
+    SetBorderColor 218 8 98
+    SetBackgroundColor 218 8 98 255
+    SetFontSize 44
+    MinimapIcon 0 Pink Star
+    PlayEffect Pink
+    CustomAlertSound "剑心音效/巅峰危机碎片.mp3" 300
+    DisableDropSound
+
+Show # 起源碎片
+    Class "Pinnacle Keys"
+    BaseType "Origin Cradle" "Origin Spark" "Origin Core"
+    SetTextColor 255 255 255
+    SetBorderColor 218 8 98
+    SetBackgroundColor 218 8 98 255
+    SetFontSize 45
+    MinimapIcon 0 Pink Star
+    PlayEffect Pink
+    CustomAlertSound "剑心音效/起源碎片.mp3" 300
+    DisableDropSound
+
+Show # 暗影呼唤
+    Class "Pinnacle Keys"
+    BaseType "Call of the Shadows"
+    SetTextColor 255 255 255
+    SetBorderColor 135 28 226
+    SetBackgroundColor 135 28 226 255
+    SetFontSize 44
+    MinimapIcon 0 Purple Star
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/暗影呼唤.mp3" 300
+    DisableDropSound
+
+Show # 谒王之约
+    Class "Map Fragments"
+    BaseType "An Audience with the King"
+    SetTextColor 255 255 255
+    SetBorderColor 218 8 98
+    SetBackgroundColor 218 8 98 255
+    SetFontSize 45
+    MinimapIcon 0 Pink Star
+    PlayEffect Pink
+    CustomAlertSound "剑心音效/地图碎片.mp3" 300
+    DisableDropSound
+
+Show # 君王之颅
+    Class "Map Fragments"
+    BaseType "Head of the King"
+    SetTextColor 255 255 255
+    SetBorderColor 218 8 98
+    SetBackgroundColor 218 8 98 255
+    SetFontSize 45
+    MinimapIcon 0 Pink Star
+    PlayEffect Pink
+    CustomAlertSound "剑心音效/君王之颅.mp3" 300
+    DisableDropSound
+
+Show # 重铸三耀之火
+    Class "Map Fragments"
+    BaseType "The Triskelion Reforged"
+    SetTextColor 255 255 255
+    SetBorderColor 135 28 226
+    SetBackgroundColor 135 28 226 255
+    SetFontSize 44
+    MinimapIcon 0 Purple Star
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/重铸三耀之火.mp3" 300
+    DisableDropSound
+
+Show # 渡鸦倒影
+    Class "Map Fragments"
+    BaseType "Raven's Reflection"
+    SetTextColor 255 255 255
+    SetBorderColor 135 28 226
+    SetBackgroundColor 135 28 226 255
+    SetFontSize 44
+    MinimapIcon 0 Purple Star
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/渡鸦倒影.mp3" 300
+    DisableDropSound
+    
+Show # 裂隙领主圣器
+    Class "Map Fragments"
+    BaseType "Breachlord Sac"
+    SetTextColor 255 236 43
+    SetBorderColor 217 4 31
+    SetBackgroundColor 217 4 31 255
+    SetFontSize 45
+    MinimapIcon 0 Red Star
+    PlayEffect Red
+    CustomAlertSound "剑心音效/裂隙领主圣器.mp3" 300
+    DisableDropSound
+
+Show # 暮光圣物厅钥匙
+    Class "Vault Keys"
+    BaseType "Twilight Reliquary Key"
+    SetTextColor 255 255 255
+    SetBorderColor 135 28 226
+    SetBackgroundColor 135 28 226 255
+    SetFontSize 44
+    MinimapIcon 0 Purple Star
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/圣物厅钥匙.mp3" 300
+    DisableDropSound
+
+Show # 圣物厅钥匙
+    Class "Vault Keys"
+    SetTextColor 255 236 43
+    SetBorderColor 217 4 31
+    SetBackgroundColor 217 4 31 255
+    SetFontSize 45
+    MinimapIcon 0 Red Star
+    PlayEffect Red
+    CustomAlertSound "剑心音效/圣物厅钥匙.mp3" 300
+    DisableDropSound
+
+Show # 库勒马克之邀
+    Class "Map Fragments"
+    BaseType "Kulemak's Invitation"
+    SetTextColor 255 255 255
+    SetBorderColor 218 8 98
+    SetBackgroundColor 218 8 98 255
+    SetFontSize 45
+    MinimapIcon 0 Pink Star
+    PlayEffect Pink
+    CustomAlertSound "剑心音效/库勒马克之邀.mp3" 300
+    DisableDropSound
+
+Show # 传奇先驱石板
+    Rarity Unique
+    Class "Tablet"
+    SetTextColor 243 117 23
+    SetBorderColor 243 117 23
+    SetBackgroundColor 0 0 0 255
+    SetFontSize 40
+    MinimapIcon 1 Orange Star
+    PlayEffect Orange
+    CustomAlertSound "剑心音效/传奇先驱石板.mp3" 300
+    DisableDropSound
+
+Show # 先驱石板
+    Class "Tablet"
+    SetTextColor 255 130 161
+    SetBorderColor 255 130 161
+    SetBackgroundColor 0 0 0 255
+    SetFontSize 40
+    MinimapIcon 1 Pink Star
+    PlayEffect Pink
+    CustomAlertSound "剑心音效/先驱石板.mp3" 300
+    DisableDropSound
+
+Show # 引路石
+    Class "Waystones"
+    BaseType "Waystone (Tier 1)" "Waystone (Tier 2)" "Waystone (Tier 3)" "Waystone (Tier 4)" "Waystone (Tier 5)" "Waystone (Tier 6)" "Waystone (Tier 7)" "Waystone (Tier 8)" "Waystone (Tier 9)" "Waystone (Tier 10)" "Waystone (Tier 11)" "Waystone (Tier 12)" "Waystone (Tier 13)" "Waystone (Tier 14)" "Waystone (Tier 15)" "Waystone (Tier 16)"
+    SetTextColor 255 130 161
+    SetBorderColor 255 130 161
+    SetBackgroundColor 0 0 0 255
+    SetFontSize 40
+    MinimapIcon 1 Pink Star
+    PlayEffect Pink
+    CustomAlertSound "剑心音效/引路石.mp3" 300
+    DisableDropSound
+
+# -------------------------- 升华 -------------------------- #
+
+Hide # 巨灵巴雅(83物等)
+    ItemLevel >= 83
+    Class "Trial Coins"
+    SetTextColor 255 255 255
+    SetBorderColor 135 28 226
+    SetBackgroundColor 135 28 226 255
+    SetFontSize 40
+    MinimapIcon 0 Purple Star
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/巨灵巴雅.mp3" 300
+    DisableDropSound
+
+Hide # 巨灵巴雅
+    Class "Trial Coins"
+    SetTextColor 255 130 161
+    SetBorderColor 255 130 161
+    SetBackgroundColor 0 0 0 255
+    SetFontSize 40
+    CustomAlertSound "剑心音效/巨灵巴雅.mp3" 300
+    DisableDropSound
+
+Hide # 贪婪战书(83物等)
+    ItemLevel >= 83
+    BaseType "Inscribed Ultimatum"
+    SetTextColor 255 255 255
+    SetBorderColor 135 28 226
+    SetBackgroundColor 135 28 226 255
+    SetFontSize 40
+    MinimapIcon 0 Purple Star
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/贪婪战书.mp3" 300
+    DisableDropSound
+
+Hide # 贪婪战书
+    BaseType "Inscribed Ultimatum"
+    SetTextColor 255 130 161
+    SetBorderColor 255 130 161
+    SetBackgroundColor 0 0 0 255
+    SetFontSize 40
+    CustomAlertSound "剑心音效/贪婪战书.mp3" 300
+    DisableDropSound
+
+Show # 迷宫钥匙
+    BaseType "Bronze Key" "Silver Key" "Gold Key"
+    SetTextColor 243 117 23
+    SetBorderColor 243 117 23
+    SetBackgroundColor 0 0 0 255
+    SetFontSize 40
+    MinimapIcon 1 Orange Star
+    PlayEffect Orange
+    CustomAlertSound "剑心音效/迷宫钥匙.mp3" 300
+    DisableDropSound
+    
+Show # 传奇遗物
+    Rarity Unique
+    Class "Relics"
+    SetTextColor 255 236 43
+    SetBorderColor 217 4 31
+    SetBackgroundColor 217 4 31 255
+    SetFontSize 45
+    MinimapIcon 0 Red Star
+    PlayEffect Red
+    CustomAlertSound "剑心音效/传奇遗物.mp3" 300
+    DisableDropSound
+
+Show # 遗物
+    Class "Relics"
+    SetTextColor 141 238 220
+    SetBorderColor 141 238 220
+    SetBackgroundColor 0 0 0 255
+    SetFontSize 40
+    CustomAlertSound "剑心音效/遗物.mp3" 300
+    DisableDropSound
+
+# -------------------------- 珠宝 -------------------------- #
+
+Show # 失落珠宝
+    Class "Jewels"
+    BaseType "Time-Lost Ruby" "Time-Lost Emerald" "Time-Lost Sapphire"
+    SetTextColor 117 227 33
+    SetBorderColor 117 227 33
+    SetBackgroundColor 0 0 0 255
+    SetFontSize 40
+    MinimapIcon 1 Green Diamond
+    PlayEffect Green
+    CustomAlertSound "剑心音效/失落珠宝.mp3" 300
+    DisableDropSound
+
+Show # 品质珠宝
+    Quality >= 20
+    Class "Jewels"
+    SetTextColor 245 207 151
+    SetBorderColor 245 207 151
+    SetBackgroundColor 0 0 0 255
+    SetFontSize 40
+    CustomAlertSound "剑心音效/珠宝.mp3" 300
+    DisableDropSound
+
+Hide # 珠宝
+    Class "Jewels"
+    SetTextColor 104 235 133
+    SetBorderColor 104 235 133
+    SetBackgroundColor 0 0 0 255
+    SetFontSize 40
+    MinimapIcon 1 Green Diamond
+    PlayEffect Green
+    CustomAlertSound "剑心音效/珠宝.mp3" 300
+    DisableDropSound
+
+# -------------------------- 全局装备 -------------------------- #
+
+Hide # 传奇装备
+    Rarity Unique
+    Class "Amulets" "Rings" "Belts" "Gloves" "Boots" "Helmets" "Body Armours" "Quivers" "Claws" "Daggers" "Wands" "One Hand Axes" "One Hand Maces" "One Hand Swords" "Sceptres" "Staves" "Bows" "Two Hand Axes" "Two Hand Maces" "Two Hand Swords" "Shields" "Spears" "Flails" "Quarterstaves" "Crossbows" "Traps" "Foci" "Bucklers" "Talismans"
+    SetTextColor 244 116 35
+    SetBorderColor 0 0 0
+    SetBackgroundColor 0 0 0 255
+    SetFontSize 40
+    CustomAlertSound "剑心音效/传奇装备.mp3" 300
+    DisableDropSound
+
+Show # 卓越品质装备
+    Corrupted False
+    Quality >= 25
+    Class "Body Armours" "Bows" "Crossbows" "Quarterstaves" "Staves" "Two Hand Maces" "Boots" "Bucklers" "Foci" "Gloves" "Helmets" "One Hand Maces" "Sceptres" "Shields" "Spears" "Wands" "Talismans"
+    SetTextColor 255 255 255
+    SetBorderColor 180 38 172
+    SetBackgroundColor 180 38 172 255
+    SetFontSize 40
+    MinimapIcon 1 Purple Diamond
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/卓越品质装备.mp3" 300
+    DisableDropSound
+
+Show # 卓越四孔装备
+    Sockets 4
+    Class "Body Armours" "Bows" "Crossbows" "Quarterstaves" "Staves" "Two Hand Maces" "Talismans"
+    SetTextColor 255 255 255
+    SetBorderColor 180 38 172
+    SetBackgroundColor 180 38 172 255
+    SetFontSize 40
+    MinimapIcon 1 Purple Diamond
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/卓越四孔装备.mp3" 300
+    DisableDropSound
+
+Show # 卓越三孔装备
+    Corrupted False
+    Sockets 3
+    Class "Body Armours" "Bows" "Crossbows" "Quarterstaves" "Staves" "Two Hand Maces" "Talismans"
+    SetTextColor 255 255 255
+    SetBorderColor 180 38 172
+    SetBackgroundColor 180 38 172 255
+    SetFontSize 40
+    MinimapIcon 1 Purple Diamond
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/卓越三孔装备.mp3" 300
+    DisableDropSound
+
+Show # 卓越三孔装备
+    Sockets 3
+    Class "One Hand Maces" "Sceptres" "Shields" "Spears" "Wands" "Bucklers" "Foci" "Gloves" "Helmet" "Boots" 
+    SetTextColor 255 255 255
+    SetBorderColor 180 38 172
+    SetBackgroundColor 180 38 172 255
+    SetFontSize 40
+    MinimapIcon 1 Purple Diamond
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/卓越三孔装备.mp3" 300
+    DisableDropSound
+
+Show # 卓越两孔装备
+    Corrupted False
+    Sockets 2
+    Class "One Hand Maces" "Sceptres" "Shields" "Spears" "Wands" "Bucklers" "Foci" "Gloves" "Helmet" "Boots" 
+    SetTextColor 255 255 255
+    SetBorderColor 180 38 172
+    SetBackgroundColor 180 38 172 255
+    SetFontSize 40
+    MinimapIcon 1 Purple Diamond
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/卓越两孔装备.mp3" 300
+    DisableDropSound
+
+Show # 机会石底材
+    Rarity Normal
+    Corrupted False
+    BaseType "Heavy Belt" "Utility Belt"
+    SetTextColor 255 255 255
+    SetBorderColor 155 53 53
+    SetBackgroundColor 155 53 53 255
+    SetFontSize 40
+    MinimapIcon 1 Red Diamond
+    PlayEffect Red
+    CustomAlertSound "剑心音效/机会石底材.mp3" 300
+    DisableDropSound
+
+Hide # 武圣手套
+    Rarity Normal
+    ItemLevel = 75
+    Class "Gloves" 
+    SetTextColor 210 181 251
+    SetBorderColor 210 181 251
+    SetBackgroundColor 0 0 0 255
+    SetFontSize 40
+    MinimapIcon 1 Purple Diamond
+    PlayEffect Purple
+    DisableDropSound
+
+Hide # 超级热门装备(81物等)
+    Rarity Normal Magic
+    Corrupted False
+    ItemLevel >= 81
+    BaseType "Sinister Quarterstaff"
+    SetTextColor 210 181 251
+    SetBorderColor 210 181 251
+    SetBackgroundColor 0 0 0 255
+    SetFontSize 40
+    MinimapIcon 1 Purple Diamond
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/高物等装备.mp3" 300
+    DisableDropSound
+
+Hide # 超级热门装备(80物等)
+    Rarity Normal Magic
+    Corrupted False
+    ItemLevel >= 80
+    BaseType "Ancestral Tiara" "Sirenscale Gloves"
+    SetTextColor 210 181 251
+    SetBorderColor 210 181 251
+    SetBackgroundColor 0 0 0 255
+    SetFontSize 40
+    MinimapIcon 1 Purple Diamond
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/高物等装备.mp3" 300
+    DisableDropSound
+    
+Show # 高物等武器
+    Rarity Normal
+    Corrupted False
+    ItemLevel >= 82
+    BaseType "Gemini Bow" "Obliterator Bow" "Warmonger Bow" "Siege Crossbow" "Desolate Crossbow" "Dueling Wand" "Shrine Sceptre" "Rattling Sceptre" "Sinister Quarterstaff" "Bolting Quarterstaff" "Akoyan Spear" "Soaring Spear" "Spiny Talisman"
+    SetTextColor 255 255 255
+    SetBorderColor 237 46 47
+    SetBackgroundColor 237 46 47 255
+    SetFontSize 40
+    MinimapIcon 1 Red Diamond
+    PlayEffect Red
+    CustomAlertSound "剑心音效/高物等装备.mp3" 300
+    DisableDropSound
+
+Show # 高物等装备
+    Rarity Normal
+    Corrupted False
+    ItemLevel >= 82
+    BaseType "Visceral Quiver" "Tasalian Focus" "Sacred Focus" "Slipstrike Vest" "Vile Robe" "Sleek Jacket" "Freebooter Cap" "Ancestral Tiara" "Kamasan Tiara" "Grinning Mask" "Polished Bracers" "Sirenscale Gloves" "Secured Wraps" "Drakeskin Boots" "Sekhema Sandals" "Daggerfoot Shoes" "Tawhoan Tower Shield" "Sacrificial Regalia"
+    SetTextColor 255 255 255
+    SetBorderColor 237 46 47
+    SetBackgroundColor 237 46 47 255
+    SetFontSize 40
+    MinimapIcon 1 Red Diamond
+    PlayEffect Red
+    CustomAlertSound "剑心音效/高物等装备.mp3" 300
+    DisableDropSound
+
+Show # 热门装备(普通品质)
+    Rarity Normal
+    Corrupted False
+    ItemLevel >= 82
+    BaseType "Gemini Bow" "Obliterator Bow" "Warmonger Bow" "Siege Crossbow" "Desolate Crossbow" "Dueling Wand" "Shrine Sceptre" "Rattling Sceptre" "Sinister Quarterstaff" "Bolting Quarterstaff" "Akoyan Spear" "Soaring Spear" "Spiny Talisman" "Visceral Quiver" "Tasalian Focus" "Sacred Focus" "Slipstrike Vest" "Vile Robe" "Sleek Jacket" "Freebooter Cap" "Ancestral Tiara" "Kamasan Tiara" "Grinning Mask" "Polished Bracers" "Sirenscale Gloves" "Secured Wraps" "Drakeskin Boots" "Sekhema Sandals" "Daggerfoot Shoes" "Tawhoan Tower Shield" "Sacrificial Regalia"
+    SetTextColor 0 0 0
+    SetBorderColor 255 255 255
+    SetBackgroundColor 255 255 255 255
+    SetFontSize 40
+    MinimapIcon 1 White Diamond
+    PlayEffect White
+    DisableDropSound
+
+Show # 热门装备(魔法品质)
+    Rarity Magic
+    Corrupted False
+    ItemLevel >= 82
+    UnidentifiedItemTier >= 3
+    BaseType "Gemini Bow" "Obliterator Bow" "Warmonger Bow" "Siege Crossbow" "Desolate Crossbow" "Dueling Wand" "Shrine Sceptre" "Rattling Sceptre" "Sinister Quarterstaff" "Bolting Quarterstaff" "Akoyan Spear" "Soaring Spear" "Spiny Talisman" "Visceral Quiver" "Tasalian Focus" "Sacred Focus" "Slipstrike Vest" "Vile Robe" "Sleek Jacket" "Freebooter Cap" "Ancestral Tiara" "Kamasan Tiara" "Grinning Mask" "Polished Bracers" "Sirenscale Gloves" "Secured Wraps" "Drakeskin Boots" "Sekhema Sandals" "Daggerfoot Shoes" "Tawhoan Tower Shield" "Sacrificial Regalia"
+    SetTextColor 0 0 0
+    SetBorderColor 10 188 238
+    SetBackgroundColor 10 188 238 255
+    SetFontSize 40
+    MinimapIcon 1 Blue Diamond
+    PlayEffect Blue
+    DisableDropSound
+
+Show # 热门装备(稀有品质)
+    Rarity Rare
+    Corrupted False
+    ItemLevel >= 82
+    UnidentifiedItemTier >= 5
+    BaseType "Gemini Bow" "Obliterator Bow" "Warmonger Bow" "Siege Crossbow" "Desolate Crossbow" "Dueling Wand" "Shrine Sceptre" "Rattling Sceptre" "Sinister Quarterstaff" "Bolting Quarterstaff" "Akoyan Spear" "Soaring Spear" "Spiny Talisman" "Visceral Quiver" "Tasalian Focus" "Sacred Focus" "Slipstrike Vest" "Vile Robe" "Sleek Jacket" "Freebooter Cap" "Ancestral Tiara" "Kamasan Tiara" "Grinning Mask" "Polished Bracers" "Sirenscale Gloves" "Secured Wraps" "Drakeskin Boots" "Sekhema Sandals" "Daggerfoot Shoes" "Tawhoan Tower Shield" "Sacrificial Regalia"
+    SetTextColor 0 0 0
+    SetBorderColor 245 240 20
+    SetBackgroundColor 245 240 20 255
+    SetFontSize 40
+    MinimapIcon 1 Yellow Diamond
+    PlayEffect Yellow
+    DisableDropSound
+
+Show # 已鉴定武器
+    Identified True
+    Corrupted False
+    Rarity Magic
+    Class "Claws" "Daggers" "One Hand" "Spears" "Flails" "Bows" "Two Hand" "Quarterstaves" "Crossbows" "Traps"
+    HasExplicitMod >= 1 "Flaring" "Tempered" "Carbonising" "Cremating" "Entombing" "Crystalising" "Vapourising" "Electrocuting" "Emperor's" "Dictator's" "Tyrannical" "Merciless" "Devastating" "of the Marksman" "of the Sniper" "of Acclaim" "of Unmaking" "of Ruin" "of Destruction" "of Splintering" "of Many" "of Battle" "of War" "of Infamy" "of Celebration" "of the Marksman" "of the Sniper" "of Shelling" "of Bursting"
+    SetTextColor 255 255 0
+    SetBorderColor 36 86 198
+    SetBackgroundColor 36 86 198 255
+    SetFontSize 40
+    MinimapIcon 1 Yellow Diamond
+    PlayEffect Yellow
+    DisableDropSound
+
+Show # 已鉴定法器
+    Identified True
+    Corrupted False
+    Rarity Magic
+    Class "Wands" "Staves"
+    HasExplicitMod >= 1 "Runic" "Glyphic" "Lich's" "Pyromancer's" "Volcanic" "Crystalline" "Cryomancer's" "Ionising" "Electromancer's" "Smiting" "Malevolent" "Torturer's" "Infernal" "Flamebound" "Ruthless" "Frostbound" "Electrifying" "Stormbound" "of the Wizard" "of the Sorcerer" "of Inferno" "of Frostbite" "of Voltage" "of Thunder" "of Armageddon" "of Grief" "of Finesse" "of Prestidigitation" "of Unmaking" "of Ruin" "of Destruction" "of Ferocity" "of the Evoker" "of Immolation" "of Rime" "of Voltage" "of Havoc" "of Desolation"
+    SetTextColor 255 255 0
+    SetBorderColor 36 86 198
+    SetBackgroundColor 36 86 198 255
+    SetFontSize 40
+    MinimapIcon 1 Yellow Diamond
+    PlayEffect Yellow
+    DisableDropSound
+
+Show # 已鉴定权杖
+    Identified True
+    Corrupted False
+    Rarity Magic
+    Class "Sceptres"
+    HasExplicitMod >=1 "Duke's" "Prince's" "King's" "Diplomat's" "Chancellor's" "Motivating" "Inspirational" "Empowering" "of Metamorphosis" "of the Slavedriver" "of Renown" "of Sortilege" "of Ruin" "of Unmaking" "of Ferocity" "of Destruction"
+    SetTextColor 255 255 0
+    SetBorderColor 36 86 198
+    SetBackgroundColor 36 86 198 255
+    SetFontSize 40
+    MinimapIcon 1 Yellow Diamond
+    PlayEffect Yellow
+    DisableDropSound
+
+Show # 已鉴定项链
+    Identified True
+    Corrupted False
+    Rarity Magic
+    Class "Amulets" 
+    HasExplicitMod >= 1 "Countess'" Marchioness' "of the Sorcerer" "of the Overseer" "of Battle" "of the Sharpshooter" "of the Despot" "of the Taskmaster"
+    SetTextColor 255 255 0
+    SetBorderColor 36 86 198
+    SetBackgroundColor 36 86 198 255
+    SetFontSize 40
+    MinimapIcon 1 Yellow Diamond
+    PlayEffect Yellow
+    DisableDropSound
+
+Show # 已鉴定腰带
+    Identified True
+    Rarity Magic Rare
+    Class "Belts" 
+    HasExplicitMod >= 1 "of the Despot" "of the Taskmaster"
+    SetTextColor 255 255 0
+    SetBorderColor 36 86 198
+    SetBackgroundColor 36 86 198 255
+    SetFontSize 40
+    MinimapIcon 1 Yellow Diamond
+    PlayEffect Yellow
+    DisableDropSound
+
+Show # 高物等首饰
+    Rarity Normal
+    Corrupted False
+    ItemLevel >= 82
+    Class "Amulets" "Rings"
+    SetTextColor 255 255 255
+    SetBorderColor 237 46 47
+    SetBackgroundColor 237 46 47 255
+    SetFontSize 40
+    MinimapIcon 1 Red Diamond
+    PlayEffect Red
+    CustomAlertSound "剑心音效/高物等装备.mp3" 300
+    DisableDropSound
+
+Show # 高价值项链
+    ItemLevel >= 75
+    Class "Amulets"
+    BaseType "Solar Amulet" "Gold Amulet" "Penumbra Amulet" "Tenebrous Amulet" "Gloam Amulet" "Twisted Amulet" "Dusk Amulet"
+    SetTextColor 255 255 255
+    SetBorderColor 60 81 212
+    SetBackgroundColor 60 81 212 255
+    SetFontSize 40
+    MinimapIcon 1 Blue Diamond
+    PlayEffect Blue
+    DisableDropSound
+
+Show # 高价值戒指
+    ItemLevel >= 75
+    Class "Rings"
+    BaseType "Breach Ring" "Gold Ring" "Gloam Ring" "Tenebrous Ring" "Dusk Ring" "Gloam Ring" "Penumbra Ring" "Prismatic Ring"
+    SetTextColor 255 255 255
+    SetBorderColor 60 81 212
+    SetBackgroundColor 60 81 212 255
+    SetFontSize 40
+    MinimapIcon 1 Blue Diamond
+    PlayEffect Blue
+    DisableDropSound
+
+Show # 裂隙专属
+    BaseType "Stalking Belt" "Invoking Belt" "Sinew Belt" "Forking Belt" "Lament Amulet" "Portent Amulet" "Absent Amulet" "Corona Amulet" "Biostatic Ring" "Vitalic Ring" "Mnemonic Ring" "Kinetic Ring" "Oneiric Ring" "Grasping Ring" "Distorted Amulet"
+    SetTextColor 255 255 255
+    SetBorderColor 60 81 212
+    SetBackgroundColor 60 81 212 255
+    SetFontSize 40
+    MinimapIcon 1 Blue Diamond
+    PlayEffect Blue
+    DisableDropSound
+
+Show # 品质项链、戒指
+    Quality >= 20
+    Class "Amulets" "Rings"
+    SetTextColor 245 207 151
+    SetBorderColor 245 207 151
+    SetBackgroundColor 0 0 0 255
+    SetFontSize 40
+    DisableDropSound
+
+Hide # 全部项链、戒指
+    Class "Amulets" "Rings"
+    SetTextColor 255 255 255
+    SetBorderColor 60 81 212
+    SetBackgroundColor 60 81 212 255
+    SetFontSize 40
+    DisableDropSound
+
+Show # 双瓦装备
+    Corrupted True
+    TwiceCorrupted True
+    Rarity Normal Magic Rare
+    SetTextColor 255 255 255
+    SetBorderColor 155 53 53
+    SetBackgroundColor 155 53 53 255
+    SetFontSize 40
+    MinimapIcon 1 Red Diamond
+    PlayEffect Red
+    CustomAlertSound "剑心音效/双瓦装备.mp3" 300
+    DisableDropSound
+
+Hide # 白底腰带
+    Rarity Normal
+    Corrupted False
+    Class "Belts"
+    SetTextColor 255 255 255
+    SetBorderColor 52 98 146
+    SetBackgroundColor 52 98 146 255
+    SetFontSize 40
+    DisableDropSound
+
+Hide # 品质装备
+    Quality >= 15
+    Rarity Normal Magic Rare
+    Class "Amulets" "Rings" "Belts" "Gloves" "Boots" "Helmets" "Body Armours" "Quivers" "Claws" "Daggers" "Wands" "One Hand Axes" "One Hand Maces" "One Hand Swords" "Sceptres" "Staves" "Bows" "Two Hand Axes" "Two Hand Maces" "Two Hand Swords" "Shields" "Spears" "Flails" "Quarterstaves" "Crossbows" "Traps" "Foci" "Bucklers" "Talismans"
+    SetTextColor 245 207 151
+    SetBorderColor 245 207 151
+    SetBackgroundColor 0 0 0 255
+    SetFontSize 40
+    DisableDropSound
+
+Hide # 稀有装备
+    Rarity Rare
+    Class "Amulets" "Rings" "Belts" "Gloves" "Boots" "Helmets" "Body Armours" "Quivers" "Claws" "Daggers" "Wands" "One Hand Axes" "One Hand Maces" "One Hand Swords" "Sceptres" "Staves" "Bows" "Two Hand Axes" "Two Hand Maces" "Two Hand Swords" "Shields" "Spears" "Flails" "Quarterstaves" "Crossbows" "Traps" "Foci" "Bucklers" "Talismans"
+    SetTextColor 255 244 62
+    SetBorderColor 0 0 0
+    SetBackgroundColor 0 0 0 255
+    SetFontSize 40
+    DisableDropSound
+
+Hide # 魔法装备
+    AreaLevel < 40
+    Rarity Magic
+    Class "Amulets" "Rings" "Belts" "Gloves" "Boots" "Helmets" "Body Armours" "Quivers" "Claws" "Daggers" "Wands" "One Hand Axes" "One Hand Maces" "One Hand Swords" "Sceptres" "Staves" "Bows" "Two Hand Axes" "Two Hand Maces" "Two Hand Swords" "Shields" "Spears" "Flails" "Quarterstaves" "Crossbows" "Traps" "Foci" "Bucklers" "Talismans"
+    SetTextColor 62 163 255
+    SetBorderColor 0 0 0
+    SetBackgroundColor 0 0 0 255
+    SetFontSize 40
+    DisableDropSound
+
+Hide # 魔法装备
+    Rarity Magic
+    Class "Amulets" "Rings" "Belts" "Gloves" "Boots" "Helmets" "Body Armours" "Quivers" "Claws" "Daggers" "Wands" "One Hand Axes" "One Hand Maces" "One Hand Swords" "Sceptres" "Staves" "Bows" "Two Hand Axes" "Two Hand Maces" "Two Hand Swords" "Shields" "Spears" "Flails" "Quarterstaves" "Crossbows" "Traps" "Foci" "Bucklers" "Talismans"
+    SetTextColor 62 163 255
+    SetBorderColor 0 0 0
+    SetBackgroundColor 0 0 0 255
+    SetFontSize 40
+    DisableDropSound
+
+Hide # 普通装备
+    AreaLevel < 20
+    Rarity Normal
+    Class "Amulets" "Rings" "Belts" "Gloves" "Boots" "Helmets" "Body Armours" "Quivers" "Claws" "Daggers" "Wands" "One Hand Axes" "One Hand Maces" "One Hand Swords" "Sceptres" "Staves" "Bows" "Two Hand Axes" "Two Hand Maces" "Two Hand Swords" "Shields" "Spears" "Flails" "Quarterstaves" "Crossbows" "Traps" "Foci" "Bucklers" "Talismans"
+    SetTextColor 255 255 255
+    SetBorderColor 0 0 0
+    SetBackgroundColor 0 0 0 255
+    SetFontSize 40
+    DisableDropSound
+
+Hide # 普通装备
+    Rarity Normal
+    Class "Amulets" "Rings" "Belts" "Gloves" "Boots" "Helmets" "Body Armours" "Quivers" "Claws" "Daggers" "Wands" "One Hand Axes" "One Hand Maces" "One Hand Swords" "Sceptres" "Staves" "Bows" "Two Hand Axes" "Two Hand Maces" "Two Hand Swords" "Shields" "Spears" "Flails" "Quarterstaves" "Crossbows" "Traps" "Foci" "Bucklers" "Talismans"
+    SetTextColor 255 255 255
+    SetBorderColor 0 0 0
+    SetBackgroundColor 0 0 0 255
+    SetFontSize 40
+    DisableDropSound
+
+# -------------------------- 全局配置 -------------------------- #
+
+Show # 任务物品
+    Class "Quest Items"
+    SetTextColor 168 72 214
+    SetBorderColor 250 250 250
+    SetBackgroundColor 250 250 250 255
+    SetFontSize 45
+    MinimapIcon 0 Purple Star
+    PlayEffect Purple
+    CustomAlertSound "剑心音效/任务物品.mp3" 300
+    DisableDropSound
+    
+Hide # 金币堆叠
+    StackSize >= 5000
+    Class "Stackable Currency"
+    BaseType "Gold"
+    SetTextColor 166 237 142
+    SetBorderColor 166 237 142
+    SetBackgroundColor 0 0 0 255
+    SetFontSize 40
+    DisableDropSound
+
+Hide # 金币
+    Class "Stackable Currency"
+    BaseType "Gold"
+    SetTextColor 166 237 142
+    SetBorderColor 166 237 142
+    SetBackgroundColor 0 0 0 255
+    SetFontSize 40
+    DisableDropSound
+
+Show # 活动通货
+    Class "Currency"
+    BaseType "Coin" "Shard"
+    SetTextColor 255 255 255
+    SetBorderColor 195 70 108
+    SetBackgroundColor 195 70 108 255
+    SetFontSize 40
+    MinimapIcon 0 Pink Star
+    PlayEffect Pink
+    DisableDropSound
+    
+Show # 全局设置
+    SetTextColor 255 255 255
+    SetBorderColor 195 70 108
+    SetBackgroundColor 195 70 108 255
+    SetFontSize 40
+    MinimapIcon 0 Pink Star
+    PlayEffect Pink
+    DisableDropSound

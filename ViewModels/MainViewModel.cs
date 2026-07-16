@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Runtime.CompilerServices;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -91,6 +92,21 @@ public class MainViewModel : INotifyPropertyChanged
     private ItemNameTranslator? _itemNameTranslator;
     /// <summary>翻译器加载任务，确保价格刷新前翻译表已就绪。</summary>
     private Task? _translationLoadTask;
+
+    // === 过滤器页面 ===
+    private ObservableCollection<LootFilterRule> _filterRules = [];
+    private ListCollectionView _filteredFilterRules = new(new ObservableCollection<LootFilterRule>());
+    private string _filterSearchText = "";
+    private string _filterSelectedCategory = "全部";
+    private ObservableCollection<string> _filterCategories = new() { "全部" };
+    private string _filterStatusMessage = "";
+    private decimal _autoFilterMinPrice = 5m;
+
+    // === Token 验证 ===
+    /// <summary>Token 是否已通过验证（未过期）。false 时价格服务回退到无 token 公共接口。</summary>
+    private bool _isTokenValid;
+    /// <summary>Token 验证状态消息。</summary>
+    private string _tokenStatusMessage = "";
 
     public MainViewModel()
     {
@@ -180,6 +196,17 @@ public class MainViewModel : INotifyPropertyChanged
 
         _filteredPrices.Filter = FilterBySelectedCategory;
 
+        // 过滤器页面命令初始化
+        LoadFilterCommand = new RelayCommand(LoadFilterRules);
+        SaveFilterCommand = new RelayCommand(SaveFilterRules);
+        SaveAsFilterCommand = new RelayCommand(SaveAsFilterRules);
+        AutoUpdateFilterCommand = new RelayCommand(AutoUpdateFilterByPrice);
+        OpenFilterDirectoryCommand = new RelayCommand(OpenFilterDirectory);
+        EditFilterRuleCommand = new RelayCommand<LootFilterRule>(EditFilterRule);
+        _filteredFilterRules.Filter = FilterRulesByCategory;
+        // 初始加载过滤器文件
+        LoadFilterRules();
+
         // 初始化泥人补丁勾选状态（从 settings 读取已保存的勾选列表）。
         InitSmootherPatchChecked();
         // 同步读取已保存的 zoom 值。
@@ -190,6 +217,8 @@ public class MainViewModel : INotifyPropertyChanged
 
         // 启动时优先加载本地数据。
         _ = LoadLocalPricesAsync();
+        // 启动时验证 token 状态。
+        _ = ValidateTokenAsync();
         VmTrace("MainViewModel 构造完成");
     }
 
@@ -350,6 +379,14 @@ public class MainViewModel : INotifyPropertyChanged
 
     /// <summary>生成繁体翻译表命令（开发者用）：从游戏 datc64 构建英文名→繁中名映射表并保存到 data/translations/。</summary>
     public ICommand GenerateTranslationsTradCommand { get; }
+
+    // === 过滤器页面命令 ===
+    public ICommand LoadFilterCommand { get; }
+    public ICommand SaveFilterCommand { get; }
+    public ICommand SaveAsFilterCommand { get; }
+    public ICommand AutoUpdateFilterCommand { get; }
+    public ICommand OpenFilterDirectoryCommand { get; }
+    public ICommand EditFilterRuleCommand { get; }
 
     /// <summary>
     /// 状态栏消息。设置页缓存清理状态文本。
@@ -587,13 +624,24 @@ public class MainViewModel : INotifyPropertyChanged
             {
                 _settings.CurrencyPriceToken = value;
                 _settingsService.Save(_settings);
-                // 国服价格服务需要同步 Token。
-                if (_priceService is PoecurrencyPriceService cn)
-                {
-                    cn.Token = value;
-                }
+                // Token 变更时触发验证，验证通过后才会同步到价格服务。
+                _ = ValidateTokenAsync();
             }
         }
+    }
+
+    /// <summary>Token 验证状态消息，显示在设置页 token 输入框下方。</summary>
+    public string TokenStatusMessage
+    {
+        get => _tokenStatusMessage;
+        set => SetProperty(ref _tokenStatusMessage, value);
+    }
+
+    /// <summary>Token 是否有效（已通过验证且未过期）。</summary>
+    public bool IsTokenValid
+    {
+        get => _isTokenValid;
+        private set => SetProperty(ref _isTokenValid, value);
     }
 
     /// <summary>技能特效补丁文件列表（修改用）。</summary>
@@ -1402,7 +1450,8 @@ public class MainViewModel : INotifyPropertyChanged
         {
             _priceService = new PoecurrencyPriceService(_httpClient)
             {
-                Token = CurrencyPriceToken,
+                // 只有 token 验证通过且未过期时才使用 summary_validate 接口。
+                Token = IsTokenValid ? CurrencyPriceToken : null,
             };
             _tradeService = new PoeTradeService(_httpClient, isChina: true);
         }
@@ -1438,6 +1487,90 @@ public class MainViewModel : INotifyPropertyChanged
 
         // 区服切换后 EffectivePoeSessionId 指向的字段已变化，统一刷新登录状态、命令可用性及 stats 预加载。
         OnPoeSessionIdChanged();
+    }
+
+    /// <summary>
+    /// 验证 Token 状态：调用 check-token 接口检查是否过期。
+    /// 有 expires_at 时转换时间与当前时间对比；过期或无 expires_at 则回退到无 token 公共接口。
+    /// </summary>
+    private async Task ValidateTokenAsync()
+    {
+        var token = CurrencyPriceToken;
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            IsTokenValid = false;
+            TokenStatusMessage = "未设置 Token，使用公共接口";
+            SyncTokenToPriceService();
+            return;
+        }
+
+        try
+        {
+            var url = $"https://poecurrency.top/api/check-token?token={Uri.EscapeDataString(token.Trim())}";
+            using var response = await _httpClient.GetAsync(url);
+            response.EnsureSuccessStatusCode();
+            await using var stream = await response.Content.ReadAsStreamAsync();
+            using var doc = await JsonDocument.ParseAsync(stream);
+            var root = doc.RootElement;
+
+            // 读取 expires_at 字段
+            if (root.TryGetProperty("expires_at", out var expEl) &&
+                expEl.ValueKind == JsonValueKind.String &&
+                !string.IsNullOrWhiteSpace(expEl.GetString()))
+            {
+                var expiresStr = expEl.GetString()!;
+                // 尝试解析时间格式 "2026-07-15 23:59:59"
+                if (DateTime.TryParseExact(expiresStr, "yyyy-MM-dd HH:mm:ss",
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        System.Globalization.DateTimeStyles.None, out var expiresAt))
+                {
+                    var now = DateTime.Now;
+                    if (expiresAt > now)
+                    {
+                        IsTokenValid = true;
+                        var username = root.TryGetProperty("username", out var uEl) ? uEl.GetString() ?? "" : "";
+                        TokenStatusMessage = $"Token 有效，用户：{username}，到期：{expiresAt:yyyy-MM-dd HH:mm}";
+                    }
+                    else
+                    {
+                        IsTokenValid = false;
+                        TokenStatusMessage = $"Token 已过期（到期时间：{expiresAt:yyyy-MM-dd HH:mm}），使用公共接口";
+                    }
+                }
+                else
+                {
+                    // expires_at 存在但格式无法解析，按无效处理
+                    IsTokenValid = false;
+                    TokenStatusMessage = "Token 过期时间格式异常，使用公共接口";
+                }
+            }
+            else
+            {
+                // 不存在 expires_at 字段，回退到无 token 接口
+                IsTokenValid = false;
+                var msg = root.TryGetProperty("message", out var mEl) ? mEl.GetString() ?? "" : "";
+                TokenStatusMessage = string.IsNullOrEmpty(msg)
+                    ? "Token 无效（无到期时间），使用公共接口"
+                    : $"{msg}，使用公共接口";
+            }
+
+            SyncTokenToPriceService();
+        }
+        catch (Exception ex)
+        {
+            IsTokenValid = false;
+            TokenStatusMessage = $"Token 验证失败：{ex.Message}，使用公共接口";
+            SyncTokenToPriceService();
+        }
+    }
+
+    /// <summary>同步 Token 到国服价格服务（仅在国服模式下生效）。</summary>
+    private void SyncTokenToPriceService()
+    {
+        if (_priceService is PoecurrencyPriceService cn)
+        {
+            cn.Token = IsTokenValid ? CurrencyPriceToken : null;
+        }
     }
 
     /// <summary>
@@ -3077,6 +3210,260 @@ public class MainViewModel : INotifyPropertyChanged
         field = value;
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         return true;
+    }
+
+    // ==================== 过滤器页面 ====================
+
+    /// <summary>过滤器规则列表（经过滤后）。</summary>
+    public ICollectionView FilteredFilterRules => _filteredFilterRules;
+
+    /// <summary>所有过滤器规则。</summary>
+    public ObservableCollection<LootFilterRule> FilterRules => _filterRules;
+
+    /// <summary>过滤器分类列表。</summary>
+    public ObservableCollection<string> FilterCategories
+    {
+        get => _filterCategories;
+        set => SetProperty(ref _filterCategories, value);
+    }
+
+    /// <summary>当前选中的过滤器分类。</summary>
+    public string FilterSelectedCategory
+    {
+        get => _filterSelectedCategory;
+        set
+        {
+            if (SetProperty(ref _filterSelectedCategory, value))
+                _filteredFilterRules.Refresh();
+        }
+    }
+
+    /// <summary>过滤器搜索文本。</summary>
+    public string FilterSearchText
+    {
+        get => _filterSearchText;
+        set
+        {
+            if (SetProperty(ref _filterSearchText, value))
+                _filteredFilterRules.Refresh();
+        }
+    }
+
+    /// <summary>过滤器状态消息。</summary>
+    public string FilterStatusMessage
+    {
+        get => _filterStatusMessage;
+        set => SetProperty(ref _filterStatusMessage, value);
+    }
+
+    /// <summary>自动过滤的最小价格（崇高石），低于此值的通货将被隐藏。</summary>
+    public decimal AutoFilterMinPrice
+    {
+        get => _autoFilterMinPrice;
+        set => SetProperty(ref _autoFilterMinPrice, value);
+    }
+
+    private void LoadFilterRules()
+    {
+        try
+        {
+            var filterPath = LootFilterService.GetDefaultFilterPath();
+            if (!File.Exists(filterPath))
+            {
+                FilterStatusMessage = "未找到过滤器文件";
+                return;
+            }
+
+            _filterRules.Clear();
+            var rules = LootFilterService.Parse(filterPath);
+            var cats = new HashSet<string> { "全部" };
+            foreach (var r in rules)
+            {
+                _filterRules.Add(r);
+                if (!string.IsNullOrEmpty(r.Category))
+                    cats.Add(r.Category);
+            }
+            FilterCategories = new ObservableCollection<string>(cats);
+            _filteredFilterRules = new ListCollectionView(_filterRules);
+            _filteredFilterRules.Filter = FilterRulesByCategory;
+            OnPropertyChanged(nameof(FilteredFilterRules));
+            FilterStatusMessage = $"已加载 {rules.Count} 条规则";
+        }
+        catch (Exception ex)
+        {
+            FilterStatusMessage = $"加载失败: {ex.Message}";
+        }
+    }
+
+    private void SaveFilterRules()
+    {
+        try
+        {
+            var filterPath = LootFilterService.GetDefaultFilterPath();
+            LootFilterService.Save(filterPath, _filterRules.ToList());
+            FilterStatusMessage = $"已保存 {_filterRules.Count} 条规则";
+        }
+        catch (Exception ex)
+        {
+            FilterStatusMessage = $"保存失败: {ex.Message}";
+        }
+    }
+
+    private bool FilterRulesByCategory(object item)
+    {
+        if (item is not LootFilterRule rule)
+            return false;
+
+        if (!string.IsNullOrEmpty(_filterSelectedCategory) && _filterSelectedCategory != "全部")
+        {
+            if (rule.Category != _filterSelectedCategory)
+                return false;
+        }
+
+        if (!string.IsNullOrEmpty(_filterSearchText))
+        {
+            var search = _filterSearchText.ToLowerInvariant();
+            if (!rule.Comment.ToLowerInvariant().Contains(search) &&
+                !rule.BaseTypeText.ToLowerInvariant().Contains(search) &&
+                !rule.ClassCondition.ToLowerInvariant().Contains(search))
+                return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// 根据价格数据自动更新过滤器：价格 >= AutoFilterMinPrice 的通货设为 Show，低于的设为 Hide。
+    /// 仅更新价格接口里有的通货道具，不在接口里的道具保持默认显示状态。
+    /// 匹配策略：用规则的 Comment（中文名）精确匹配价格页的 ItemName（中文名）；
+    /// 若翻译表可用，也会把英文 BaseType 翻译成中文再精确匹配。
+    /// </summary>
+    private void AutoUpdateFilterByPrice()
+    {
+        if (_prices.Count == 0)
+        {
+            FilterStatusMessage = "请先在价格查看页加载价格数据";
+            return;
+        }
+
+        try
+        {
+            // 构建 ItemName(中文) → PriceExalted 的映射
+            var priceMap = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
+            foreach (var p in _prices)
+            {
+                if (p.PriceExalted > 0 && !string.IsNullOrEmpty(p.ItemName))
+                    priceMap[p.ItemName] = p.PriceExalted;
+            }
+
+            int updated = 0;
+            int matched = 0;
+
+            foreach (var rule in _filterRules)
+            {
+                // 仅处理通货类规则，非通货类（装备/地图/珠宝等）保持默认不动
+                if (!rule.ClassCondition.Contains("Currency", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                decimal maxPrice = 0;
+                bool anyMatched = false;
+
+                // 策略1: 用 Comment(中文名) 精确匹配 ItemName(中文名)
+                if (!string.IsNullOrEmpty(rule.Comment) && priceMap.TryGetValue(rule.Comment, out var price1))
+                {
+                    anyMatched = true;
+                    maxPrice = price1;
+                }
+
+                // 策略2: 若翻译表可用，把英文 BaseType 翻译成中文再精确匹配
+                if (!anyMatched && !string.IsNullOrEmpty(rule.BaseTypeCondition) &&
+                    _itemNameTranslator is { HasTranslations: true })
+                {
+                    var baseTypes = rule.BaseTypeCondition.Split('"')
+                        .Where(s => !string.IsNullOrWhiteSpace(s))
+                        .Select(s => s.Trim())
+                        .ToList();
+                    foreach (var bt in baseTypes)
+                    {
+                        var translated = _itemNameTranslator.Translate(bt);
+                        if (!string.IsNullOrEmpty(translated) &&
+                            priceMap.TryGetValue(translated, out var price2))
+                        {
+                            anyMatched = true;
+                            if (price2 > maxPrice)
+                                maxPrice = price2;
+                        }
+                    }
+                }
+
+                // 只更新价格接口里有的道具，没有匹配到的保持默认显示
+                if (anyMatched)
+                {
+                    matched++;
+                    rule.PriceExalted = maxPrice;
+                    var wasVisible = rule.IsVisible;
+                    rule.IsVisible = maxPrice >= _autoFilterMinPrice;
+                    if (wasVisible != rule.IsVisible)
+                        updated++;
+                }
+            }
+
+            _filteredFilterRules.Refresh();
+            FilterStatusMessage = $"自动更新完成: 匹配 {matched} 条通货规则, 修改 {updated} 条显示状态 (阈值 {_autoFilterMinPrice}e)";
+        }
+        catch (Exception ex)
+        {
+            FilterStatusMessage = $"自动更新失败: {ex.Message}";
+        }
+    }
+
+    /// <summary>另存为：弹出 SaveFileDialog 让用户选择保存位置。</summary>
+    private void SaveAsFilterRules()
+    {
+        if (_filterRules.Count == 0)
+        {
+            FilterStatusMessage = "没有规则可保存";
+            return;
+        }
+        var dialog = new Microsoft.Win32.SaveFileDialog
+        {
+            Filter = "POE2 过滤器文件 (*.filter)|*.filter|所有文件 (*.*)|*.*",
+            FileName = "默认过滤器.filter",
+            DefaultExt = ".filter",
+            Title = "另存为"
+        };
+        if (dialog.ShowDialog() != true)
+            return;
+        try
+        {
+            LootFilterService.Save(dialog.FileName, _filterRules.ToList());
+            FilterStatusMessage = $"已保存到 {dialog.FileName}";
+        }
+        catch (Exception ex)
+        {
+            FilterStatusMessage = $"保存失败: {ex.Message}";
+        }
+    }
+
+    /// <summary>打开规则编辑窗口。</summary>
+    private void EditFilterRule(LootFilterRule? rule)
+    {
+        if (rule == null)
+            return;
+        var window = new Windows.FilterRuleEditWindow(rule)
+        {
+            Owner = System.Windows.Application.Current.MainWindow
+        };
+        window.ShowDialog();
+    }
+
+    private void OpenFilterDirectory()
+    {
+        var dir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data", "filter");
+        if (Directory.Exists(dir))
+            Process.Start(new ProcessStartInfo("explorer.exe", dir) { UseShellExecute = true });
+        else
+            FilterStatusMessage = "过滤器目录不存在";
     }
 
 }

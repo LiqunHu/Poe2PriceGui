@@ -14,6 +14,8 @@
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         <converters:InverseBoolToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter"/>
         <converters:FileNameWithoutExtensionConverter x:Key="FileNameWithoutExtensionConverter"/>
+        <converters:ColorToBrushConverter x:Key="ColorToBrushConverter"/>
+        <converters:ColorToRgbTextConverter x:Key="ColorToRgbTextConverter"/>
         <DataTemplate DataType="{x:Type models:ToastNotification}">
             <Border CornerRadius="8"
                     Background="{Binding Background}"
@@ -511,6 +513,143 @@
                 </ScrollViewer>
             </TabItem>
 
+            <!-- 过滤器页 -->
+            <TabItem Header="过滤器" Tag="🔍">
+                <Grid Margin="14" Background="White">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- 标题 -->
+                    <StackPanel Grid.Row="0" Orientation="Vertical" Margin="0,0,0,10">
+                        <TextBlock Text="物品过滤器" FontSize="20" FontWeight="Bold"/>
+                        <TextBlock Foreground="Gray" FontSize="12" Text="编辑 data/filter/默认过滤器.filter 中的 Show/Hide 规则、颜色、音效等。点击「修改」打开详细编辑窗口。"/>
+                    </StackPanel>
+
+                    <!-- 工具栏 -->
+                    <StackPanel Grid.Row="1" Margin="0,0,0,10">
+                        <!-- 第一行：保存/另存为/加载/目录/自动更新 -->
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <Button Content="💾 保存" Command="{Binding SaveFilterCommand}" Padding="10,5" Margin="0,0,8,0"/>
+                            <Button Content="📂 另存为" Command="{Binding SaveAsFilterCommand}" Padding="10,5" Margin="0,0,8,0"/>
+                            <Button Content="🔄 重新加载" Command="{Binding LoadFilterCommand}" Padding="10,5" Margin="0,0,8,0"/>
+                            <Button Content="📁 打开目录" Command="{Binding OpenFilterDirectoryCommand}" Padding="10,5" Margin="0,0,8,0"/>
+                            <Separator Margin="4,0"/>
+                            <TextBlock Text="自动更新阈值(e):" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                            <TextBox Text="{Binding AutoFilterMinPrice, UpdateSourceTrigger=PropertyChanged}"
+                                     MinWidth="60" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <Button Content="⚡ 自动更新" Command="{Binding AutoUpdateFilterCommand}" Padding="10,5"
+                                    ToolTip="根据价格页数据，价格≥阈值的通货设为Show，低于阈值设为Hide"/>
+                        </StackPanel>
+                        <!-- 第二行：搜索 + 分类 -->
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="分类:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                            <ComboBox ItemsSource="{Binding FilterCategories}"
+                                      SelectedItem="{Binding FilterSelectedCategory}"
+                                      MinWidth="150" VerticalAlignment="Center" Margin="0,0,15,0"/>
+                            <TextBlock Text="搜索:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                            <TextBox Text="{Binding FilterSearchText, UpdateSourceTrigger=PropertyChanged}"
+                                     MinWidth="250" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- 状态消息 -->
+                    <TextBlock Grid.Row="2" Text="{Binding FilterStatusMessage}" Foreground="#FF4A90D9"
+                               FontSize="12" Margin="0,0,0,8" TextWrapping="Wrap"/>
+
+                    <!-- 规则列表（简洁视图） -->
+                    <DataGrid Grid.Row="3"
+                              ItemsSource="{Binding FilteredFilterRules}"
+                              AutoGenerateColumns="False"
+                              CanUserAddRows="False"
+                              CanUserDeleteRows="False"
+                              IsReadOnly="True"
+                              HeadersVisibility="Column"
+                              GridLinesVisibility="Horizontal"
+                              AlternatingRowBackground="#F5F5F5"
+                              SelectionMode="Single"
+                              RowHeight="32">
+                        <DataGrid.Columns>
+                            <!-- 显示/隐藏 -->
+                            <DataGridCheckBoxColumn Header="显示" Binding="{Binding IsVisible, UpdateSourceTrigger=PropertyChanged}" Width="50" IsReadOnly="False"/>
+
+                            <!-- 预览（文字+背景+边框色块组合） -->
+                            <DataGridTemplateColumn Header="预览" Width="160" IsReadOnly="True">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Border Background="{Binding BackgroundColor, Converter={StaticResource ColorToBrushConverter}}"
+                                                BorderBrush="{Binding BorderColor, Converter={StaticResource ColorToBrushConverter}}"
+                                                BorderThickness="2"
+                                                Padding="6,2"
+                                                Margin="4,2"
+                                                HorizontalAlignment="Left">
+                                            <TextBlock Text="{Binding Comment}"
+                                                       Foreground="{Binding TextColor, Converter={StaticResource ColorToBrushConverter}}"
+                                                       FontSize="13"
+                                                       FontWeight="Bold"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                        </Border>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <!-- 名称 -->
+                            <DataGridTextColumn Header="名称" Binding="{Binding Comment}" Width="150"/>
+
+                            <!-- 分类 -->
+                            <DataGridTextColumn Header="分类" Binding="{Binding Category}" Width="100"/>
+
+                            <!-- BaseType -->
+                            <DataGridTextColumn Header="BaseType" Binding="{Binding BaseTypeText}" Width="180"/>
+
+                            <!-- 价格 -->
+                            <DataGridTextColumn Header="价格(e)" Binding="{Binding PriceExalted, StringFormat=N2}" Width="80">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="DarkBlue"/>
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                        <Setter Property="HorizontalAlignment" Value="Right"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <!-- 音效 -->
+                            <DataGridTextColumn Header="音效" Binding="{Binding CustomAlertSound}" Width="200">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <!-- 修改按钮 -->
+                            <DataGridTemplateColumn Header="操作" Width="80" IsReadOnly="True">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Button Content="✏️ 修改"
+                                                Command="{Binding DataContext.EditFilterRuleCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                CommandParameter="{Binding}"
+                                                Padding="8,3"
+                                                Margin="4,0"
+                                                Cursor="Hand"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <!-- 底部说明 -->
+                    <TextBlock Grid.Row="4" Foreground="Gray" FontSize="11" Margin="0,8,0,0" TextWrapping="Wrap">
+                        <Run Text="说明：勾选「显示」=Show，取消=Hide。点击「修改」打开详细编辑窗口（含调色板）。"/>
+                        <Run Text="自动更新会根据「价格查看」页的数据，将价格≥阈值的通货规则设为Show，低于阈值的设为Hide。"/>
+                    </TextBlock>
+                </Grid>
+            </TabItem>
+
             <!-- 设置页 -->
             <TabItem Header="设置" Tag="⚙️">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
@@ -665,7 +804,23 @@
                             <TextBlock Text="Token（留空则使用公共接口）：" Margin="0,0,0,5" Foreground="Gray"/>
                             <TextBox Text="{Binding CurrencyPriceToken, UpdateSourceTrigger=PropertyChanged}"
                                      VerticalContentAlignment="Center" Margin="0,0,0,5"/>
-                            <TextBlock Text="填写 Token 后使用 summary_validate 接口获取数据，数据更稳定可靠。" Foreground="Gray" TextWrapping="Wrap" FontSize="11"/>
+                            <TextBlock Text="{Binding TokenStatusMessage}"
+                                       FontWeight="SemiBold" TextWrapping="Wrap" FontSize="12" Margin="0,0,0,5">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="#FF666666"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsTokenValid}" Value="True">
+                                                <Setter Property="Foreground" Value="Green"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding IsTokenValid}" Value="False">
+                                                <Setter Property="Foreground" Value="#FFCC6600"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                            <TextBlock Text="填写 Token 后使用 summary_validate 接口获取数据，数据更稳定可靠。启动时和修改 Token 时自动验证有效性。" Foreground="Gray" TextWrapping="Wrap" FontSize="11"/>
                         </StackPanel>
                     </GroupBox>
 

@@ -20,11 +20,11 @@ namespace Poe2PriceGui.Services.Smoother;
 ///              避免 100GB+ GGPK 上原地改大 bundle 的损坏风险。
 ///
 /// 备份策略（按游戏模式自动选择）：
-/// - Bundles2 模式：SmootherBackupStore 在 %LOCALAPPDATA%/Poe2PriceGui/smoother.bak 中
+/// - Bundles2 模式：SmootherBackupStore 在 %LOCALAPPDATA%/Poe2PriceGuiData/smoother.bak 中
 ///                  保存应用补丁前的 _.index.bin（仅追加新条目，已存在则跳过）。
 /// - GGPK 模式：SmootherGgpkBackupStore.Backup 抽出
 ///              GGPK 内当前的 Bundles2/_.index.bin + TinyPoe2Smoother/*.bundle.bin
-///              打包成 zip（几 MB），存到 %LOCALAPPDATA%/Poe2PriceGui/smoother_ggpk.zip。
+///              打包成 zip（几 MB），存到 %LOCALAPPDATA%/Poe2PriceGuiData/smoother_ggpk.zip。
 /// </summary>
 public sealed class SmootherPatchService
 {
@@ -58,7 +58,7 @@ public sealed class SmootherPatchService
         {
             // 默认/未知模式走 Bundles2 路径（兼容旧安装）
             _store = new BundleStore(gameDir);
-            _backup = new SmootherBackupStore();
+            _backup = new SmootherBackupStore(AppDataPath.SmootherBackup);
             _ggpkPath = "";
         }
     }
@@ -75,8 +75,8 @@ public sealed class SmootherPatchService
 
     /// <summary>
     /// 备份文件路径。
-    /// - Bundles2 模式：%LOCALAPPDATA%/Poe2PriceGui/smoother.bak（2SBK 格式）
-    /// - GGPK 模式：%LOCALAPPDATA%/Poe2PriceGui/smoother_ggpk.zip（zip 格式）
+    /// - Bundles2 模式：%LOCALAPPDATA%/Poe2PriceGuiData/smoother.bak（2SBK 格式）
+    /// - GGPK 模式：%LOCALAPPDATA%/Poe2PriceGuiData/smoother_ggpk.zip（zip 格式）
     /// </summary>
     public string BackupPath => _gameMode == GameMode.GGPK
         ? AppDataPath.SmootherGgpkBackup
