@@ -58,6 +58,9 @@ public static class AppDataPath
     /// <summary>运行时生成的翻译表目录（与开发者预构建的 data\translations\ 区分）。</summary>
     public static string TranslationsRuntime { get; }
 
+    /// <summary>用户自定义过滤器目录：%LOCALAPPDATA%\Poe2PriceGui\data\filters\。</summary>
+    public static string Filters => Path.Combine(Data, "filters");
+
     /// <summary>泥人补丁备份（沿用 SmootherBackupStore 的位置）。</summary>
     public static string SmootherBackup => Path.Combine(Root, "smoother.bak");
 
@@ -105,6 +108,7 @@ public static class AppDataPath
         Directory.CreateDirectory(Output);
         Directory.CreateDirectory(SkillPatchEffect);
         Directory.CreateDirectory(SkillRestoreEffect);
+        Directory.CreateDirectory(Filters);
 
         // 迁移历史遗留的泥人补丁备份：早期版本把 smoother.bak 写到了
         // %LOCALAPPDATA%\Poe2PriceGui\（缺少 Data 后缀），和程序其他用户数据

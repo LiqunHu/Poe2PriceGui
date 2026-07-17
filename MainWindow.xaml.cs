@@ -119,4 +119,13 @@ public partial class MainWindow : Window
             Dispatcher.Invoke(() => btn.Content = originalContent);
         });
     }
+
+    /// <summary>过滤器起始页列表双击进入编辑。</summary>
+    private void FilterFileListBox_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (DataContext is MainViewModel vm && vm.LoadSelectedFilterCommand.CanExecute(null))
+        {
+            vm.LoadSelectedFilterCommand.Execute(null);
+        }
+    }
 }

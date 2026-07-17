@@ -101,6 +101,14 @@ public class MainViewModel : INotifyPropertyChanged
     private ObservableCollection<string> _filterCategories = new() { "全部" };
     private string _filterStatusMessage = "";
     private decimal _autoFilterMinPrice = 5m;
+    private string _gameFilterDirectory = "";
+    private ObservableCollection<string> _availableFilterSounds = [];
+    private List<string>? _cachedFilterSounds;
+    private string? _cachedFilterSoundsDirectory;
+    private FilterViewMode _filterViewMode = FilterViewMode.StartPage;
+    private ObservableCollection<FilterFileInfo> _availableFilterFiles = [];
+    private FilterFileInfo? _selectedFilterFile;
+    private string _currentFilterFilePath = "";
 
     // === Token 验证 ===
     /// <summary>Token 是否已通过验证（未过期）。false 时价格服务回退到无 token 公共接口。</summary>
@@ -128,6 +136,7 @@ public class MainViewModel : INotifyPropertyChanged
         _priceCheckerLanguage = _settings.PriceCheckerLanguage;
         _currencyPriceToken = _settings.CurrencyPriceToken;
         _intlFallbackEnabled = _settings.IntlFallbackEnabled;
+        _gameFilterDirectory = _settings.GameFilterDirectory;
 
         // 先根据已保存的游戏目录检测区服，再创建对应的价格/交易服务。
         VmTrace("RefreshDetectedGameMode 前");
@@ -197,15 +206,28 @@ public class MainViewModel : INotifyPropertyChanged
         _filteredPrices.Filter = FilterBySelectedCategory;
 
         // 过滤器页面命令初始化
-        LoadFilterCommand = new RelayCommand(LoadFilterRules);
+        LoadFilterCommand = new RelayCommand(() => LoadFilterRules());
         SaveFilterCommand = new RelayCommand(SaveFilterRules);
         SaveAsFilterCommand = new RelayCommand(SaveAsFilterRules);
         AutoUpdateFilterCommand = new RelayCommand(AutoUpdateFilterByPrice);
         OpenFilterDirectoryCommand = new RelayCommand(OpenFilterDirectory);
+        OpenUserFilterDirectoryCommand = new RelayCommand(OpenUserFilterDirectory);
+        RefreshFilterListCommand = new RelayCommand(RefreshAvailableFilterFiles);
         EditFilterRuleCommand = new RelayCommand<LootFilterRule>(EditFilterRule);
+        AddNewFilterRuleCommand = new RelayCommand(AddNewFilterRule);
+        DeleteFilterRuleCommand = new RelayCommand<LootFilterRule>(DeleteFilterRule);
+        BrowseGameFilterDirectoryCommand = new RelayCommand(BrowseGameFilterDirectory);
+        DetectGameFilterDirectoryCommand = new RelayCommand(DetectGameFilterDirectory);
+        LoadSelectedFilterCommand = new RelayCommand(LoadSelectedFilter, () => SelectedFilterFile != null);
+        CreateNewFilterCommand = new RelayCommand(CreateNewFilter);
+        BackToFilterStartCommand = new RelayCommand(BackToFilterStart);
+        OpenAutoUpdateSettingsCommand = new RelayCommand(OpenAutoUpdateSettings);
+        DeleteFilterCommand = new RelayCommand<FilterFileInfo>(DeleteFilterFile);
+        RefreshFilterSoundsCommand = new RelayCommand(() => RefreshAvailableFilterSounds(forceRefresh: true));
         _filteredFilterRules.Filter = FilterRulesByCategory;
-        // 初始加载过滤器文件
-        LoadFilterRules();
+        DetectGameFilterDirectory();
+        RefreshAvailableFilterSounds();
+        RefreshAvailableFilterFiles();
 
         // 初始化泥人补丁勾选状态（从 settings 读取已保存的勾选列表）。
         InitSmootherPatchChecked();
@@ -386,7 +408,19 @@ public class MainViewModel : INotifyPropertyChanged
     public ICommand SaveAsFilterCommand { get; }
     public ICommand AutoUpdateFilterCommand { get; }
     public ICommand OpenFilterDirectoryCommand { get; }
+    public ICommand OpenUserFilterDirectoryCommand { get; }
+    public ICommand RefreshFilterListCommand { get; }
     public ICommand EditFilterRuleCommand { get; }
+    public ICommand AddNewFilterRuleCommand { get; }
+    public ICommand DeleteFilterRuleCommand { get; }
+    public ICommand BrowseGameFilterDirectoryCommand { get; }
+    public ICommand DetectGameFilterDirectoryCommand { get; }
+    public ICommand LoadSelectedFilterCommand { get; }
+    public ICommand CreateNewFilterCommand { get; }
+    public ICommand BackToFilterStartCommand { get; }
+    public ICommand OpenAutoUpdateSettingsCommand { get; }
+    public ICommand DeleteFilterCommand { get; }
+    public ICommand RefreshFilterSoundsCommand { get; }
 
     /// <summary>
     /// 状态栏消息。设置页缓存清理状态文本。
@@ -643,6 +677,24 @@ public class MainViewModel : INotifyPropertyChanged
         get => _isTokenValid;
         private set => SetProperty(ref _isTokenValid, value);
     }
+
+    /// <summary>游戏过滤器目录（POE2 默认过滤器存放位置）。</summary>
+    public string GameFilterDirectory
+    {
+        get => _gameFilterDirectory;
+        set
+        {
+            if (SetProperty(ref _gameFilterDirectory, value))
+            {
+                _settings.GameFilterDirectory = value;
+                _settingsService.Save(_settings);
+                RefreshAvailableFilterSounds();
+            }
+        }
+    }
+
+    /// <summary>游戏过滤器目录下可用的 MP3 音效列表。</summary>
+    public ObservableCollection<string> AvailableFilterSounds => _availableFilterSounds;
 
     /// <summary>技能特效补丁文件列表（修改用）。</summary>
     public ObservableCollection<string> SkillPatchFiles => _skillPatchFiles;
@@ -3263,11 +3315,46 @@ public class MainViewModel : INotifyPropertyChanged
         set => SetProperty(ref _autoFilterMinPrice, value);
     }
 
-    private void LoadFilterRules()
+    /// <summary>过滤器页面当前视图模式。</summary>
+    public FilterViewMode FilterViewMode
+    {
+        get => _filterViewMode;
+        set => SetProperty(ref _filterViewMode, value);
+    }
+
+    /// <summary>可供选择的过滤器文件列表。</summary>
+    public ObservableCollection<FilterFileInfo> AvailableFilterFiles
+    {
+        get => _availableFilterFiles;
+        set => SetProperty(ref _availableFilterFiles, value);
+    }
+
+    /// <summary>当前选中的过滤器文件。</summary>
+    public FilterFileInfo? SelectedFilterFile
+    {
+        get => _selectedFilterFile;
+        set
+        {
+            if (SetProperty(ref _selectedFilterFile, value))
+                ((RelayCommand)LoadSelectedFilterCommand).RaiseCanExecuteChanged();
+        }
+    }
+
+    /// <summary>当前打开的过滤器文件路径。</summary>
+    public string CurrentFilterFilePath
+    {
+        get => _currentFilterFilePath;
+        set => SetProperty(ref _currentFilterFilePath, value);
+    }
+
+    private void LoadFilterRules(string? filterPath = null)
     {
         try
         {
-            var filterPath = LootFilterService.GetDefaultFilterPath();
+            filterPath ??= CurrentFilterFilePath;
+            if (string.IsNullOrWhiteSpace(filterPath))
+                filterPath = LootFilterService.GetDefaultFilterPath();
+
             if (!File.Exists(filterPath))
             {
                 FilterStatusMessage = "未找到过滤器文件";
@@ -3287,7 +3374,9 @@ public class MainViewModel : INotifyPropertyChanged
             _filteredFilterRules = new ListCollectionView(_filterRules);
             _filteredFilterRules.Filter = FilterRulesByCategory;
             OnPropertyChanged(nameof(FilteredFilterRules));
+            CurrentFilterFilePath = filterPath;
             FilterStatusMessage = $"已加载 {rules.Count} 条规则";
+            FilterViewMode = FilterViewMode.Editor;
         }
         catch (Exception ex)
         {
@@ -3295,11 +3384,128 @@ public class MainViewModel : INotifyPropertyChanged
         }
     }
 
+    private void RefreshAvailableFilterFiles()
+    {
+        var files = LootFilterService.ScanAvailableFilters();
+        AvailableFilterFiles = new ObservableCollection<FilterFileInfo>(files);
+        SelectedFilterFile = files.FirstOrDefault();
+    }
+
+    private void LoadSelectedFilter()
+    {
+        if (SelectedFilterFile == null)
+            return;
+        LoadFilterRules(SelectedFilterFile.FilePath);
+    }
+
+    private void CreateNewFilter()
+    {
+        try
+        {
+            var defaultName = $"新建过滤器_{DateTime.Now:yyyyMMdd_HHmmss}";
+            var dialog = new NewFilterNameWindow(defaultName)
+            {
+                Owner = Application.Current.MainWindow
+            };
+            if (dialog.ShowDialog() != true)
+                return;
+
+            var fileName = dialog.FilterName.Trim();
+            if (string.IsNullOrWhiteSpace(fileName))
+                return;
+            if (!fileName.EndsWith(".filter", StringComparison.OrdinalIgnoreCase))
+                fileName += ".filter";
+
+            // 清理非法文件名字符
+            foreach (var c in Path.GetInvalidFileNameChars())
+                fileName = fileName.Replace(c, '_');
+
+            var userDir = LootFilterService.GetUserFiltersDirectory();
+            Directory.CreateDirectory(userDir);
+            var filePath = Path.Combine(userDir, fileName);
+
+            if (File.Exists(filePath))
+            {
+                var result = MessageBox.Show($"文件 '{fileName}' 已存在，是否覆盖？", "确认覆盖",
+                    MessageBoxButton.YesNo, MessageBoxImage.Question);
+                if (result != MessageBoxResult.Yes)
+                    return;
+            }
+
+            LootFilterService.Save(filePath, new List<LootFilterRule>());
+            RefreshAvailableFilterFiles();
+            SelectedFilterFile = AvailableFilterFiles.FirstOrDefault(f => f.FilePath == filePath);
+            LoadFilterRules(filePath);
+            FilterStatusMessage = $"已创建新过滤器: {fileName}";
+        }
+        catch (Exception ex)
+        {
+            FilterStatusMessage = $"创建失败: {ex.Message}";
+        }
+    }
+
+    private void DeleteFilterFile(FilterFileInfo? info)
+    {
+        if (info == null)
+            return;
+        if (info.IsBuiltIn)
+        {
+            MessageBox.Show("程序内置过滤器不能删除。", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var result = MessageBox.Show($"确定要删除过滤器 '{info.DisplayName}' 吗？", "确认删除",
+            MessageBoxButton.YesNo, MessageBoxImage.Question);
+        if (result != MessageBoxResult.Yes)
+            return;
+
+        try
+        {
+            if (File.Exists(info.FilePath))
+                File.Delete(info.FilePath);
+
+            if (CurrentFilterFilePath == info.FilePath)
+                CurrentFilterFilePath = "";
+
+            RefreshAvailableFilterFiles();
+            FilterStatusMessage = $"已删除过滤器: {info.DisplayName}";
+        }
+        catch (Exception ex)
+        {
+            FilterStatusMessage = $"删除失败: {ex.Message}";
+        }
+    }
+
+    private void BackToFilterStart()
+    {
+        FilterViewMode = FilterViewMode.StartPage;
+        CurrentFilterFilePath = "";
+        _filterRules.Clear();
+        _filteredFilterRules.Refresh();
+        RefreshAvailableFilterFiles();
+        FilterStatusMessage = "";
+    }
+
+    private void OpenAutoUpdateSettings()
+    {
+        var window = new Windows.AutoUpdateSettingsWindow(this)
+        {
+            Owner = System.Windows.Application.Current.MainWindow
+        };
+        window.ShowDialog();
+    }
+
     private void SaveFilterRules()
     {
         try
         {
-            var filterPath = LootFilterService.GetDefaultFilterPath();
+            var filterPath = CurrentFilterFilePath;
+            if (string.IsNullOrWhiteSpace(filterPath))
+            {
+                FilterStatusMessage = "未打开任何过滤器文件";
+                return;
+            }
+            Directory.CreateDirectory(Path.GetDirectoryName(filterPath)!);
             LootFilterService.Save(filterPath, _filterRules.ToList());
             FilterStatusMessage = $"已保存 {_filterRules.Count} 条规则";
         }
@@ -3420,23 +3626,25 @@ public class MainViewModel : INotifyPropertyChanged
     /// <summary>另存为：弹出 SaveFileDialog 让用户选择保存位置。</summary>
     private void SaveAsFilterRules()
     {
-        if (_filterRules.Count == 0)
-        {
-            FilterStatusMessage = "没有规则可保存";
-            return;
-        }
+        var defaultName = string.IsNullOrWhiteSpace(CurrentFilterFilePath)
+            ? "默认过滤器.filter"
+            : Path.GetFileName(CurrentFilterFilePath);
         var dialog = new Microsoft.Win32.SaveFileDialog
         {
             Filter = "POE2 过滤器文件 (*.filter)|*.filter|所有文件 (*.*)|*.*",
-            FileName = "默认过滤器.filter",
+            FileName = defaultName,
             DefaultExt = ".filter",
-            Title = "另存为"
+            Title = "另存为",
+            InitialDirectory = !string.IsNullOrWhiteSpace(GameFilterDirectory) && Directory.Exists(GameFilterDirectory)
+                ? GameFilterDirectory
+                : Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data", "filter")
         };
         if (dialog.ShowDialog() != true)
             return;
         try
         {
             LootFilterService.Save(dialog.FileName, _filterRules.ToList());
+            CurrentFilterFilePath = dialog.FileName;
             FilterStatusMessage = $"已保存到 {dialog.FileName}";
         }
         catch (Exception ex)
@@ -3450,11 +3658,57 @@ public class MainViewModel : INotifyPropertyChanged
     {
         if (rule == null)
             return;
-        var window = new Windows.FilterRuleEditWindow(rule)
+        var window = new Windows.FilterRuleEditWindow(rule, AvailableFilterSounds)
         {
             Owner = System.Windows.Application.Current.MainWindow
         };
         window.ShowDialog();
+    }
+
+    /// <summary>添加一条新的过滤器规则并打开编辑窗口；仅在用户点击确定后才插入列表。</summary>
+    private void AddNewFilterRule()
+    {
+        var tempRule = new LootFilterRule
+        {
+            Comment = "新建规则",
+            IsVisible = true,
+            Category = FilterSelectedCategory is "全部" or null or "" ? "" : FilterSelectedCategory,
+            TextColor = System.Windows.Media.Colors.White,
+            BorderColor = System.Windows.Media.Colors.Black,
+            BackgroundColor = System.Windows.Media.Colors.Black,
+            FontSize = 40
+        };
+
+        var window = new Windows.FilterRuleEditWindow(tempRule, AvailableFilterSounds)
+        {
+            Owner = System.Windows.Application.Current.MainWindow
+        };
+        var result = window.ShowDialog();
+
+        if (result != true)
+            return;
+
+        _filterRules.Add(tempRule);
+        _filteredFilterRules.Refresh();
+        OnPropertyChanged(nameof(FilteredFilterRules));
+        FilterStatusMessage = $"已添加规则: {tempRule.Comment}";
+    }
+
+    /// <summary>删除当前过滤器中的一条规则。</summary>
+    private void DeleteFilterRule(LootFilterRule? rule)
+    {
+        if (rule == null)
+            return;
+
+        var result = MessageBox.Show($"确定要删除规则 '{rule.Comment}' 吗？", "确认删除",
+            MessageBoxButton.YesNo, MessageBoxImage.Question);
+        if (result != MessageBoxResult.Yes)
+            return;
+
+        _filterRules.Remove(rule);
+        _filteredFilterRules.Refresh();
+        OnPropertyChanged(nameof(FilteredFilterRules));
+        FilterStatusMessage = $"已删除规则: {rule.Comment}";
     }
 
     private void OpenFilterDirectory()
@@ -3466,4 +3720,99 @@ public class MainViewModel : INotifyPropertyChanged
             FilterStatusMessage = "过滤器目录不存在";
     }
 
+    /// <summary>打开用户过滤器目录（AppData），方便用户手动复制 .filter 文件。</summary>
+    private void OpenUserFilterDirectory()
+    {
+        var dir = AppDataPath.Filters;
+        Directory.CreateDirectory(dir);
+        Process.Start(new ProcessStartInfo("explorer.exe", dir) { UseShellExecute = true });
+    }
+
+    /// <summary>
+    /// 自动推断 POE2 游戏过滤器目录（参考 chromatic-poe-main）。
+    /// Windows: Documents\My Games\Path of Exile 2
+    /// Linux: Steam Proton 兼容层路径或 Documents/My Games/Path of Exile 2
+    /// </summary>
+    private void DetectGameFilterDirectory()
+    {
+        if (!string.IsNullOrWhiteSpace(GameFilterDirectory) && Directory.Exists(GameFilterDirectory))
+            return;
+
+        try
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                var docPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+                var path = Path.Combine(docPath, "My Games", "Path of Exile 2");
+                if (Directory.Exists(path))
+                {
+                    GameFilterDirectory = path;
+                    return;
+                }
+            }
+            else if (OperatingSystem.IsLinux())
+            {
+                var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                var docPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+                var candidates = new[]
+                {
+                    Path.Combine(home, ".local", "share", "Steam", "steamapps", "compatdata", "238960", "pfx", "drive_c", "users", "steamuser", "Documents", "My Games", "Path of Exile 2"),
+                    Path.Combine(home, ".steam", "root", "steamapps", "compatdata", "238960", "pfx", "drive_c", "users", "steamuser", "My Documents", "My Games", "Path of Exile 2"),
+                    Path.Combine(docPath, "My Games", "Path of Exile 2"),
+                };
+                foreach (var path in candidates)
+                {
+                    if (Directory.Exists(path))
+                    {
+                        GameFilterDirectory = path;
+                        return;
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Instance.Error(ex, "推断游戏过滤器目录失败");
+        }
+    }
+
+    /// <summary>浏览选择游戏过滤器目录。</summary>
+    private void BrowseGameFilterDirectory()
+    {
+        var dialog = new Microsoft.Win32.OpenFolderDialog
+        {
+            Title = "选择 POE2 游戏过滤器目录（通常为 Documents\\My Games\\Path of Exile 2）",
+            FolderName = GameFilterDirectory,
+        };
+        if (dialog.ShowDialog() == true)
+        {
+            GameFilterDirectory = dialog.FolderName;
+            FilterStatusMessage = $"已设置游戏过滤器目录: {GameFilterDirectory}";
+        }
+    }
+
+    /// <summary>刷新可用的过滤器音效列表。扫描结果会按目录缓存，避免每次打开编辑窗口都重新遍历磁盘。</summary>
+    /// <param name="forceRefresh">true 时强制重新扫描目录；false 时优先使用缓存。</param>
+    private void RefreshAvailableFilterSounds(bool forceRefresh = false)
+    {
+        _availableFilterSounds.Clear();
+        if (string.IsNullOrWhiteSpace(GameFilterDirectory) || !Directory.Exists(GameFilterDirectory))
+            return;
+
+        try
+        {
+            if (forceRefresh || _cachedFilterSounds == null || _cachedFilterSoundsDirectory != GameFilterDirectory)
+            {
+                _cachedFilterSounds = LootFilterService.ScanMp3Files(GameFilterDirectory);
+                _cachedFilterSoundsDirectory = GameFilterDirectory;
+            }
+
+            foreach (var sound in _cachedFilterSounds)
+                _availableFilterSounds.Add(sound);
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Instance.Error(ex, "扫描过滤器音效失败");
+        }
+    }
 }

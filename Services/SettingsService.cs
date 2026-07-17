@@ -107,4 +107,7 @@ public class AppSettings
 
     /// <summary>泥人补丁：相机 zoom 倍率（1.2 ~ 2.4），默认 2.4。</summary>
     public double SmootherCameraZoom { get; set; } = 2.4;
+
+    /// <summary>POE2 游戏过滤器目录，为空时自动按 Documents\My Games\Path of Exile 2 推断。</summary>
+    public string GameFilterDirectory { get; set; } = "";
 }

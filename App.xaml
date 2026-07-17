@@ -5,6 +5,13 @@
     <Application.Resources>
         <ResourceDictionary>
             <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+
+            <!-- 消除 WPF ComboBoxItem 默认模板中对父 ItemsControl 的 HorizontalContentAlignment/VerticalContentAlignment
+                 绑定错误（数据上下文 null 时大量报 "找不到源: RelativeSource FindAncestor"）。 -->
+            <Style TargetType="ComboBoxItem">
+                <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                <Setter Property="VerticalContentAlignment" Value="Center"/>
+            </Style>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

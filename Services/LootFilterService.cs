@@ -95,9 +95,10 @@ public static class LootFilterService
         else if (line.StartsWith("CustomAlertSound "))
         {
             var val = line.Substring(17).Trim();
-            // 提取引号内的路径
+            // 提取引号内的路径，并统一为正斜杠，避免 Windows 反斜杠与列表项匹配失败
             var match = Regex.Match(val, @"""([^""]+)""");
-            rule.CustomAlertSound = match.Success ? match.Groups[1].Value : val;
+            var sound = match.Success ? match.Groups[1].Value : val;
+            rule.CustomAlertSound = sound.Replace('\\', '/').Trim();
         }
         else if (line.StartsWith("SetFontSize "))
         {
@@ -125,6 +126,7 @@ public static class LootFilterService
         else if (line.StartsWith("MinimapIcon "))
         {
             rule.MinimapIcon = line.Substring(12).Trim();
+            ParseMinimapIcon(rule.MinimapIcon, rule);
         }
         else if (line.StartsWith("PlayEffect "))
         {
@@ -142,6 +144,60 @@ public static class LootFilterService
             else
                 rule.RawConditions += "\n" + line;
         }
+    }
+
+    /// <summary>
+    /// 解析 MinimapIcon 行，拆分为尺寸/颜色/形状。
+    /// </summary>
+    private static void ParseMinimapIcon(string value, LootFilterRule rule)
+    {
+        var parts = value.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 3)
+        {
+            rule.HasMinimapIcon = true;
+            rule.MinimapIconSize = parts[0];
+            rule.MinimapIconColor = parts[1];
+            rule.MinimapIconShape = parts[2];
+        }
+        else if (parts.Length >= 1)
+        {
+            rule.HasMinimapIcon = true;
+            rule.MinimapIconSize = parts[0];
+        }
+    }
+
+    /// <summary>
+    /// 从尺寸/颜色/形状组合回 MinimapIcon 字符串。
+    /// </summary>
+    public static string BuildMinimapIcon(LootFilterRule rule)
+    {
+        if (!rule.HasMinimapIcon)
+            return "";
+        return $"{rule.MinimapIconSize} {rule.MinimapIconColor} {rule.MinimapIconShape}";
+    }
+
+    /// <summary>
+    /// 扫描游戏过滤器目录下的所有 MP3 文件（递归）。
+    /// </summary>
+    public static List<string> ScanMp3Files(string directory)
+    {
+        var result = new List<string>();
+        if (!Directory.Exists(directory))
+            return result;
+        try
+        {
+            foreach (var file in Directory.EnumerateFiles(directory, "*.mp3", SearchOption.AllDirectories))
+            {
+                // 返回相对于过滤器目录的相对路径（统一正斜杠），便于写入 .filter 文件并与列表项精确匹配
+                var relative = Path.GetRelativePath(directory, file).Replace('\\', '/');
+                result.Add(relative);
+            }
+        }
+        catch
+        {
+            // 忽略无权限访问的目录
+        }
+        return result;
     }
 
     /// <summary>
@@ -180,8 +236,9 @@ public static class LootFilterService
             sb.AppendLine($"    SetBackgroundColor {rule.BackgroundColor.R} {rule.BackgroundColor.G} {rule.BackgroundColor.B} 255");
             sb.AppendLine($"    SetFontSize {rule.FontSize}");
 
-            if (!string.IsNullOrEmpty(rule.MinimapIcon))
-                sb.AppendLine($"    MinimapIcon {rule.MinimapIcon}");
+            var minimapIcon = BuildMinimapIcon(rule);
+            if (!string.IsNullOrWhiteSpace(minimapIcon))
+                sb.AppendLine($"    MinimapIcon {minimapIcon}");
 
             if (!string.IsNullOrEmpty(rule.PlayEffect))
                 sb.AppendLine($"    PlayEffect {rule.PlayEffect}");
@@ -199,10 +256,58 @@ public static class LootFilterService
     }
 
     /// <summary>
-    /// 获取默认过滤器文件路径。
+    /// 获取默认（程序内置）过滤器文件路径。
     /// </summary>
     public static string GetDefaultFilterPath()
     {
         return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data", "filter", "默认过滤器.filter");
+    }
+
+    /// <summary>
+    /// 获取用户自定义过滤器目录（AppData）。
+    /// </summary>
+    public static string GetUserFiltersDirectory()
+    {
+        return AppDataPath.Filters;
+    }
+
+    /// <summary>
+    /// 扫描程序内置目录和用户目录下所有 .filter 文件。
+    /// </summary>
+    public static List<FilterFileInfo> ScanAvailableFilters()
+    {
+        var result = new List<FilterFileInfo>();
+        var builtInDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data", "filter");
+        var userDir = GetUserFiltersDirectory();
+
+        if (Directory.Exists(builtInDir))
+        {
+            foreach (var file in Directory.EnumerateFiles(builtInDir, "*.filter", SearchOption.TopDirectoryOnly))
+            {
+                result.Add(new FilterFileInfo
+                {
+                    FilePath = file,
+                    DisplayName = Path.GetFileNameWithoutExtension(file),
+                    SourceLabel = "程序内置",
+                    IsBuiltIn = true,
+                });
+            }
+        }
+
+        if (Directory.Exists(userDir))
+        {
+            foreach (var file in Directory.EnumerateFiles(userDir, "*.filter", SearchOption.TopDirectoryOnly))
+            {
+                result.Add(new FilterFileInfo
+                {
+                    FilePath = file,
+                    DisplayName = Path.GetFileNameWithoutExtension(file),
+                    SourceLabel = "用户目录",
+                    IsBuiltIn = false,
+                });
+            }
+        }
+
+        return result;
     }
 }

@@ -142,6 +142,16 @@
     </Content>
   </ItemGroup>
 
+  <!-- Xiletrade 多语言数据文件（过滤器编辑器的 Class/BaseType/Currency 下拉数据源） -->
+  <ItemGroup>
+    <Content Include="Xiletrade\Data\Lang\en-US\*.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Xiletrade\Data\Lang\zh-CN\*.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
   <!-- Velopack: 将 App.xaml 从 ApplicationDefinition 改为 Page，以便使用自定义 Main 方法 -->
   <ItemGroup>
     <ApplicationDefinition Remove="App.xaml" />

@@ -22,7 +22,13 @@ public class LootFilterRule : INotifyPropertyChanged
     private Color _borderColor = Colors.Black;
     private Color _backgroundColor = Colors.Black;
     private string _minimapIcon = "";
-    private string _playEffect = "";
+    private string _minimapIconSize = "0";
+    private string _minimapIconColor = "Red";
+    private string _minimapIconShape = "Star";
+    private bool _hasMinimapIcon;
+    private bool _hasPlayEffect;
+    private string _playEffectColor = "Blue";
+    private bool _isPlayEffectTemp;
     private bool _disableDropSound;
     private string _baseTypeText = "";
 
@@ -75,11 +81,11 @@ public class LootFilterRule : INotifyPropertyChanged
         set => SetProperty(ref _rawConditions, value);
     }
 
-    /// <summary>自定义提示音路径。</summary>
+    /// <summary>自定义提示音路径（统一使用正斜杠，避免下拉列表匹配失败）。</summary>
     public string CustomAlertSound
     {
         get => _customAlertSound;
-        set => SetProperty(ref _customAlertSound, value);
+        set => SetProperty(ref _customAlertSound, (value ?? string.Empty).Replace('\\', '/'));
     }
 
     /// <summary>字体大小。</summary>
@@ -110,18 +116,96 @@ public class LootFilterRule : INotifyPropertyChanged
         set => SetProperty(ref _backgroundColor, value);
     }
 
-    /// <summary>小地图图标设置。</summary>
+    /// <summary>小地图图标原始设置。</summary>
     public string MinimapIcon
     {
         get => _minimapIcon;
         set => SetProperty(ref _minimapIcon, value);
     }
 
-    /// <summary>播放效果设置。</summary>
+    /// <summary>是否启用小地图图标。</summary>
+    public bool HasMinimapIcon
+    {
+        get => _hasMinimapIcon;
+        set => SetProperty(ref _hasMinimapIcon, value);
+    }
+
+    /// <summary>小地图图标尺寸（0=Large, 1=Medium, 2=Small）。</summary>
+    public string MinimapIconSize
+    {
+        get => _minimapIconSize;
+        set => SetProperty(ref _minimapIconSize, value);
+    }
+
+    /// <summary>小地图图标颜色。</summary>
+    public string MinimapIconColor
+    {
+        get => _minimapIconColor;
+        set => SetProperty(ref _minimapIconColor, value);
+    }
+
+    /// <summary>小地图图标形状。</summary>
+    public string MinimapIconShape
+    {
+        get => _minimapIconShape;
+        set => SetProperty(ref _minimapIconShape, value);
+    }
+
+    /// <summary>是否启用光柱（PlayEffect）。</summary>
+    public bool HasPlayEffect
+    {
+        get => _hasPlayEffect;
+        set
+        {
+            if (SetProperty(ref _hasPlayEffect, value))
+                OnPropertyChanged(nameof(PlayEffect));
+        }
+    }
+
+    /// <summary>光柱颜色（Red/Green/Blue 等）。</summary>
+    public string PlayEffectColor
+    {
+        get => _playEffectColor;
+        set
+        {
+            if (SetProperty(ref _playEffectColor, value))
+                OnPropertyChanged(nameof(PlayEffect));
+        }
+    }
+
+    /// <summary>光柱是否为临时效果（Temp）。</summary>
+    public bool IsPlayEffectTemp
+    {
+        get => _isPlayEffectTemp;
+        set
+        {
+            if (SetProperty(ref _isPlayEffectTemp, value))
+                OnPropertyChanged(nameof(PlayEffect));
+        }
+    }
+
+    /// <summary>播放效果设置（由 HasPlayEffect/Color/Temp 组合而成）。</summary>
     public string PlayEffect
     {
-        get => _playEffect;
-        set => SetProperty(ref _playEffect, value);
+        get => HasPlayEffect ? $"{PlayEffectColor}{(IsPlayEffectTemp ? " Temp" : "")}" : "";
+        set => ParsePlayEffect(value);
+    }
+
+    private void ParsePlayEffect(string? value)
+    {
+        var trimmed = (value ?? "").Trim();
+        if (string.IsNullOrEmpty(trimmed))
+        {
+            HasPlayEffect = false;
+            PlayEffectColor = "Blue";
+            IsPlayEffectTemp = false;
+            return;
+        }
+
+        var parts = trimmed.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+        HasPlayEffect = true;
+        PlayEffectColor = parts.Length > 0 ? parts[0] : "Blue";
+        IsPlayEffectTemp = parts.Length > 1 && string.Equals(parts[1], "Temp", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>是否禁用掉落音效。</summary>

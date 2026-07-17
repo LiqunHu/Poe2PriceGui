@@ -3,19 +3,36 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:converters="clr-namespace:Poe2PriceGui.Converters"
         Title="编辑过滤器规则"
-        Width="560"
-        Height="680"
-        ResizeMode="NoResize"
+        Width="620"
+        MinHeight="720"
+        Height="Auto"
+        SizeToContent="Height"
+        ResizeMode="CanResize"
         WindowStartupLocation="CenterOwner"
         Background="#FFF4F4F6">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         <converters:ColorToBrushConverter x:Key="ColorToBrushConverter"/>
         <converters:ColorToRgbTextConverter x:Key="ColorToRgbTextConverter"/>
+        <converters:ColorNameToBrushConverter x:Key="ColorNameToBrushConverter"/>
+        <converters:MinimapShapeToGeometryConverter x:Key="MinimapShapeToGeometryConverter"/>
+
+        <!-- 小地图图标可视化预览 -->
+        <DataTemplate x:Key="MinimapIconPreviewTemplate">
+            <Grid Width="22" Height="22" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <Path Fill="{Binding MinimapIconColor, Converter={StaticResource ColorNameToBrushConverter}}"
+                      Data="{Binding MinimapIconShape, Converter={StaticResource MinimapShapeToGeometryConverter}}"
+                      Stretch="Uniform"
+                      HorizontalAlignment="Center"
+                      VerticalAlignment="Center"
+                      Width="18" Height="18"/>
+            </Grid>
+        </DataTemplate>
     </Window.Resources>
 
     <Grid Margin="16">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -49,20 +66,73 @@
             <CheckBox Grid.Column="5" Content="显示(Show)" IsChecked="{Binding Rule.IsVisible}" VerticalAlignment="Center" Margin="10,0,0,0"/>
         </Grid>
 
-        <!-- Class + BaseType -->
+        <!-- Class + BaseType + Currency 快速选择 -->
         <Grid Grid.Row="2" Margin="0,0,0,10">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="180"/>
+                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
+
             <TextBlock Grid.Row="0" Grid.Column="0" Text="Class：" VerticalAlignment="Center" Margin="0,0,5,5"/>
             <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Rule.ClassCondition, UpdateSourceTrigger=PropertyChanged}" VerticalContentAlignment="Center" Margin="0,0,0,5"/>
-            <TextBlock Grid.Row="1" Grid.Column="0" Text="BaseType：" VerticalAlignment="Center" Margin="0,0,5,0"/>
-            <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Rule.BaseTypeCondition, UpdateSourceTrigger=PropertyChanged}" VerticalContentAlignment="Center"/>
+            <TextBlock Grid.Row="0" Grid.Column="2" Text="快速选择:" VerticalAlignment="Center" Margin="10,0,5,5" Foreground="Gray" FontSize="12"/>
+            <ComboBox Grid.Row="0" Grid.Column="3"
+                      x:Name="QuickClassCombo"
+                      ItemsSource="{Binding FilteredItemClasses}"
+                      DisplayMemberPath="Chinese"
+                      SelectedValuePath="English"
+                      SelectedValue="{Binding SelectedQuickClass}"
+                      VerticalContentAlignment="Center" Margin="0,0,8,5"
+                      IsEditable="True" IsTextSearchEnabled="False"
+                      VirtualizingPanel.IsVirtualizing="True"
+                      VirtualizingPanel.VirtualizationMode="Recycling"
+                      ScrollViewer.CanContentScroll="True"/>
+            <Button Grid.Row="0" Grid.Column="4" Content="应用" Padding="12,3" Margin="0,0,0,5"
+                    Click="ApplyQuickClass_Click" ToolTip="将选中的 Class 填入上方输入框"/>
+
+            <TextBlock Grid.Row="1" Grid.Column="0" Text="BaseType：" VerticalAlignment="Center" Margin="0,0,5,5"/>
+            <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Rule.BaseTypeCondition, UpdateSourceTrigger=PropertyChanged}" VerticalContentAlignment="Center" Margin="0,0,0,5"/>
+            <TextBlock Grid.Row="1" Grid.Column="2" Text="快速选择:" VerticalAlignment="Center" Margin="10,0,5,5" Foreground="Gray" FontSize="12"/>
+            <ComboBox Grid.Row="1" Grid.Column="3"
+                      x:Name="QuickBaseTypeCombo"
+                      ItemsSource="{Binding FilteredBaseTypeNames}"
+                      DisplayMemberPath="Chinese"
+                      SelectedValuePath="English"
+                      SelectedValue="{Binding SelectedQuickBaseType}"
+                      VerticalContentAlignment="Center" Margin="0,0,8,5"
+                      IsEditable="True" IsTextSearchEnabled="False"
+                      VirtualizingPanel.IsVirtualizing="True"
+                      VirtualizingPanel.VirtualizationMode="Recycling"
+                      ScrollViewer.CanContentScroll="True"
+                      ToolTip="输入关键字筛选 BaseType，或直接从列表选择"/>
+            <Button Grid.Row="1" Grid.Column="4" Content="应用" Padding="12,3" Margin="0,0,0,5"
+                    Click="ApplyQuickBaseType_Click" ToolTip="将选中的 BaseType 填入上方输入框"/>
+
+            <TextBlock Grid.Row="2" Grid.Column="0" Text="通货：" VerticalAlignment="Center" Margin="0,0,5,0" Foreground="DarkBlue" FontWeight="SemiBold"/>
+            <TextBlock Grid.Row="2" Grid.Column="1" Text="选择通货后会自动设置 Class = Currency 并填充 BaseType" VerticalAlignment="Center" Foreground="Gray" FontSize="12" Margin="0,0,10,0"/>
+            <TextBlock Grid.Row="2" Grid.Column="2" Text="快速选择:" VerticalAlignment="Center" Margin="10,0,5,0" Foreground="Gray" FontSize="12"/>
+            <ComboBox Grid.Row="2" Grid.Column="3"
+                      x:Name="QuickCurrencyCombo"
+                      ItemsSource="{Binding FilteredCurrencyNames}"
+                      DisplayMemberPath="Chinese"
+                      SelectedValuePath="English"
+                      SelectedValue="{Binding SelectedQuickCurrency}"
+                      VerticalContentAlignment="Center" Margin="0,0,8,0"
+                      IsEditable="True" IsTextSearchEnabled="False"
+                      VirtualizingPanel.IsVirtualizing="True"
+                      VirtualizingPanel.VirtualizationMode="Recycling"
+                      ScrollViewer.CanContentScroll="True"
+                      ToolTip="输入关键字筛选通货，或直接从列表选择"/>
+            <Button Grid.Row="2" Grid.Column="4" Content="应用" Padding="12,3"
+                    Click="ApplyQuickCurrency_Click" ToolTip="自动设置 Class=Currency 并填充 BaseType"/>
         </Grid>
 
         <!-- 价格 + 字号 -->
@@ -144,28 +214,78 @@
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <TextBlock Grid.Column="0" Text="CustomAlertSound：" VerticalAlignment="Center" Margin="0,0,5,0"/>
-            <TextBox Grid.Column="1" Text="{Binding Rule.CustomAlertSound, UpdateSourceTrigger=LostFocus}" VerticalContentAlignment="Center"/>
+            <TextBlock Grid.Column="0" Text="音效：" VerticalAlignment="Center" Margin="0,0,5,0"/>
+            <ComboBox Grid.Column="1"
+                      x:Name="SoundCombo"
+                      ItemsSource="{Binding FilteredAvailableSounds}"
+                      SelectedItem="{Binding Rule.CustomAlertSound, UpdateSourceTrigger=PropertyChanged}"
+                      VerticalContentAlignment="Center"
+                      IsEditable="True"
+                      IsTextSearchEnabled="False"
+                      VirtualizingPanel.IsVirtualizing="True"
+                      VirtualizingPanel.VirtualizationMode="Recycling"
+                      ScrollViewer.CanContentScroll="True"
+                      ToolTip="输入关键字可筛选 MP3 文件，或手动输入路径"/>
             <CheckBox Grid.Column="2" Content="禁用掉落音" IsChecked="{Binding Rule.DisableDropSound}" VerticalAlignment="Center" Margin="10,0,0,0"/>
         </Grid>
 
-        <!-- MinimapIcon + PlayEffect -->
-        <Grid Grid.Row="6" Margin="0,0,0,10">
+        <!-- 小地图图标 -->
+        <GroupBox Grid.Row="6" Header="小地图图标" Margin="0,0,0,10" Background="White">
+            <StackPanel Orientation="Vertical" Margin="8">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <CheckBox Content="启用" IsChecked="{Binding Rule.HasMinimapIcon}" VerticalAlignment="Center" Margin="0,0,15,0"/>
+                    <StackPanel Orientation="Horizontal"
+                                VerticalAlignment="Center"
+                                IsEnabled="{Binding Rule.HasMinimapIcon}"
+                                Visibility="{Binding Rule.HasMinimapIcon, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <TextBlock Text="尺寸：" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                        <ComboBox ItemsSource="{Binding MinimapIconSizeItems}"
+                                  SelectedValuePath="Value" DisplayMemberPath="Display"
+                                  SelectedValue="{Binding Rule.MinimapIconSize}"
+                                  MinWidth="80" Margin="0,0,15,0" VerticalContentAlignment="Center" ToolTip="大=0, 中=1, 小=2"/>
+                        <TextBlock Text="颜色：" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                        <ComboBox ItemsSource="{Binding MinimapIconColorItems}"
+                                  SelectedValuePath="Value" DisplayMemberPath="Display"
+                                  SelectedValue="{Binding Rule.MinimapIconColor}"
+                                  MinWidth="70" Margin="0,0,15,0" VerticalContentAlignment="Center"/>
+                        <TextBlock Text="形状：" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                        <ComboBox ItemsSource="{Binding MinimapIconShapeItems}"
+                                  SelectedValuePath="Value" DisplayMemberPath="Display"
+                                  SelectedValue="{Binding Rule.MinimapIconShape}"
+                                  MinWidth="90" Margin="0,0,15,0" VerticalContentAlignment="Center"/>
+                        <ContentControl Content="{Binding Rule}" ContentTemplate="{StaticResource MinimapIconPreviewTemplate}" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="4,0,0,0"/>
+                    </StackPanel>
+                </StackPanel>
+            </StackPanel>
+        </GroupBox>
+
+        <!-- 光柱 (PlayEffect) -->
+        <Grid Grid.Row="7" Margin="0,0,0,10">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="20"/>
                 <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="110"/>
+                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <TextBlock Grid.Column="0" Text="MinimapIcon：" VerticalAlignment="Center" Margin="0,0,5,0"/>
-            <TextBox Grid.Column="1" Text="{Binding Rule.MinimapIcon, UpdateSourceTrigger=LostFocus}" VerticalContentAlignment="Center"/>
-            <TextBlock Grid.Column="3" Text="PlayEffect：" VerticalAlignment="Center" Margin="0,0,5,0"/>
-            <TextBox Grid.Column="4" Text="{Binding Rule.PlayEffect, UpdateSourceTrigger=LostFocus}" VerticalContentAlignment="Center"/>
+            <TextBlock Grid.Column="0" Text="光柱(PlayEffect)：" VerticalAlignment="Center" Margin="0,0,10,0" FontWeight="SemiBold"/>
+            <CheckBox Grid.Column="1" Content="启用" IsChecked="{Binding Rule.HasPlayEffect}" VerticalAlignment="Center" Margin="0,0,15,0"/>
+            <StackPanel Grid.Column="2" Grid.ColumnSpan="3"
+                        Orientation="Horizontal"
+                        VerticalAlignment="Center"
+                        IsEnabled="{Binding Rule.HasPlayEffect}"
+                        Visibility="{Binding Rule.HasPlayEffect, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <TextBlock Text="颜色：" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                <ComboBox ItemsSource="{Binding PlayEffectColorItems}"
+                          SelectedValuePath="Value" DisplayMemberPath="Display"
+                          SelectedValue="{Binding Rule.PlayEffectColor}"
+                          MinWidth="70" Margin="0,0,15,0" VerticalContentAlignment="Center"/>
+                <CheckBox Content="临时效果(Temp)" IsChecked="{Binding Rule.IsPlayEffectTemp}" VerticalAlignment="Center"/>
+            </StackPanel>
         </Grid>
 
         <!-- 其他条件 -->
-        <GroupBox Grid.Row="7" Header="其他条件（每行一条）" Margin="0,0,0,10" Background="White">
+        <GroupBox Grid.Row="8" Header="其他条件（每行一条）" Margin="0,0,0,10" Background="White">
             <TextBox Text="{Binding Rule.RawConditions, UpdateSourceTrigger=LostFocus}"
                      AcceptsReturn="True" TextWrapping="Wrap"
                      MinHeight="60" MaxHeight="100"
@@ -174,7 +294,7 @@
         </GroupBox>
 
         <!-- 预览 -->
-        <GroupBox Grid.Row="8" Header="游戏内预览" Margin="0,0,0,10" Background="White">
+        <GroupBox Grid.Row="9" Header="游戏内预览" Margin="0,0,0,10" Background="White">
             <Border Background="{Binding Rule.BackgroundColor, Converter={StaticResource ColorToBrushConverter}}"
                     BorderBrush="{Binding Rule.BorderColor, Converter={StaticResource ColorToBrushConverter}}"
                     BorderThickness="2"
@@ -189,10 +309,10 @@
         </GroupBox>
 
         <!-- 占位 -->
-        <TextBlock Grid.Row="9"/>
+        <TextBlock Grid.Row="10"/>
 
         <!-- 按钮区 -->
-        <StackPanel Grid.Row="10" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+        <StackPanel Grid.Row="11" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
             <Button Content="确定" Padding="30,8" IsDefault="True" Click="OkButton_Click"/>
             <Button Content="取消" Padding="30,8" Margin="10,0,0,0" IsCancel="True"/>
         </StackPanel>

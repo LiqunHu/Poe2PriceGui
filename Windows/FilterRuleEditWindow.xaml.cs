@@ -1,8 +1,13 @@
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 using Poe2PriceGui.Models;
+using Poe2PriceGui.Services;
+using System.Linq;
 
 namespace Poe2PriceGui.Windows;
 
@@ -13,6 +18,107 @@ public partial class FilterRuleEditWindow : Window
 {
     /// <summary>当前编辑的规则对象（直接修改原对象，确定后保留更改）。</summary>
     public LootFilterRule Rule { get; }
+
+    /// <summary>可用的音效文件列表（从游戏过滤器目录扫描到的 MP3）。</summary>
+    public IEnumerable<string> AvailableSounds { get; }
+
+    /// <summary>小地图图标尺寸选项（POE 语法：0=Large, 1=Medium, 2=Small）。</summary>
+    public IReadOnlyList<string> MinimapIconSizes { get; } = new[] { "0", "1", "2" };
+
+    /// <summary>小地图图标颜色选项（参考 chromatic-poe-main）。</summary>
+    public IReadOnlyList<string> MinimapIconColors { get; } = new[]
+    {
+        "Red", "Green", "Blue", "Brown", "White", "Yellow",
+        "Cyan", "Grey", "Orange", "Pink", "Purple"
+    };
+
+    /// <summary>小地图图标形状选项（参考 chromatic-poe-main）。</summary>
+    public IReadOnlyList<string> MinimapIconShapes { get; } = new[]
+    {
+        "Circle", "Diamond", "Hexagon", "Square", "Star", "Triangle",
+        "Cross", "Moon", "Raindrop", "Kite", "Pentagon", "UpsideDownHouse"
+    };
+
+    /// <summary>物品类别快速选择列表（英文值 + 中文显示名）。</summary>
+    public IReadOnlyList<FilterDataService.LocalizedItem> ItemClasses => FilterDataService.ItemClasses;
+
+    /// <summary>通货名称快速选择列表（英文值 + 中文显示名）。</summary>
+    public IReadOnlyList<FilterDataService.LocalizedItem> CurrencyNames => FilterDataService.CurrencyNames;
+
+    /// <summary>基础类型快速选择列表（英文值 + 中文显示名）。</summary>
+    public IReadOnlyList<FilterDataService.LocalizedItem> BaseTypeNames => FilterDataService.BaseTypeNames;
+
+    /// <summary>光柱颜色选项。</summary>
+    public IReadOnlyList<string> PlayEffectColors { get; } = new[]
+    {
+        "Red", "Green", "Blue", "Brown", "White", "Yellow",
+        "Cyan", "Grey", "Orange", "Pink", "Purple"
+    };
+
+    /// <summary>小地图图标尺寸下拉项（值=POE语法，显示=中文）。</summary>
+    public IReadOnlyList<ComboItem> MinimapIconSizeItems { get; } = new[]
+    {
+        new ComboItem { Value = "0", Display = "大 (Large)" },
+        new ComboItem { Value = "1", Display = "中 (Medium)" },
+        new ComboItem { Value = "2", Display = "小 (Small)" }
+    };
+
+    /// <summary>小地图图标颜色下拉项（值=POE语法，显示=中文）。</summary>
+    public IReadOnlyList<ComboItem> MinimapIconColorItems { get; } = new[]
+    {
+        new ComboItem { Value = "Red", Display = "红" },
+        new ComboItem { Value = "Green", Display = "绿" },
+        new ComboItem { Value = "Blue", Display = "蓝" },
+        new ComboItem { Value = "Brown", Display = "棕" },
+        new ComboItem { Value = "White", Display = "白" },
+        new ComboItem { Value = "Yellow", Display = "黄" },
+        new ComboItem { Value = "Cyan", Display = "青" },
+        new ComboItem { Value = "Grey", Display = "灰" },
+        new ComboItem { Value = "Orange", Display = "橙" },
+        new ComboItem { Value = "Pink", Display = "粉" },
+        new ComboItem { Value = "Purple", Display = "紫" }
+    };
+
+    /// <summary>小地图图标形状下拉项（值=POE语法，显示=中文）。</summary>
+    public IReadOnlyList<ComboItem> MinimapIconShapeItems { get; } = new[]
+    {
+        new ComboItem { Value = "Circle", Display = "圆形" },
+        new ComboItem { Value = "Diamond", Display = "菱形" },
+        new ComboItem { Value = "Hexagon", Display = "六边形" },
+        new ComboItem { Value = "Square", Display = "方形" },
+        new ComboItem { Value = "Star", Display = "星形" },
+        new ComboItem { Value = "Triangle", Display = "三角形" },
+        new ComboItem { Value = "Cross", Display = "十字" },
+        new ComboItem { Value = "Moon", Display = "月亮" },
+        new ComboItem { Value = "Raindrop", Display = "水滴" },
+        new ComboItem { Value = "Kite", Display = "风筝" },
+        new ComboItem { Value = "Pentagon", Display = "五边形" },
+        new ComboItem { Value = "UpsideDownHouse", Display = "倒房子" }
+    };
+
+    /// <summary>光柱颜色下拉项（值=POE语法，显示=中文）。</summary>
+    public IReadOnlyList<ComboItem> PlayEffectColorItems => MinimapIconColorItems;
+
+    /// <summary>当前选中的快速 Class。</summary>
+    public string? SelectedQuickClass { get; set; }
+
+    /// <summary>当前选中的快速 BaseType。</summary>
+    public string? SelectedQuickBaseType { get; set; }
+
+    /// <summary>当前选中的快速 Currency。</summary>
+    public string? SelectedQuickCurrency { get; set; }
+
+    /// <summary>音效下拉框的过滤视图。</summary>
+    public ICollectionView FilteredAvailableSounds { get; }
+
+    /// <summary>Class 快速选择的过滤视图。</summary>
+    public ICollectionView FilteredItemClasses { get; }
+
+    /// <summary>BaseType 快速选择的过滤视图。</summary>
+    public ICollectionView FilteredBaseTypeNames { get; }
+
+    /// <summary>Currency 快速选择的过滤视图。</summary>
+    public ICollectionView FilteredCurrencyNames { get; }
 
     /// <summary>调色板当前正在编辑的目标颜色属性名。</summary>
     private string? _editingColorTarget;
@@ -48,12 +154,20 @@ public partial class FilterRuleEditWindow : Window
         Color.FromRgb(100,255,255), Color.FromRgb(255,100,255), Color.FromRgb(180,180,100), Color.FromRgb(100,180,180),
     };
 
-    public FilterRuleEditWindow(LootFilterRule rule)
+    public FilterRuleEditWindow(LootFilterRule rule, IEnumerable<string>? availableSounds = null)
     {
         Rule = rule;
+        AvailableSounds = availableSounds ?? Array.Empty<string>();
+
+        FilteredAvailableSounds = CollectionViewSource.GetDefaultView(AvailableSounds);
+        FilteredItemClasses = CollectionViewSource.GetDefaultView(ItemClasses);
+        FilteredBaseTypeNames = CollectionViewSource.GetDefaultView(BaseTypeNames);
+        FilteredCurrencyNames = CollectionViewSource.GetDefaultView(CurrencyNames);
+
         InitializeComponent();
         DataContext = this;
         InitPresetPalette();
+        SetupComboBoxFiltering();
         // RGB 滑块联动
         SliderR.ValueChanged += (_, _) => OnSliderChanged();
         SliderG.ValueChanged += (_, _) => OnSliderChanged();
@@ -88,6 +202,60 @@ public partial class FilterRuleEditWindow : Window
             SliderB.Value = b;
             PreviewColorBox.Background = new SolidColorBrush(_editingColor);
         }
+    }
+
+    /// <summary>为可编辑 ComboBox 注册输入筛选事件；使用防抖避免频繁刷新导致卡顿。</summary>
+    private void SetupComboBoxFiltering()
+    {
+        void AttachFilter(ComboBox combo, ICollectionView view, Func<object, string> getText)
+        {
+            var timer = new DispatcherTimer(DispatcherPriority.Input) { Interval = TimeSpan.FromMilliseconds(120) };
+            timer.Tick += (_, _) =>
+            {
+                timer.Stop();
+                var text = combo.Text?.Trim() ?? "";
+                var hasText = !string.IsNullOrWhiteSpace(text);
+
+                view.Filter = hasText
+                    ? obj => getText(obj).Contains(text, StringComparison.OrdinalIgnoreCase)
+                    : null;
+                view.Refresh();
+
+                var count = view.Cast<object>().Count();
+                if (count > 0)
+                {
+                    if (!combo.IsDropDownOpen)
+                        combo.IsDropDownOpen = true;
+                }
+                else if (combo.IsDropDownOpen)
+                {
+                    combo.IsDropDownOpen = false;
+                }
+            };
+
+            combo.KeyUp += (_, e) =>
+            {
+                if (e.Key is Key.Enter or Key.Escape or Key.Tab or Key.Up or Key.Down)
+                    return;
+
+                timer.Stop();
+                timer.Start();
+            };
+
+            combo.DropDownClosed += (_, _) =>
+            {
+                timer.Stop();
+                view.Filter = null;
+                view.Refresh();
+            };
+
+            combo.Unloaded += (_, _) => timer.Stop();
+        }
+
+        AttachFilter(SoundCombo, FilteredAvailableSounds, x => x as string ?? "");
+        AttachFilter(QuickClassCombo, FilteredItemClasses, x => (x as FilterDataService.LocalizedItem)?.Chinese ?? "");
+        AttachFilter(QuickBaseTypeCombo, FilteredBaseTypeNames, x => (x as FilterDataService.LocalizedItem)?.Chinese ?? "");
+        AttachFilter(QuickCurrencyCombo, FilteredCurrencyNames, x => (x as FilterDataService.LocalizedItem)?.Chinese ?? "");
     }
 
     /// <summary>初始化预设色板。</summary>
@@ -185,5 +353,39 @@ public partial class FilterRuleEditWindow : Window
     {
         DialogResult = true;
         Close();
+    }
+
+    /// <summary>应用快速选择的 Class 到规则。</summary>
+    private void ApplyQuickClass_Click(object sender, RoutedEventArgs e)
+    {
+        if (string.IsNullOrWhiteSpace(SelectedQuickClass))
+            return;
+        Rule.ClassCondition = SelectedQuickClass;
+    }
+
+    /// <summary>应用快速选择的 BaseType 到规则。</summary>
+    private void ApplyQuickBaseType_Click(object sender, RoutedEventArgs e)
+    {
+        if (string.IsNullOrWhiteSpace(SelectedQuickBaseType))
+            return;
+        Rule.BaseTypeCondition = $"\"{SelectedQuickBaseType}\"";
+        Rule.BaseTypeText = SelectedQuickBaseType;
+    }
+
+    /// <summary>应用快速选择的 Currency 到规则（自动设置 Class 为 Currency 并填充 BaseType）。</summary>
+    private void ApplyQuickCurrency_Click(object sender, RoutedEventArgs e)
+    {
+        if (string.IsNullOrWhiteSpace(SelectedQuickCurrency))
+            return;
+        Rule.ClassCondition = "Currency";
+        Rule.BaseTypeCondition = $"\"{SelectedQuickCurrency}\"";
+        Rule.BaseTypeText = SelectedQuickCurrency;
+    }
+
+    /// <summary>下拉框选项键值对（值=POE语法，显示=中文）。</summary>
+    public class ComboItem
+    {
+        public string Value { get; set; } = "";
+        public string Display { get; set; } = "";
     }
 }

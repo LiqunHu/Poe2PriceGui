@@ -1,0 +1,35 @@
+<Window x:Class="Poe2PriceGui.Windows.NewFilterNameWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="新建过滤器"
+        Width="420"
+        Height="240"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner"
+        Background="#FFF4F4F6">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="新建过滤器" FontSize="16" FontWeight="Bold" Margin="0,0,0,12"/>
+        <TextBlock Grid.Row="1" Text="请输入过滤器名称（不需要加 .filter 后缀）：" Margin="0,0,0,8"/>
+        <TextBox Grid.Row="2"
+                 x:Name="NameTextBox"
+                 VerticalContentAlignment="Center"
+                 FontSize="14"
+                 Padding="6,4"
+                 MinHeight="36"
+                 Background="White"
+                 BorderBrush="#FF707070"
+                 BorderThickness="1"/>
+
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
+            <Button Content="确定" Padding="25,6" IsDefault="True" Click="OkButton_Click"/>
+            <Button Content="取消" Padding="25,6" Margin="10,0,0,0" IsCancel="True"/>
+        </StackPanel>
+    </Grid>
+</Window>
