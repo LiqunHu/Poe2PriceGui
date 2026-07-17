@@ -218,7 +218,7 @@
             <ComboBox Grid.Column="1"
                       x:Name="SoundCombo"
                       ItemsSource="{Binding FilteredAvailableSounds}"
-                      SelectedItem="{Binding Rule.CustomAlertSound, UpdateSourceTrigger=PropertyChanged}"
+                      Text="{Binding Rule.CustomAlertSound, UpdateSourceTrigger=LostFocus}"
                       VerticalContentAlignment="Center"
                       IsEditable="True"
                       IsTextSearchEnabled="False"

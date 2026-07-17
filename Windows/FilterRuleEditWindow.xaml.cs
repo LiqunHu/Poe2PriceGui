@@ -204,21 +204,23 @@ public partial class FilterRuleEditWindow : Window
         }
     }
 
-    /// <summary>为可编辑 ComboBox 注册输入筛选事件；使用防抖避免频繁刷新导致卡顿。</summary>
+    /// <summary>为可编辑 ComboBox 注册输入筛选事件；使用防抖避免频繁刷新导致卡顿。
+    /// 直接订阅内部 TextBox 的 TextChanged，避免 WPF ComboBox.Text/SelectedItem 同步导致删除后文本被恢复。</summary>
     private void SetupComboBoxFiltering()
     {
         void AttachFilter(ComboBox combo, ICollectionView view, Func<object, string> getText)
         {
             var timer = new DispatcherTimer(DispatcherPriority.Input) { Interval = TimeSpan.FromMilliseconds(120) };
+            string? pendingText = null;
+            var isSelecting = false;
+
             timer.Tick += (_, _) =>
             {
                 timer.Stop();
-                var text = combo.Text?.Trim() ?? "";
-                var hasText = !string.IsNullOrWhiteSpace(text);
-
-                view.Filter = hasText
-                    ? obj => getText(obj).Contains(text, StringComparison.OrdinalIgnoreCase)
-                    : null;
+                var text = pendingText ?? "";
+                view.Filter = string.IsNullOrWhiteSpace(text)
+                    ? null
+                    : obj => getText(obj).Contains(text, StringComparison.OrdinalIgnoreCase);
                 view.Refresh();
 
                 var count = view.Cast<object>().Count();
@@ -233,13 +235,32 @@ public partial class FilterRuleEditWindow : Window
                 }
             };
 
-            combo.KeyUp += (_, e) =>
+            void HookTextBox()
             {
-                if (e.Key is Key.Enter or Key.Escape or Key.Tab or Key.Up or Key.Down)
+                if (combo.Template?.FindName("PART_EditableTextBox", combo) is not TextBox textBox)
                     return;
 
+                textBox.TextChanged += (_, _) =>
+                {
+                    if (isSelecting) return;
+                    pendingText = textBox.Text;
+                    timer.Stop();
+                    timer.Start();
+                };
+            }
+
+            if (combo.IsLoaded)
+                HookTextBox();
+            else
+                combo.Loaded += (_, _) => HookTextBox();
+
+            // 鼠标/Enter 从下拉列表选择项时，会同步更新 TextBox 文本；
+            // 此时应忽略 TextChanged，避免选择后又把下拉框弹出来。
+            combo.SelectionChanged += (_, _) =>
+            {
+                isSelecting = true;
                 timer.Stop();
-                timer.Start();
+                Dispatcher.BeginInvoke(() => isSelecting = false, DispatcherPriority.Background);
             };
 
             combo.DropDownClosed += (_, _) =>
