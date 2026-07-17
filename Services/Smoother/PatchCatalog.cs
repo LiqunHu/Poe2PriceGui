@@ -73,7 +73,11 @@ public static class PatchCatalog
         "metadata/effects/spells/ground_effects_v2/desecrated_maligaro",
         "metadata/effects/spells/ground_effects_v2/desecrated_red",
         "metadata/effects/spells/ground_effects_v3/caustic",
-        //"metadata/effects/spells/monsters_effects/league_delirium/fog_origin",              //雾的起源
+        // 祭坛/惊悚迷雾（谵妄）选择地图时的天气与 fog 附件
+        "metadata/effects/weather_attachments/league_ritual/",                            //祭坛地图选择天气特效
+        "metadata/effects/weather_attachments/league_delirium/",                          //惊悚迷雾地图选择天气特效
+        "metadata/effects/environment/league_affliction/",                                //惊悚迷雾 fog attachment
+        "metadata/effects/spells/monsters_effects/league_delirium/fog_origin",            //雾的起源
         "metadata/effects/spells/monsters_effects/league_delirium/deliriumobject/",       //恢复弘之镜系列的东西
 
         //武僧风暴钟(tempestbell)基础特效 — Effects补丁会strip .ao动画块导致钟不显示
